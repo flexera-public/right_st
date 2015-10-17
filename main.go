@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mattn/go-colorable"
+
 	"gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/inconshreveable/log15.v2"
+	"gopkg.in/rightscale/rsc.v4/log"
 )
 
 var (
@@ -23,6 +27,10 @@ var (
 )
 
 func main() {
+	handler := log15.StreamHandler(colorable.NewColorableStdout(), log15.TerminalFormat())
+	log15.Root().SetHandler(handler)
+	log.Logger.SetHandler(handler)
+
 	app.Writer(os.Stdout)
 
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
