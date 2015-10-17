@@ -1,0 +1,7 @@
+language: go
+os:
+  - linux
+  - osx
+script:
+  - go build -v ./...
+  - go test -v -cover ./...

@@ -1,0 +1,12 @@
+clone_folder: C:\projects\go\src\github.com\douglaswth\right_st
+environment:
+  GOPATH: C:\projects\go
+install:
+  - appveyor SetVariable -Name PATH -Value "%GOPATH%\bin;%PATH%;C:\Ruby21-x64\DevKit\mingw\bin"
+  - go get -t -v -d ./...
+build_script:
+  - go install -v ./...
+test_script:
+  - go test -v -cover ./...
+artifacts:
+  - path: right_st.exe
