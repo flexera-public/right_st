@@ -87,12 +87,21 @@ func ParseRightScriptMetadata(script *os.File) (*RightScriptMetadata, error) {
 	return &metadata, nil
 }
 
+func (i InputType) String() string {
+	switch i {
+	case Single:
+		return "single"
+	case Array:
+		return "array"
+	default:
+		return fmt.Sprintf("%d", i)
+	}
+}
+
 func (i *InputType) MarshalYAML() (interface{}, error) {
 	switch *i {
-	case Single:
-		return "single", nil
-	case Array:
-		return "array", nil
+	case Single, Array:
+		return i.String(), nil
 	default:
 		return "", fmt.Errorf("Invalid input type value: %d", *i)
 	}
@@ -115,8 +124,12 @@ func (i *InputType) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+func (i InputValue) String() string {
+	return i.Type + ":" + i.Value
+}
+
 func (i *InputValue) MarshalYAML() (interface{}, error) {
-	return i.Type + ":" + i.Value, nil
+	return i.String(), nil
 }
 
 func (i *InputValue) UnmarshalYAML(unmarshal func(interface{}) error) error {
