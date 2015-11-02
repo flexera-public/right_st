@@ -10,37 +10,67 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/inconshreveable/log15.v2"
+
 	"gopkg.in/rightscale/rsc.v4/log"
+	"gopkg.in/rightscale/rsc.v4/rsapi"
 )
 
 var (
-	app         = kingpin.New("right_st", "RightScale ServerTemplate and RightScript tool")
+	app         = kingpin.New("right_st", "A command-line application for managing RightScripts")
+	version     = app.Flag("version", "Print version").Short('v').Bool()
+	debug       = app.Flag("debug", "Debug mode").Short('d').Bool()
 	configFile  = app.Flag("config", "Set the config file path.").Short('c').Default(defaultConfigFile()).String()
 	environment = app.Flag("environment", "Set the RightScale login environment.").Short('e').String()
-	account     = app.Flag("account", "Set the RightScale account ID.").Short('a').Int()
-	host        = app.Flag("host", "RightScale login endpoint (e.g. 'us-3.rightscale.com')").Short('h').String()
 
 	rightScript = app.Command("rightscript", "RightScript stuff")
 
-	rightScriptList     = rightScript.Command("list", "List RightScripts")
-	rightScriptUpload   = rightScript.Command("upload", "Upload a RightScript")
-	rightScriptDownload = rightScript.Command("download", "Download a RightScript to a file or files")
-	rightScriptMetadata = rightScript.Command("metadata", "Add RightScript YAML metadata comments to a file or files")
+	rightScriptList       = rightScript.Command("list", "List RightScripts")
+	rightScriptListFilter = rightScriptList.Flag("filter", "Filter by name").Required().String()
+
+	rightScriptUpload     = rightScript.Command("upload", "Upload a RightScript")
+	rightScriptUploadFile = rightScriptUpload.Flag("file", "File or directory to upload").Short('f').String()
+
+	rightScriptDownload     = rightScript.Command("download", "Download a RightScript to a file or files")
+	rightScriptDownloadName = rightScriptDownload.Flag("name", "Script Name").Short('s').String()
+	rightScriptDownloadId   = rightScriptDownload.Flag("id", "Script ID").Short('i').Int()
+
+	rightScriptMetadata     = rightScript.Command("metadata", "Add RightScript YAML metadata comments to a file or files")
+	rightScriptMetadataFile = rightScriptMetadata.Flag("file", "File or directory to set metadata for").Short('f').String()
 
 	rightScriptValidate      = rightScript.Command("validate", "Validate RightScript YAML metadata comments in a file or files")
 	rightScriptValidatePaths = rightScriptValidate.Arg("path", "Path to script file or directory containing script files").Required().ExistingFilesOrDirs()
 )
 
 func main() {
+	command := kingpin.MustParse(app.Parse(os.Args[1:]))
+
+	err := readConfig(*configFile, *environment)
+	client := config.environment.Client15()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: Error reading config file: %s\n", filepath.Base(os.Args[0]), err)
+		os.Exit(1)
+	}
+
+	// Handle logginng
 	handler := log15.StreamHandler(colorable.NewColorableStdout(), log15.TerminalFormat())
 	log15.Root().SetHandler(handler)
 	log.Logger.SetHandler(handler)
-
 	app.Writer(os.Stdout)
 
-	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
+	switch command {
 	case rightScriptList.FullCommand():
-		fmt.Println(*rightScriptList)
+		rightscriptLocator := client.RightScriptLocator("/api/right_scripts")
+		var apiParams = rsapi.APIParams{"filter": []string{"name==" + *rightScriptListFilter}}
+		fmt.Printf("LIST %s", *rightScriptListFilter)
+		rightscripts, err := rightscriptLocator.Index(
+			apiParams,
+		)
+		if err != nil {
+			fatalError("%#v", err)
+		}
+		for _, rs := range rightscripts {
+			fmt.Printf("%s\n", rs.Name)
+		}
 	case rightScriptUpload.FullCommand():
 		fmt.Println(*rightScriptUpload)
 	case rightScriptDownload.FullCommand():
@@ -62,7 +92,15 @@ func main() {
 		}
 	}
 
-	fmt.Println(*configFile, *environment, *account, *host, *rightScript)
+	fmt.Println("Start - options:", *configFile, config, *rightScript)
+
+	fmt.Println("Done -- authenticated")
+}
+
+func fatalError(format string, v ...interface{}) {
+	msg := fmt.Sprintf(format, v)
+	fmt.Println(msg)
+	os.Exit(1)
 }
 
 func validateRightScript(path string) {
