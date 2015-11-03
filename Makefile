@@ -36,7 +36,7 @@ ACL=public-read
 # version for gopkg.in, e.g. v1, v2, ...
 GOPKG_VERS=v1
 # Dependencies handled by go+glide. Requires 1.5+
-GO15VENDOREXPERIMENT=1
+export GO15VENDOREXPERIMENT=1
 # github.com/rogpeppe/gover requires auth?
 #=== below this line ideally remains unchanged, add new targets at the end  ===
 
@@ -113,11 +113,10 @@ clean:
 # and then pointlessly complains about bad formatting in imported packages, sigh
 #	check-govers
 lint:
-	@if gofmt -l *.go */*.go 2>&1 | grep .go; then \
-	  echo "^- Repo contains improperly formatted go files; run gofmt -w *.go */*.go" && exit 1; \
+	@if gofmt -l *.go 2>&1 | grep .go; then \
+	  echo "^- Repo contains improperly formatted go files; run gofmt -w *.go" && exit 1; \
 	  else echo "All .go files formatted correctly"; fi
 	go tool vet -composites=false *.go
-	go tool vet -composites=false **/*.go
 
 travis-test: lint
 	ginkgo -r -cover
