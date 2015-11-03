@@ -121,14 +121,8 @@ lint:
 travis-test: lint
 	ginkgo -r -cover
 
-# running ginkgo twice, sadly, the problem is that -cover modifies the source code with the effect
-# that if there are errors the output of gingko refers to incorrect line numbers
-# tip: if you don't like colors use gingkgo -r -noColor
+# Test is a dummy for now, no tests
 test: lint
-	@test "$$PWD" != `/bin/pwd` && echo "*** Please cd `/bin/pwd` if compilation fails"
-	ginkgo -r
-	ginkgo -r -cover
-	go tool cover -func=`basename $$PWD`.coverprofile
 
 #===== SPECIAL TARGETS FOR right_st =====
 
