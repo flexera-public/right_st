@@ -9,12 +9,6 @@ import:
   # vcs: git
   # version: v4.0.1
   # repo: http://github.com/rightscale/rsc
-- package: golang.org/x/tools
-  subpackages:
-  - cmd/cover
-- package: github.com/onsi/ginkgo
-  subpackages:
-  - ginkgo
 - package: github.com/douglaswth/rsrdp
   subpackages:
   - /win32
@@ -38,9 +32,15 @@ import:
   version: no_ignore_unspecified_fields
 - package: github.com/spf13/viper
 # Subdepedencies
-#- package: github.com/spf13/cast
-#- package: github.com/spf13/jwalterweatherman
-#- package: github.com/spf13/pflag
-#- package: github.com/kr/text
+- package: github.com/spf13/cast
+- package: github.com/spf13/jwalterweatherman
+- package: github.com/spf13/pflag
+- package: github.com/kr/text
 # Testing dependencies
 - package: github.com/stretchr/testify
+- package: golang.org/x/tools
+  subpackages:
+  - cmd/cover
+- package: github.com/onsi/ginkgo
+  subpackages:
+  - ginkgo
