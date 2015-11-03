@@ -1,7 +1,10 @@
 package main
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -87,7 +90,11 @@ func main() {
 			if info.IsDir() {
 				// TODO: recurse?
 			} else {
-				validateRightScript(path)
+				err = validateRightScript(path)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
+					os.Exit(1)
+				}
 			}
 		}
 	}
@@ -103,12 +110,43 @@ func fatalError(format string, v ...interface{}) {
 	os.Exit(1)
 }
 
-func validateRightScript(path string) {
+func validateRightScript(path string) error {
 	script, err := os.Open(path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
-		os.Exit(1)
+		return err
 	}
 	defer script.Close()
-	pretty.Println(ParseRightScriptMetadata(script))
+
+	metadata, err := ParseRightScriptMetadata(script)
+	if err != nil {
+		return err
+	}
+	pretty.Println(metadata)
+
+	for _, attachment := range metadata.Attachments {
+		md5, err := md5Attachment(path, attachment)
+		if err != nil {
+			return err
+		}
+		fmt.Println(attachment, md5)
+	}
+
+	return nil
+}
+
+func md5Attachment(script, attachment string) (string, error) {
+	path := filepath.Join(filepath.Dir(script), attachment)
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	hash := md5.New()
+
+	_, err = io.Copy(hash, file)
+	if err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
