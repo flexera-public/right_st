@@ -36,6 +36,8 @@ import:
   vcs: git
   repo: https://github.com/douglaswth/yaml
   version: no_ignore_unspecified_fields
+- package: github.com/spf13/viper
 - package: github.com/spf13/cast
 - package: github.com/spf13/jwalterweatherman
 - package: github.com/spf13/pflag
+- package: github.com/kr/text
