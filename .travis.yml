@@ -1,9 +1,12 @@
 language: go
 go:
   - 1.5
+install:
+  - go get github.com/Masterminds/glide
+  - glide up
 os:
   - linux
   - osx
 script:
-  - go build -v ./...
-  - go test -v -cover ./...
+  - make test
+  - make build

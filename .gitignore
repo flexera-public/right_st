@@ -1,3 +1,9 @@
+# With Go 1.5/glide, storing vendor not really necessary
+vendor
+version.go
+build
+right_st
+
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o
 *.a
@@ -22,3 +28,4 @@ _testmain.go
 *.exe
 *.test
 *.prof
+ 

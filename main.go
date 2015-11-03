@@ -11,7 +11,7 @@ import (
 	"github.com/mattn/go-colorable"
 	"github.com/tonnerre/golang-pretty"
 
-	"gopkg.in/alecthomas/kingpin.v2"
+	"github.com/alecthomas/kingpin"
 	"gopkg.in/inconshreveable/log15.v2"
 
 	"gopkg.in/rightscale/rsc.v4/log"
