@@ -48,6 +48,11 @@ TRAVIS_COMMIT?=$(shell git symbolic-ref HEAD | cut -d"/" -f 3)
 GIT_BRANCH:=$(shell git symbolic-ref --short -q HEAD || echo "master")
 SHELL:=/bin/bash
 
+ifeq ($(OS),Windows_NT)
+export CC:=x86_64-w64-mingw32-gcc
+export CXX:=x86_64-w64-mingw32-g++
+endif
+
 # the default target builds a binary in the top-level dir for whatever the local OS is
 default: $(EXE)
 $(EXE): *.go version
@@ -119,11 +124,8 @@ lint:
 	  else echo "All .go files formatted correctly"; fi
 	go tool vet -composites=false *.go
 
-travis-test: lint
-	ginkgo -cover $(shell glide novendor)
-
-# Test is a dummy for now, no tests
 test: lint
+	ginkgo -cover $(shell glide novendor)
 
 #===== SPECIAL TARGETS FOR right_st =====
 

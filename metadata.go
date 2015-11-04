@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -46,7 +47,7 @@ type InputValue struct {
 	Value string
 }
 
-func ParseRightScriptMetadata(script *os.File) (*RightScriptMetadata, error) {
+func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error) {
 	defer script.Seek(0, os.SEEK_SET)
 	scanner := bufio.NewScanner(script)
 	var buffer bytes.Buffer
@@ -78,7 +79,6 @@ func ParseRightScriptMetadata(script *os.File) (*RightScriptMetadata, error) {
 		return nil, fmt.Errorf("Unterminated RightScript metadata comment")
 	}
 	var metadata RightScriptMetadata
-	// TODO: https://github.com/go-yaml/yaml/issues/136
 	err := yaml.Unmarshal(buffer.Bytes(), &metadata)
 	if err != nil {
 		// TODO: adjust line numbers, etc.
