@@ -23,9 +23,9 @@
 package main
 
 import (
-	"gopkg.in/rightscale/rsc.v4/cm15"
-	"gopkg.in/rightscale/rsc.v4/cm16"
-	"gopkg.in/rightscale/rsc.v4/rsapi"
+	"github.com/rightscale/rsc/cm15"
+	"github.com/rightscale/rsc/cm16"
+	"github.com/rightscale/rsc/rsapi"
 )
 
 type Environment struct {
