@@ -58,7 +58,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Handle logginng
+	// Handle logging
 	handler := log15.StreamHandler(colorable.NewColorableStdout(), log15.TerminalFormat())
 	log15.Root().SetHandler(handler)
 	if *debug {
