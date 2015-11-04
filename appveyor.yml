@@ -9,6 +9,7 @@ install:
   - 7z x go1.5.1.windows-amd64.zip -oC:\ >nul
   - appveyor SetVariable -Name PATH -Value "%GOPATH%\bin;%PATH%;C:\Ruby21-x64\DevKit\mingw\bin;C:\cygwin\bin"
   - go get github.com/Masterminds/glide
+  - go get github.com/onsi/ginkgo
   - glide up
 build_script:
   - make
