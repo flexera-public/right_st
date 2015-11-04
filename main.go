@@ -302,7 +302,9 @@ func validateRightScript(path string) error {
 	if err != nil {
 		return err
 	}
-	pretty.Println(metadata)
+	if *debug {
+		pretty.Println(metadata)
+	}
 
 	for _, attachment := range metadata.Attachments {
 		md5, err := md5Attachment(path, attachment)

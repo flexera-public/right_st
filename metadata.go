@@ -56,6 +56,9 @@ func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error
 	var buffer bytes.Buffer
 	var lineNumber, offset uint
 	inMetadata := false
+	// Insert first blank line in buffer since it is read as an array starting at 0,
+	// giving the off by one line number location if an error is reported.
+	buffer.WriteString("\n")
 	for scanner.Scan() {
 		lineNumber++
 		line := scanner.Text()
