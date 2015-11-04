@@ -33,7 +33,7 @@ var (
 	rightScriptListFilter = rightScriptList.Flag("filter", "Filter by name").Short('f').Required().String()
 
 	rightScriptUpload      = rightScript.Command("upload", "Upload a RightScript")
-	rightScriptUploadFile  = rightScriptUpload.Arg("file", "File to upload").Required().String()
+	rightScriptUploadPaths = rightScriptUpload.Arg("file", "File to upload").Required().ExistingFilesOrDirs()
 	rightScriptUploadForce = rightScriptUpload.Flag("force", "Force upload of file if metadata is not present").Bool()
 
 	rightScriptDownload     = rightScript.Command("download", "Download a RightScript to a file or files")
@@ -80,26 +80,40 @@ func main() {
 			fmt.Printf("/api/right_scripts/%s %s\n", rs.Id, rs.Name)
 		}
 	case rightScriptUpload.FullCommand():
-		// fmt.Println(*rightScriptUpload)
-		fmt.Printf("Uploading %s:", *rightScriptUploadFile)
-		f, err := os.Open(*rightScriptUploadFile)
-		if err != nil {
-			fatalError("Cannot open %s", *rightScriptUploadFile)
-		}
-		defer f.Close()
-		metadata, err := ParseRightScriptMetadata(f)
-		fmt.Printf("%v -- %v\n", metadata, err)
+		// Pass 1, perform validations, gather up results
+		scripts := []RightScript{}
+		for _, path := range *rightScriptUploadPaths {
+			info, err := os.Stat(path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
+				os.Exit(1)
+			}
+			if info.IsDir() {
+				// TODO: recurse?
+			} else {
+				fmt.Printf("Uploading %s:", path)
+				f, err := os.Open(path)
+				if err != nil {
+					fatalError("Cannot open %s", path)
+				}
+				defer f.Close()
+				metadata, err := ParseRightScriptMetadata(f)
 
-		if err != nil {
-			if !*rightScriptUploadForce {
-				fatalError("No metadata for %s. Use --force to upload anyways.", *rightScriptUploadFile)
+				if err != nil {
+					if !*rightScriptUploadForce {
+						fatalError("No embedded metadata for %s. Use --force to upload anyways.", path)
+					}
+				}
+				script := RightScript{"", path, metadata}
+				scripts = append(scripts, script)
 			}
 		}
 
-		fmt.Println("Testing")
-
-		err = pushToRightscale(*rightScriptUploadFile, metadata)
-		fmt.Println(err)
+		// Pass 2, upload
+		for _, script := range scripts {
+			err = script.Push()
+			fmt.Println(err)
+		}
 	case rightScriptDownload.FullCommand():
 		fmt.Println(*rightScriptDownload)
 	case rightScriptMetadata.FullCommand():
@@ -124,16 +138,16 @@ func main() {
 	}
 }
 
-// type RightScript struct {
-// 	Href string
-// 	Path string
-//  Metadata *RightScriptMetadata
-// }
-// func (*RightScript) pushToRightscale() {
-func pushToRightscale(file string, metadata *RightScriptMetadata) error {
+type RightScript struct {
+	Href     string
+	Path     string
+	Metadata *RightScriptMetadata
+}
+
+func (r *RightScript) Push() error {
 	client := config.environment.Client15()
 	rightscriptLocator := client.RightScriptLocator("/api/right_scripts")
-	apiParams := rsapi.APIParams{"filter": []string{"name==" + metadata.Name}}
+	apiParams := rsapi.APIParams{"filter": []string{"name==" + r.Metadata.Name}}
 	rightscripts, err := rightscriptLocator.Index(apiParams)
 	if err != nil {
 		return err
@@ -142,7 +156,7 @@ func pushToRightscale(file string, metadata *RightScriptMetadata) error {
 	for _, rs := range rightscripts {
 		fmt.Printf("%#v\n", rs)
 		// Recheck the name here, filter does a impartial match and we need an exact one
-		if rs.Name == metadata.Name && rs.Revision == 0 {
+		if rs.Name == r.Metadata.Name && rs.Revision == 0 {
 			if foundId != "" {
 				fatalError("Error, matched multiple RightScripts with the same name, please delete one: %d %d", rs.Id, foundId)
 			} else {
@@ -151,20 +165,18 @@ func pushToRightscale(file string, metadata *RightScriptMetadata) error {
 		}
 	}
 
-	fmt.Printf("Here: %d\n", foundId)
-
-	fileSrc, err := ioutil.ReadFile(file)
+	pathSrc, err := ioutil.ReadFile(r.Path)
 	if err != nil {
 		return err
 	}
 
 	if foundId == "" {
-		fmt.Printf("Creating a new RightScript named '%s' from %s\n", metadata.Name, file)
+		fmt.Printf("Creating a new RightScript named '%s' from %s\n", r.Metadata.Name, r.Path)
 		// New one, perform create call
 		params := cm15.RightScriptParam2{
-			Name:        metadata.Name,
-			Description: metadata.Description,
-			Source:      string(fileSrc),
+			Name:        r.Metadata.Name,
+			Description: r.Metadata.Description,
+			Source:      string(pathSrc),
 		}
 		//rightscriptLocator = client.RightScriptLocator(fmt.Sprintf("/api/right_scripts", foundId))
 		locator, err := rightscriptLocator.Create(&params)
@@ -172,14 +184,14 @@ func pushToRightscale(file string, metadata *RightScriptMetadata) error {
 		return err
 	} else {
 		// apiParams = rsapi.APIParams{
-		// 	"Name":        metadata.Name,
-		// 	"Description": metadata.Description,
-		// 	"Source":      string(fileSrc),
+		// 	"Name":        r.Metadata.Name,
+		// 	"Description": r.Metadata.Description,
+		// 	"Source":      string(pathSrc),
 		// }
 		params := cm15.RightScriptParam3{
-			Name:        metadata.Name,
-			Description: metadata.Description,
-			Source:      string(fileSrc),
+			Name:        r.Metadata.Name,
+			Description: r.Metadata.Description,
+			Source:      string(pathSrc),
 		}
 		rightscriptLocator = client.RightScriptLocator(fmt.Sprintf("/api/right_scripts/%s", foundId))
 		err = rightscriptLocator.Update(&params)
