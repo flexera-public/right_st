@@ -52,11 +52,11 @@ func main() {
 	command := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	err := readConfig(*configFile, *environment)
-	client := config.environment.Client15()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: Error reading config file: %s\n", filepath.Base(os.Args[0]), err)
 		os.Exit(1)
 	}
+	client := config.environment.Client15()
 
 	// Handle logging
 	handler := log15.StreamHandler(colorable.NewColorableStdout(), log15.TerminalFormat())
