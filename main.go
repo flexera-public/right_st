@@ -140,7 +140,9 @@ func pushToRightscale(file string, metadata *RightScriptMetadata) error {
 	}
 	foundId := ""
 	for _, rs := range rightscripts {
-		if rs.Name == file {
+		fmt.Printf("%#v\n", rs)
+		// Recheck the name here, filter does a impartial match and we need an exact one
+		if rs.Name == metadata.Name && rs.Revision == 0 {
 			if foundId != "" {
 				fatalError("Error, matched multiple RightScripts with the same name, please delete one: %d %d", rs.Id, foundId)
 			} else {
@@ -149,13 +151,25 @@ func pushToRightscale(file string, metadata *RightScriptMetadata) error {
 		}
 	}
 
+	fmt.Printf("Here: %d\n", foundId)
+
 	fileSrc, err := ioutil.ReadFile(file)
 	if err != nil {
 		return err
 	}
 
 	if foundId == "" {
+		fmt.Printf("Creating a new RightScript named '%s' from %s\n", metadata.Name, file)
 		// New one, perform create call
+		params := cm15.RightScriptParam2{
+			Name:        metadata.Name,
+			Description: metadata.Description,
+			Source:      string(fileSrc),
+		}
+		//rightscriptLocator = client.RightScriptLocator(fmt.Sprintf("/api/right_scripts", foundId))
+		locator, err := rightscriptLocator.Create(&params)
+		fmt.Println(locator, err)
+		return err
 	} else {
 		// apiParams = rsapi.APIParams{
 		// 	"Name":        metadata.Name,
@@ -170,6 +184,7 @@ func pushToRightscale(file string, metadata *RightScriptMetadata) error {
 		rightscriptLocator = client.RightScriptLocator(fmt.Sprintf("/api/right_scripts/%s", foundId))
 		err = rightscriptLocator.Update(&params)
 		fmt.Println(err)
+		return err
 		// Found existing, do an update
 	}
 	return nil
