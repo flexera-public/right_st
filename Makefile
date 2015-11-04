@@ -31,6 +31,7 @@
 
 #NAME=$(shell basename $$PWD)
 NAME=right_st
+EXE:=$(NAME)$(shell go env GOEXE)
 BUCKET=rightscale-binaries
 ACL=public-read
 # version for gopkg.in, e.g. v1, v2, ...
@@ -48,15 +49,15 @@ GIT_BRANCH:=$(shell git symbolic-ref --short -q HEAD || echo "master")
 SHELL:=/bin/bash
 
 # the default target builds a binary in the top-level dir for whatever the local OS is
-default: $(NAME)
-$(NAME): *.go version
-	go build -o $(NAME) .
+default: $(EXE)
+$(EXE): *.go version
+	go build -o $(EXE) .
 
-install: $(NAME)
+install: $(EXE)
 	go install
 
 # the standard build produces a "local" executable, a linux tgz, and a darwin (macos) tgz
-build: $(NAME) build/$(NAME)-linux-amd64.tgz build/$(NAME)-darwin-amd64.tgz build/$(NAME)-windows-amd64.zip
+build: $(EXE) build/$(NAME)-linux-amd64.tgz build/$(NAME)-darwin-amd64.tgz build/$(NAME)-windows-amd64.zip
 
 # create a tgz with the binary and any artifacts that are necessary
 # note the hack to allow for various GOOS & GOARCH combos
@@ -106,7 +107,7 @@ depend:
 	glide up
 
 clean:
-	rm -rf build
+	rm -rf build $(EXE)
 	rm -f version.go httpclient/user_agent.go
 
 # gofmt uses the awkward *.go */*.go because gofmt -l . descends into the Godeps workspace
@@ -119,7 +120,7 @@ lint:
 	go tool vet -composites=false *.go
 
 travis-test: lint
-	ginkgo -r -cover
+	ginkgo -cover $(shell glide novendor)
 
 # Test is a dummy for now, no tests
 test: lint

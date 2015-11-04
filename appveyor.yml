@@ -1,15 +1,18 @@
 clone_folder: C:\projects\go\src\github.com\douglaswth\right_st
 environment:
+  CYGWIN: nodosfilewarning
   GOPATH: C:\projects\go
+  GO15VENDOREXPERIMENT: 1
 install:
   - rmdir /q /s C:\Go
   - appveyor DownloadFile https://storage.googleapis.com/golang/go1.5.1.windows-amd64.zip
   - 7z x go1.5.1.windows-amd64.zip -oC:\
-  - appveyor SetVariable -Name PATH -Value "%GOPATH%\bin;%PATH%;C:\Ruby21-x64\DevKit\mingw\bin"
-  - go get -t -v -d ./...
+  - appveyor SetVariable -Name PATH -Value "%GOPATH%\bin;%PATH%;C:\Ruby21-x64\DevKit\mingw\bin;C:\cygwin\bin"
+  - go get github.com/Masterminds/glide
+  - glide up
 build_script:
-  - go install -v ./...
+  - make
 test_script:
-  - go test -v -cover ./...
+  - make test
 artifacts:
   - path: right_st.exe
