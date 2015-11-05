@@ -283,7 +283,6 @@ func (r *RightScript) Push() error {
 		return err
 		// Found existing, do an update
 	}
-	return nil
 }
 
 func fatalError(format string, v ...interface{}) {
