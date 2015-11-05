@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
 	"os"
 )
 
@@ -11,7 +13,27 @@ func AddRightScriptMetadata(path string) error {
 	}
 	defer script.Close()
 
-	// check if metadata already exists
+	// check if metadata section set by delimiters already exists
+	scanner := bufio.NewScanner(script)
+	inMetadata := false
+	metadataExists := false
+	for scanner.Scan() {
+		line := scanner.Text()
+		switch {
+		case inMetadata:
+			submatches := metadataEnd.FindStringSubmatch(line)
+			if submatches != nil {
+				metadataExists = true
+				break
+			}
+		case metadataStart.MatchString(line):
+			inMetadata = true
+		}
+	}
+
+	if metadataExists == true {
+		fmt.Println("metadata already exists")
+	}
 
 	// Load script
 
