@@ -16,6 +16,8 @@ var _ = Describe("Metadata", func() {
 	var (
 		validScript                     io.ReadSeeker
 		missingEndDelimiterScript       io.ReadSeeker
+		invalidYamlSyntaxScript         io.ReadSeeker
+		invalidMetadataStructureScript  io.ReadSeeker
 		incorrectInputTypeSyntaxScript  io.ReadSeeker
 		incorrectInputValueSyntaxScript io.ReadSeeker
 		unknownFieldScript              io.ReadSeeker
@@ -68,6 +70,32 @@ var _ = Describe("Metadata", func() {
 #       - text:barfoo
 #
 # We should have used the '...' end delimiter above
+`)
+		invalidYamlSyntaxScript = strings.NewReader(`
+#!/bin/bash
+# ---
+# RightScript Name: Some RightScript Name
+# Description: Some description of stuff
+# Inputs:
+#   TEXT_INPUT:
+#     Category: Uncategorized
+#     Description: Some test input
+#     Input Type: bogus
+#     Required: true
+#     Advanced: false
+#     Default: text:
+# ...
+# The Default line is invalid YAML
+`)
+		invalidMetadataStructureScript = strings.NewReader(`
+#!/bin/bash
+# ---
+# RightScript Name: Some RightScript Name
+# Description: Some description of stuff
+# Inputs:
+#   - TEXT_INPUT
+# ...
+# The Inputs field should have a map not an array
 `)
 		incorrectInputTypeSyntaxScript = strings.NewReader(`
 #!/bin/bash
@@ -152,6 +180,26 @@ var _ = Describe("Metadata", func() {
 			})
 		})
 
+		Context("With invalid YAML syntax in script metadata", func() {
+			It("should return an error", func() {
+				_, err := ParseRightScriptMetadata(invalidYamlSyntaxScript)
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(MatchError("yaml: line 13: mapping values are not allowed in this context"))
+			})
+		})
+
+		Context("With invalid structure in script metadata", func() {
+			It("should return an error", func() {
+				_, err := ParseRightScriptMetadata(invalidMetadataStructureScript)
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(MatchError(&yaml.TypeError{
+					Errors: []string{
+						"line 8: cannot unmarshal !!seq into map[string]main.InputMetadata",
+					},
+				}))
+			})
+		})
+
 		Context("With incorrect input type syntax in script metadata", func() {
 			It("should return an error", func() {
 				_, err := ParseRightScriptMetadata(incorrectInputTypeSyntaxScript)
@@ -174,7 +222,7 @@ var _ = Describe("Metadata", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(&yaml.TypeError{
 					Errors: []string{
-						"line 2: no such field 'Some Bogus Field' in struct 'main.RightScriptMetadata'",
+						"line 5: no such field 'Some Bogus Field' in struct 'main.RightScriptMetadata'",
 					},
 				}))
 			})
