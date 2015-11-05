@@ -41,7 +41,7 @@ var (
 	rightScriptDownloadNameOrHref = rightScriptDownload.Arg("name_or_href", "Script Name or Href").Required().String()
 	rightScriptDownloadTo         = rightScriptDownload.Arg("path", "Download location").String()
 
-	rightScriptScaffold      = rightScript.Command("metadata", "Add RightScript YAML metadata comments to a file or files")
+	rightScriptScaffold      = rightScript.Command("scaffold", "Add RightScript YAML metadata comments to a file or files")
 	rightScriptScaffoldPaths = rightScriptScaffold.Arg("path", "File or directory to set metadata for").Required().ExistingFilesOrDirs()
 
 	rightScriptValidate      = rightScript.Command("validate", "Validate RightScript YAML metadata comments in a file or files")
