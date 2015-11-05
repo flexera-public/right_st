@@ -34,15 +34,15 @@ var (
 	rightScriptListFilter = rightScriptList.Flag("filter", "Filter by name").Short('f').Required().String()
 
 	rightScriptUpload      = rightScript.Command("upload", "Upload a RightScript")
-	rightScriptUploadPaths = rightScriptUpload.Arg("file", "File to upload").Required().ExistingFilesOrDirs()
+	rightScriptUploadPaths = rightScriptUpload.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
 	rightScriptUploadForce = rightScriptUpload.Flag("force", "Force upload of file if metadata is not present").Bool()
 
 	rightScriptDownload           = rightScript.Command("download", "Download a RightScript to a file or files")
 	rightScriptDownloadNameOrHref = rightScriptDownload.Arg("name_or_href", "Script Name or Href").Required().String()
-	rightScriptDownloadTo         = rightScriptDownload.Arg("file", "Download location").String()
+	rightScriptDownloadTo         = rightScriptDownload.Arg("path", "Download location").String()
 
-	rightScriptMetadata     = rightScript.Command("metadata", "Add RightScript YAML metadata comments to a file or files")
-	rightScriptMetadataFile = rightScriptMetadata.Flag("file", "File or directory to set metadata for").Short('f').String()
+	rightScriptScaffold      = rightScript.Command("metadata", "Add RightScript YAML metadata comments to a file or files")
+	rightScriptScaffoldPaths = rightScriptScaffold.Arg("path", "File or directory to set metadata for").Required().ExistingFilesOrDirs()
 
 	rightScriptValidate      = rightScript.Command("validate", "Validate RightScript YAML metadata comments in a file or files")
 	rightScriptValidatePaths = rightScriptValidate.Arg("path", "Path to script file or directory containing script files").Required().ExistingFilesOrDirs()
@@ -171,8 +171,8 @@ func main() {
 			fatalError("Could not create file: %s", err.Error())
 		}
 
-	case rightScriptMetadata.FullCommand():
-		fmt.Println(*rightScriptMetadata)
+	case rightScriptScaffold.FullCommand():
+		fmt.Println(*rightScriptScaffold)
 	case rightScriptValidate.FullCommand():
 		for _, path := range *rightScriptValidatePaths {
 			info, err := os.Stat(path)
