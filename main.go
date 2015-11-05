@@ -172,7 +172,22 @@ func main() {
 		}
 
 	case rightScriptScaffold.FullCommand():
-		fmt.Println(*rightScriptScaffold)
+		for _, path := range *rightScriptScaffoldPaths {
+			info, err := os.Stat(path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
+				os.Exit(1)
+			}
+			if info.IsDir() {
+				// TODO: recurse - see what was done with rightScriptValidate
+			} else {
+				err = AddRightScriptMetadata(path)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
+					os.Exit(1)
+				}
+			}
+		}
 	case rightScriptValidate.FullCommand():
 		for _, path := range *rightScriptValidatePaths {
 			info, err := os.Stat(path)
