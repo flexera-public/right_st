@@ -12,7 +12,7 @@ func AddRightScriptMetadata(path string) error {
 	defer script.Close()
 
 	// check if metadata already exists
-	
+
 	// Load script
 
 	// Add metadata to buffer version
