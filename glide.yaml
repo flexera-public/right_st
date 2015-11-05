@@ -5,10 +5,10 @@ import:
 - package: github.com/rlmcpherson/s3gof3r
   subpackages:
   - gof3r
-- package: gopkg.in/rightscale/rsc.v4
-  # vcs: git
-  # version: v4.0.1
-  # repo: http://github.com/rightscale/rsc
+- package: github.com/rightscale/rsc
+  vcs: git
+  version: right_scripts_update_source2
+  repo: https://github.com/lopaka/rsc
 - package: github.com/douglaswth/rsrdp
   subpackages:
   - /win32
