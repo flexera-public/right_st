@@ -181,7 +181,24 @@ func main() {
 				os.Exit(1)
 			}
 			if info.IsDir() {
-				// TODO: recurse?
+				files := []string{}
+				err = filepath.Walk(path, func(p string, f os.FileInfo, err error) error {
+					files = append(files, p)
+					return nil
+				})
+
+				err_encountered := false
+				for _, file := range files {
+					err = validateRightScript(file)
+					if err != nil {
+						err_encountered = true
+						fmt.Fprintf(os.Stderr, "%s - %s: %s\n", file, filepath.Base(os.Args[0]), err)
+					}
+				}
+				if err_encountered != false {
+					os.Exit(1)
+				}
+
 			} else {
 				err = validateRightScript(path)
 				if err != nil {
@@ -305,6 +322,7 @@ func validateRightScript(path string) error {
 	if *debug {
 		pretty.Println(metadata)
 	}
+	fmt.Printf("%s - valid metadata\n", path)
 
 	for _, attachment := range metadata.Attachments {
 		md5, err := md5Attachment(path, attachment)
