@@ -84,31 +84,28 @@ func main() {
 	case rightScriptUpload.FullCommand():
 		// Pass 1, perform validations, gather up results
 		scripts := []RightScript{}
-		for _, path := range *rightScriptUploadPaths {
-			info, err := os.Stat(path)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
-				os.Exit(1)
-			}
-			if info.IsDir() {
-				// TODO: recurse?
-			} else {
-				fmt.Printf("Uploading %s:", path)
-				f, err := os.Open(path)
-				if err != nil {
-					fatalError("Cannot open %s", path)
-				}
-				defer f.Close()
-				metadata, err := ParseRightScriptMetadata(f)
+		paths, err := walkPaths(rightScriptUploadPaths)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
+			os.Exit(1)
+		}
 
-				if err != nil {
-					if !*rightScriptUploadForce {
-						fatalError("No embedded metadata for %s. Use --force to upload anyways.", path)
-					}
-				}
-				script := RightScript{"", path, metadata}
-				scripts = append(scripts, script)
+		for _, path := range paths {
+			fmt.Printf("Uploading %s:", path)
+			f, err := os.Open(path)
+			if err != nil {
+				fatalError("Cannot open %s", path)
 			}
+			defer f.Close()
+			metadata, err := ParseRightScriptMetadata(f)
+
+			if err != nil {
+				if !*rightScriptUploadForce {
+					fatalError("No embedded metadata for %s. Use --force to upload anyways.", path)
+				}
+			}
+			script := RightScript{"", path, metadata}
+			scripts = append(scripts, script)
 		}
 
 		// Pass 2, upload
@@ -173,57 +170,64 @@ func main() {
 		}
 
 	case rightScriptScaffold.FullCommand():
-		for _, path := range *rightScriptScaffoldPaths {
-			info, err := os.Stat(path)
+		paths, err := walkPaths(rightScriptScaffoldPaths)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
+			os.Exit(1)
+		}
+
+		for _, path := range paths {
+			err = AddRightScriptMetadata(path)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
 				os.Exit(1)
-			}
-			if info.IsDir() {
-				// TODO: recurse - see what was done with rightScriptValidate
-			} else {
-				err = AddRightScriptMetadata(path)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
-					os.Exit(1)
-				}
 			}
 		}
 	case rightScriptValidate.FullCommand():
-		for _, path := range *rightScriptValidatePaths {
-			info, err := os.Stat(path)
+		paths, err := walkPaths(rightScriptValidatePaths)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
+			os.Exit(1)
+		}
+
+		err_encountered := false
+
+		for _, path := range paths {
+			err = validateRightScript(path)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
-				os.Exit(1)
-			}
-			if info.IsDir() {
-				files := []string{}
-				err = filepath.Walk(path, func(p string, f os.FileInfo, err error) error {
-					files = append(files, p)
-					return nil
-				})
-
-				err_encountered := false
-				for _, file := range files {
-					err = validateRightScript(file)
-					if err != nil {
-						err_encountered = true
-						fmt.Fprintf(os.Stderr, "%s - %s: %s\n", file, filepath.Base(os.Args[0]), err)
-					}
-				}
-				if err_encountered != false {
-					os.Exit(1)
-				}
-
-			} else {
-				err = validateRightScript(path)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
-					os.Exit(1)
-				}
+				err_encountered = true
+				fmt.Fprintf(os.Stderr, "%s - %s: %s\n", path, filepath.Base(os.Args[0]), err)
 			}
 		}
+		if err_encountered != false {
+			os.Exit(1)
+		}
 	}
+}
+
+// Turn a mixed array of directories and files into a linear list of files
+func walkPaths(paths *[]string) ([]string, error) {
+	files := []string{}
+	for _, path := range *paths {
+		info, err := os.Stat(path)
+		if err != nil {
+			return files, err
+		}
+		if info.IsDir() {
+			err = filepath.Walk(path, func(p string, f os.FileInfo, err error) error {
+				files = append(files, p)
+				_, e := os.Stat(p)
+				return e
+			})
+			if err != nil {
+				return files, err
+			}
+		} else {
+			files = append(files, path)
+		}
+	}
+	return files, nil
+
 }
 
 // Crappy workaround. RSC doesn't return the body of the http request which contains
