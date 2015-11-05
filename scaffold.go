@@ -32,7 +32,7 @@ func AddRightScriptMetadata(path string) error {
 	}
 
 	if metadataExists == true {
-		fmt.Println("metadata already exists")
+		fmt.Printf("%s - metadata already exists\n", path)
 	}
 
 	// Load script

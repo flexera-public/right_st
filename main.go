@@ -199,7 +199,7 @@ func main() {
 				fmt.Fprintf(os.Stderr, "%s - %s: %s\n", path, filepath.Base(os.Args[0]), err)
 			}
 		}
-		if err_encountered != false {
+		if err_encountered {
 			os.Exit(1)
 		}
 	}
