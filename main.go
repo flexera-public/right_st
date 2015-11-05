@@ -165,7 +165,7 @@ func main() {
 		if *rightScriptDownloadTo == "" {
 			*rightScriptDownloadTo = rightscript.Name
 		}
-		fmt.Printf("Attemping to download '%s' to %s", rightscript.Name, *rightScriptDownloadTo)
+		fmt.Printf("Attempting to download '%s' to %s\n", rightscript.Name, *rightScriptDownloadTo)
 		err = ioutil.WriteFile(*rightScriptDownloadTo, source, 0755)
 		if err != nil {
 			fatalError("Could not create file: %s", err.Error())
