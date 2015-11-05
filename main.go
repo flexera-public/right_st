@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/mattn/go-colorable"
 	"github.com/tonnerre/golang-pretty"
@@ -36,9 +37,9 @@ var (
 	rightScriptUploadPaths = rightScriptUpload.Arg("file", "File to upload").Required().ExistingFilesOrDirs()
 	rightScriptUploadForce = rightScriptUpload.Flag("force", "Force upload of file if metadata is not present").Bool()
 
-	rightScriptDownload     = rightScript.Command("download", "Download a RightScript to a file or files")
-	rightScriptDownloadName = rightScriptDownload.Flag("name", "Script Name").Short('s').String()
-	rightScriptDownloadId   = rightScriptDownload.Flag("id", "Script ID").Short('i').Int()
+	rightScriptDownload           = rightScript.Command("download", "Download a RightScript to a file or files")
+	rightScriptDownloadNameOrHref = rightScriptDownload.Arg("name_or_href", "Script Name or Href").Required().String()
+	rightScriptDownloadTo         = rightScriptDownload.Arg("file", "Download location").String()
 
 	rightScriptMetadata     = rightScript.Command("metadata", "Add RightScript YAML metadata comments to a file or files")
 	rightScriptMetadataFile = rightScriptMetadata.Flag("file", "File or directory to set metadata for").Short('f').String()
@@ -115,7 +116,61 @@ func main() {
 			fmt.Println(err)
 		}
 	case rightScriptDownload.FullCommand():
-		fmt.Println(*rightScriptDownload)
+		rsIdMatch := regexp.MustCompile(`^\d+$`)
+		rsHrefMatch := regexp.MustCompile(`^/api/right_scripts/\d+$`)
+
+		var href string
+
+		if rsIdMatch.Match([]byte(*rightScriptDownloadNameOrHref)) {
+			href = fmt.Sprintf("/api/right_scripts/%s", *rightScriptDownloadNameOrHref)
+		} else if rsHrefMatch.Match([]byte(*rightScriptDownloadNameOrHref)) {
+			href = *rightScriptDownloadNameOrHref
+		} else {
+			rightscriptLocator := client.RightScriptLocator("/api/right_scripts")
+			apiParams := rsapi.APIParams{"filter": []string{"name==" + *rightScriptDownloadNameOrHref}}
+			rightscripts, err := rightscriptLocator.Index(apiParams)
+			if err != nil {
+				fatalError("%s", err.Error())
+			}
+			foundId := ""
+			for _, rs := range rightscripts {
+				//fmt.Printf("%#v\n", rs)
+				// Recheck the name here, filter does a impartial match and we need an exact one
+				// TODO, do first pass for head revisions only, second for non-heads?
+				if rs.Name == *rightScriptDownloadNameOrHref && rs.Revision == 0 {
+					if foundId != "" {
+						fatalError("Error, matched multiple RightScripts with the same name. Don't know which one to download. Please delete one or specify an HREF to download such as /api/right_scripts/%d", rs.Id)
+					} else {
+						foundId = rs.Id
+					}
+				}
+			}
+			if foundId == "" {
+				fatalError("Found no RightScripts matching %s", *rightScriptDownloadNameOrHref)
+			}
+			href = fmt.Sprintf("/api/right_scripts/%s", foundId)
+		}
+
+		rightscriptLocator := client.RightScriptLocator(href)
+		// attachmentsLocator := client.RightScriptLocator(fmt.Sprintf("%s/attachments", href))
+		// sourceLocator := client.RightScriptLocator(fmt.Sprintf("%s/source", href))
+
+		rightscript, err1 := rightscriptLocator.Show()
+		source, err2 := GetSource(rightscriptLocator)
+
+		// attachments, err2 := attachmentsLocator.Index(rsapi.APIParams{})
+		fmt.Printf("Found %#v  -- %v\n", rightscript, err1)
+		fmt.Printf("Source %s -- %v\n", source, err2)
+
+		if *rightScriptDownloadTo == "" {
+			*rightScriptDownloadTo = rightscript.Name
+		}
+		fmt.Printf("Attemping to download '%s' to %s", rightscript.Name, *rightScriptDownloadTo)
+		err = ioutil.WriteFile(*rightScriptDownloadTo, source, 0755)
+		if err != nil {
+			fatalError("Could not create file: %s", err.Error())
+		}
+
 	case rightScriptMetadata.FullCommand():
 		fmt.Println(*rightScriptMetadata)
 	case rightScriptValidate.FullCommand():
@@ -138,6 +193,35 @@ func main() {
 	}
 }
 
+// Crappy workaround. RSC doesn't return the body of the http request which contains
+// the script source, so do the same lower level calls it does to get it.
+func GetSource(loc *cm15.RightScriptLocator) (respBody []byte, err error) {
+	var params rsapi.APIParams
+	var p rsapi.APIParams
+	APIVersion := "1.5"
+	client := config.environment.Client15()
+
+	uri, err := loc.ActionPath("RightScript", "show_source")
+	if err != nil {
+		return respBody, err
+	}
+	req, err := client.BuildHTTPRequest(uri.HTTPMethod, uri.Path, APIVersion, params, p)
+	if err != nil {
+		return respBody, err
+	}
+	resp, err := client.PerformRequest(req)
+	if err != nil {
+		return respBody, err
+	}
+	defer resp.Body.Close()
+	respBody, _ = ioutil.ReadAll(resp.Body)
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return respBody, fmt.Errorf("invalid response %s: %s", resp.Status, string(respBody))
+	}
+	return respBody, nil
+}
+
 type RightScript struct {
 	Href     string
 	Path     string
@@ -154,7 +238,7 @@ func (r *RightScript) Push() error {
 	}
 	foundId := ""
 	for _, rs := range rightscripts {
-		fmt.Printf("%#v\n", rs)
+		//fmt.Printf("%#v\n", rs)
 		// Recheck the name here, filter does a impartial match and we need an exact one
 		if rs.Name == r.Metadata.Name && rs.Revision == 0 {
 			if foundId != "" {
