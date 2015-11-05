@@ -7,8 +7,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/mattn/go-colorable"
 	"github.com/tonnerre/golang-pretty"
@@ -17,6 +19,7 @@ import (
 	"gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/rightscale/rsc/cm15"
+	"github.com/rightscale/rsc/httpclient"
 	"github.com/rightscale/rsc/log"
 	"github.com/rightscale/rsc/rsapi"
 )
@@ -60,26 +63,36 @@ func main() {
 	client := config.environment.Client15()
 
 	// Handle logging
-	handler := log15.StreamHandler(colorable.NewColorableStdout(), log15.TerminalFormat())
-	log15.Root().SetHandler(handler)
+	logLevel := log15.LvlInfo
+
 	if *debug {
-		log.Logger.SetHandler(handler)
+		log.Logger.SetHandler(
+			log15.LvlFilterHandler(
+				log15.LvlDebug,
+				log15.StderrHandler))
+		httpclient.DumpFormat = httpclient.Debug
+		logLevel = log15.LvlDebug
 	}
+	handler := log15.LvlFilterHandler(logLevel, log15.StreamHandler(colorable.NewColorableStdout(), log15.TerminalFormat()))
+	log15.Root().SetHandler(handler)
 	app.Writer(os.Stdout)
 
 	switch command {
 	case rightScriptList.FullCommand():
 		rightscriptLocator := client.RightScriptLocator("/api/right_scripts")
 		var apiParams = rsapi.APIParams{"filter": []string{"name==" + *rightScriptListFilter}}
-		fmt.Printf("LIST %s:\n", *rightScriptListFilter)
-		rightscripts, err := rightscriptLocator.Index(
-			apiParams,
-		)
+		fmt.Printf("Listing %s:\n", *rightScriptListFilter)
+		//log15.Info("Listing", "RightScript", *rightScriptListFilter)
+		rightscripts, err := rightscriptLocator.Index(apiParams)
 		if err != nil {
-			fatalError("%#v", err)
+			fatalError("%s", err.Error())
 		}
 		for _, rs := range rightscripts {
-			fmt.Printf("/api/right_scripts/%s %s\n", rs.Id, rs.Name)
+			rev := "HEAD"
+			if rs.Revision != 0 {
+				rev = fmt.Sprintf("%d", rs.Revision)
+			}
+			fmt.Printf("/api/right_scripts/%s %5s %s\n", rs.Id, rev, rs.Name)
 		}
 	case rightScriptUpload.FullCommand():
 		// Pass 1, perform validations, gather up results
@@ -90,28 +103,35 @@ func main() {
 			os.Exit(1)
 		}
 
-		for _, path := range paths {
-			fmt.Printf("Uploading %s:", path)
-			f, err := os.Open(path)
+		for _, p := range paths {
+			fmt.Printf("Uploading %s\n", p)
+			f, err := os.Open(p)
 			if err != nil {
-				fatalError("Cannot open %s", path)
+				fatalError("Cannot open %s", p)
 			}
 			defer f.Close()
 			metadata, err := ParseRightScriptMetadata(f)
 
-			if err != nil {
+			if metadata.Name == "" {
 				if !*rightScriptUploadForce {
-					fatalError("No embedded metadata for %s. Use --force to upload anyways.", path)
+					fatalError("No embedded metadata for %s. Use --force to upload anyways.", p)
 				}
+				scriptname := path.Base(p)
+				scriptext := path.Ext(scriptname)
+				scriptname = strings.TrimRight(scriptname, scriptext)
+				metadata.Name = scriptname
 			}
-			script := RightScript{"", path, metadata}
+
+			script := RightScript{"", p, metadata}
 			scripts = append(scripts, script)
 		}
 
 		// Pass 2, upload
 		for _, script := range scripts {
 			err = script.Push()
-			fmt.Println(err)
+			if err != nil {
+				fatalError("%s", err.Error())
+			}
 		}
 	case rightScriptDownload.FullCommand():
 		rsIdMatch := regexp.MustCompile(`^\d+$`)
@@ -153,17 +173,20 @@ func main() {
 		// attachmentsLocator := client.RightScriptLocator(fmt.Sprintf("%s/attachments", href))
 		// sourceLocator := client.RightScriptLocator(fmt.Sprintf("%s/source", href))
 
-		rightscript, err1 := rightscriptLocator.Show()
-		source, err2 := GetSource(rightscriptLocator)
+		rightscript, err := rightscriptLocator.Show()
+		if err != nil {
+			fatalError("Could not find rightscript with href %s: %s", href, err.Error())
+		}
+		source, err := getSource(rightscriptLocator)
+		if err != nil {
+			fatalError("Could get soruce for rightscript with href %s: %s", href, err.Error())
+		}
 
 		// attachments, err2 := attachmentsLocator.Index(rsapi.APIParams{})
-		fmt.Printf("Found %#v  -- %v\n", rightscript, err1)
-		fmt.Printf("Source %s -- %v\n", source, err2)
-
 		if *rightScriptDownloadTo == "" {
 			*rightScriptDownloadTo = rightscript.Name
 		}
-		fmt.Printf("Attempting to download '%s' to %s\n", rightscript.Name, *rightScriptDownloadTo)
+		fmt.Printf("Downloading '%s' to %s\n", rightscript.Name, *rightScriptDownloadTo)
 		err = ioutil.WriteFile(*rightScriptDownloadTo, source, 0755)
 		if err != nil {
 			fatalError("Could not create file: %s", err.Error())
@@ -232,7 +255,7 @@ func walkPaths(paths *[]string) ([]string, error) {
 
 // Crappy workaround. RSC doesn't return the body of the http request which contains
 // the script source, so do the same lower level calls it does to get it.
-func GetSource(loc *cm15.RightScriptLocator) (respBody []byte, err error) {
+func getSource(loc *cm15.RightScriptLocator) (respBody []byte, err error) {
 	var params rsapi.APIParams
 	var p rsapi.APIParams
 	APIVersion := "1.5"
@@ -300,15 +323,10 @@ func (r *RightScript) Push() error {
 			Source:      string(pathSrc),
 		}
 		//rightscriptLocator = client.RightScriptLocator(fmt.Sprintf("/api/right_scripts", foundId))
-		locator, err := rightscriptLocator.Create(&params)
-		fmt.Println(locator, err)
-		return err
+		_, err = rightscriptLocator.Create(&params)
 	} else {
-		// apiParams = rsapi.APIParams{
-		// 	"Name":        r.Metadata.Name,
-		// 	"Description": r.Metadata.Description,
-		// 	"Source":      string(pathSrc),
-		// }
+		fmt.Printf("Updating existing RightScript named '%s' from %s\n", r.Metadata.Name, r.Path)
+
 		params := cm15.RightScriptParam3{
 			Name:        r.Metadata.Name,
 			Description: r.Metadata.Description,
@@ -316,14 +334,13 @@ func (r *RightScript) Push() error {
 		}
 		rightscriptLocator = client.RightScriptLocator(fmt.Sprintf("/api/right_scripts/%s", foundId))
 		err = rightscriptLocator.Update(&params)
-		fmt.Println(err)
-		return err
 		// Found existing, do an update
 	}
+	return err
 }
 
 func fatalError(format string, v ...interface{}) {
-	msg := fmt.Sprintf(format, v)
+	msg := fmt.Sprintf("ERROR: "+format, v)
 	fmt.Println(msg)
 	os.Exit(1)
 }
