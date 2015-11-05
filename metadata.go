@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/go-yaml/yaml"
@@ -21,6 +22,7 @@ var (
 	comment       = regexp.MustCompile(`^\s*(?:#|//|--)\s?(.*)$`)
 	metadataStart = regexp.MustCompile(`^\s*(?:#|//|--)\s?(\s*-{3}\s*)$`)
 	metadataEnd   = regexp.MustCompile(`^\s*(?:#|//|--)\s?(\s*\.{3}\s*)$`)
+	yamlLineError = regexp.MustCompile(`^(yaml: )?line (\d+):`)
 )
 
 type RightScriptMetadata struct {
@@ -49,10 +51,13 @@ type InputValue struct {
 
 func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error) {
 	defer script.Seek(0, os.SEEK_SET)
+
 	scanner := bufio.NewScanner(script)
 	var buffer bytes.Buffer
+	var lineNumber, offset uint
 	inMetadata := false
 	for scanner.Scan() {
+		lineNumber++
 		line := scanner.Text()
 		switch {
 		case inMetadata:
@@ -70,6 +75,7 @@ func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error
 			submatches := metadataStart.FindStringSubmatch(line)
 			buffer.WriteString(submatches[1] + "\n")
 			inMetadata = true
+			offset = lineNumber
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -78,10 +84,24 @@ func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error
 	if inMetadata {
 		return nil, fmt.Errorf("Unterminated RightScript metadata comment")
 	}
+
 	var metadata RightScriptMetadata
 	err := yaml.Unmarshal(buffer.Bytes(), &metadata)
 	if err != nil {
-		// TODO: adjust line numbers, etc.
+		yamlLineReplace := func(line string) string {
+			submatches := yamlLineError.FindStringSubmatch(line)
+			number, _ := strconv.ParseUint(submatches[2], 10, 0)
+			return fmt.Sprintf(submatches[1]+"line %d:", uint(number)+offset)
+		}
+
+		switch err := err.(type) {
+		case *yaml.TypeError:
+			for index, lineError := range err.Errors {
+				err.Errors[index] = yamlLineError.ReplaceAllStringFunc(lineError, yamlLineReplace)
+			}
+		case error:
+			return &metadata, fmt.Errorf(yamlLineError.ReplaceAllStringFunc(err.Error(), yamlLineReplace))
+		}
 		return &metadata, err
 	}
 	return &metadata, nil
