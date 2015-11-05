@@ -49,6 +49,7 @@ var (
 )
 
 func main() {
+	app.HelpFlag.Short('h')
 	command := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	err := readConfig(*configFile, *environment)
