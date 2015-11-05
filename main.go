@@ -31,7 +31,7 @@ var (
 	rightScript = app.Command("rightscript", "RightScript stuff")
 
 	rightScriptList       = rightScript.Command("list", "List RightScripts")
-	rightScriptListFilter = rightScriptList.Flag("filter", "Filter by name").Short('f').Required().String()
+	rightScriptListFilter = rightScriptList.Arg("filter", "Filter by name").Required().String()
 
 	rightScriptUpload      = rightScript.Command("upload", "Upload a RightScript")
 	rightScriptUploadPaths = rightScriptUpload.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
