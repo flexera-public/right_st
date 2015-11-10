@@ -324,7 +324,7 @@ func getSource(loc *cm15.RightScriptLocator) (respBody []byte, err error) {
 
 // Crappy workaround 2. the RightScriptAttachmentLocator.Create call doesn't work
 // because RSCs countless concrete types screw things up. The RSC create call calls BuildHttpRequest
-// with the type passed in, which is serializes to JSON. Under different code paths 
+// with the type passed in, which is serializes to JSON. Under different code paths
 // (such as here or the command line) it passes in rsapi.APIParams instead of a fixed type of
 // cm15.RightScriptAttachmentParams. BuildHTTPRequest has code to iterate over APIParams and
 // turn it into a a multipart mime doc if it sees a FileUpload type. But it doesn't have
