@@ -36,6 +36,9 @@ var (
 	rightScriptList       = rightScript.Command("list", "List RightScripts")
 	rightScriptListFilter = rightScriptList.Arg("filter", "Filter by name").Required().String()
 
+	rightScriptShow           = rightScript.Command("show", "Show a single RightScript and its attachments")
+	rightScriptShowNameOrHref = rightScriptShow.Arg("name_or_href", "Script Name or Href").Required().String()
+
 	rightScriptUpload      = rightScript.Command("upload", "Upload a RightScript")
 	rightScriptUploadPaths = rightScriptUpload.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
 	rightScriptUploadForce = rightScriptUpload.Flag("force", "Force upload of file if metadata is not present").Bool()
@@ -94,6 +97,35 @@ func main() {
 			}
 			fmt.Printf("/api/right_scripts/%s %5s %s\n", rs.Id, rev, rs.Name)
 		}
+	case rightScriptShow.FullCommand():
+		href, err := rightscriptParamToHref(*rightScriptShowNameOrHref)
+		attachmentsHref := fmt.Sprintf("%s/attachments", href)
+		if err != nil {
+			fatalError("%s", err.Error())
+		}
+
+		rightscriptLocator := client.RightScriptLocator(href)
+		attachmentsLocator := client.RightScriptAttachmentLocator(attachmentsHref)
+
+		rightscript, err := rightscriptLocator.Show()
+		if err != nil {
+			fatalError("Could not find rightscript with href %s: %s", href, err.Error())
+		}
+		attachments, err := attachmentsLocator.Index(rsapi.APIParams{})
+		if err != nil {
+			fatalError("Could not find attachments with href %s: %s", attachmentsHref, err.Error())
+		}
+		rev := "HEAD"
+		if rightscript.Revision != 0 {
+			rev = fmt.Sprintf("%d", rightscript.Revision)
+		}
+		fmt.Printf("HREF: /api/right_scripts/%s\n", rightscript.Id)
+		fmt.Printf("Revision: %5s\n", rev)
+		fmt.Printf("Name: %s\n", rightscript.Name)
+		fmt.Printf("Attachments (id, md5, name):\n")
+		for _, a := range attachments {
+			fmt.Printf("  %d %s %s\n", a.Id, a.Digest, a.Name)
+		}
 	case rightScriptUpload.FullCommand():
 		// Pass 1, perform validations, gather up results
 		scripts := []RightScript{}
@@ -124,6 +156,8 @@ func main() {
 
 			script := RightScript{"", p, metadata}
 			scripts = append(scripts, script)
+
+			// validate all attachments exist and are readable
 		}
 
 		// Pass 2, upload
@@ -134,44 +168,13 @@ func main() {
 			}
 		}
 	case rightScriptDownload.FullCommand():
-		rsIdMatch := regexp.MustCompile(`^\d+$`)
-		rsHrefMatch := regexp.MustCompile(`^/api/right_scripts/\d+$`)
-
-		var href string
-
-		if rsIdMatch.Match([]byte(*rightScriptDownloadNameOrHref)) {
-			href = fmt.Sprintf("/api/right_scripts/%s", *rightScriptDownloadNameOrHref)
-		} else if rsHrefMatch.Match([]byte(*rightScriptDownloadNameOrHref)) {
-			href = *rightScriptDownloadNameOrHref
-		} else {
-			rightscriptLocator := client.RightScriptLocator("/api/right_scripts")
-			apiParams := rsapi.APIParams{"filter": []string{"name==" + *rightScriptDownloadNameOrHref}}
-			rightscripts, err := rightscriptLocator.Index(apiParams)
-			if err != nil {
-				fatalError("%s", err.Error())
-			}
-			foundId := ""
-			for _, rs := range rightscripts {
-				//fmt.Printf("%#v\n", rs)
-				// Recheck the name here, filter does a impartial match and we need an exact one
-				// TODO, do first pass for head revisions only, second for non-heads?
-				if rs.Name == *rightScriptDownloadNameOrHref && rs.Revision == 0 {
-					if foundId != "" {
-						fatalError("Error, matched multiple RightScripts with the same name. Don't know which one to download. Please delete one or specify an HREF to download such as /api/right_scripts/%d", rs.Id)
-					} else {
-						foundId = rs.Id
-					}
-				}
-			}
-			if foundId == "" {
-				fatalError("Found no RightScripts matching %s", *rightScriptDownloadNameOrHref)
-			}
-			href = fmt.Sprintf("/api/right_scripts/%s", foundId)
+		href, err := rightscriptParamToHref(*rightScriptDownloadNameOrHref)
+		if err != nil {
+			fatalError("%s", err.Error())
 		}
 
 		rightscriptLocator := client.RightScriptLocator(href)
 		// attachmentsLocator := client.RightScriptLocator(fmt.Sprintf("%s/attachments", href))
-		// sourceLocator := client.RightScriptLocator(fmt.Sprintf("%s/source", href))
 
 		rightscript, err := rightscriptLocator.Show()
 		if err != nil {
@@ -228,6 +231,44 @@ func main() {
 	}
 }
 
+func rightscriptParamToHref(param string) (string, error) {
+	client := config.environment.Client15()
+
+	rsIdMatch := regexp.MustCompile(`^\d+$`)
+	rsHrefMatch := regexp.MustCompile(`^/api/right_scripts/\d+$`)
+	var href string
+	if rsIdMatch.Match([]byte(param)) {
+		href = fmt.Sprintf("/api/right_scripts/%s", param)
+	} else if rsHrefMatch.Match([]byte(param)) {
+		href = param
+	} else {
+		rightscriptLocator := client.RightScriptLocator("/api/right_scripts")
+		apiParams := rsapi.APIParams{"filter": []string{"name==" + param}}
+		rightscripts, err := rightscriptLocator.Index(apiParams)
+		if err != nil {
+			return "", err
+		}
+		foundId := ""
+		for _, rs := range rightscripts {
+			//fmt.Printf("%#v\n", rs)
+			// Recheck the name here, filter does a impartial match and we need an exact one
+			// TODO, do first pass for head revisions only, second for non-heads?
+			if rs.Name == param && rs.Revision == 0 {
+				if foundId != "" {
+					return "", fmt.Errorf("Error, matched multiple RightScripts with the same name. Don't know which one to download. Please delete one or specify an HREF to download such as /api/right_scripts/%d", rs.Id)
+				} else {
+					foundId = rs.Id
+				}
+			}
+		}
+		if foundId == "" {
+			return "", fmt.Errorf("Found no RightScripts matching %s", param)
+		}
+		href = fmt.Sprintf("/api/right_scripts/%s", foundId)
+	}
+	return href, nil
+}
+
 // Turn a mixed array of directories and files into a linear list of files
 func walkPaths(paths *[]string) ([]string, error) {
 	files := []string{}
@@ -275,11 +316,58 @@ func getSource(loc *cm15.RightScriptLocator) (respBody []byte, err error) {
 	}
 	defer resp.Body.Close()
 	respBody, _ = ioutil.ReadAll(resp.Body)
-
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return respBody, fmt.Errorf("invalid response %s: %s", resp.Status, string(respBody))
 	}
 	return respBody, nil
+}
+
+// Crappy workaround 2. the RightScriptAttachmentLocator.Create call doesn't work
+// because RSCs countless concrete types screw things up. The RSC create call calls BuildHttpRequest
+// with the type passed in, which is serializes to JSON. Under different code paths 
+// (such as here or the command line) it passes in rsapi.APIParams instead of a fixed type of
+// cm15.RightScriptAttachmentParams. BuildHTTPRequest has code to iterate over APIParams and
+// turn it into a a multipart mime doc if it sees a FileUpload type. But it doesn't have
+// code knowing about every concrete type to handle that.
+func uploadAttachment(loc *cm15.RightScriptAttachmentLocator,
+	file *rsapi.FileUpload, name string) error {
+	var params rsapi.APIParams
+	var p rsapi.APIParams
+	APIVersion := "1.5"
+	client := config.environment.Client15()
+
+	p_inner := rsapi.APIParams{
+		"content": file,
+		"name":    name,
+	}
+	p = rsapi.APIParams{
+		"right_script_attachment": p_inner,
+	}
+	uri, err := loc.ActionPath("RightScriptAttachment", "create")
+	if err != nil {
+		return err
+	}
+	req, err := client.BuildHTTPRequest(uri.HTTPMethod, uri.Path, APIVersion, params, p)
+	if err != nil {
+		return err
+	}
+	resp, err := client.PerformRequest(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return fmt.Errorf("invalid response %s: %s", resp.Status, string(respBody))
+	}
+	return nil
+	//fmt.Printf("%#v", resp.Header)
+	//location := resp.Header.Get("Location")
+	// if len(location) == 0 {
+	// 	return "", fmt.Errorf("Missing location header in response")
+	// } else {
+	// 	return location, nil
+	// }
 }
 
 type RightScript struct {
@@ -290,15 +378,14 @@ type RightScript struct {
 
 func (r *RightScript) Push() error {
 	client := config.environment.Client15()
-	rightscriptLocator := client.RightScriptLocator("/api/right_scripts")
+	createLocator := client.RightScriptLocator("/api/right_scripts")
 	apiParams := rsapi.APIParams{"filter": []string{"name==" + r.Metadata.Name}}
-	rightscripts, err := rightscriptLocator.Index(apiParams)
+	rightscripts, err := createLocator.Index(apiParams)
 	if err != nil {
 		return err
 	}
 	foundId := ""
 	for _, rs := range rightscripts {
-		//fmt.Printf("%#v\n", rs)
 		// Recheck the name here, filter does a impartial match and we need an exact one
 		if rs.Name == r.Metadata.Name && rs.Revision == 0 {
 			if foundId != "" {
@@ -314,6 +401,7 @@ func (r *RightScript) Push() error {
 		return err
 	}
 
+	var rightscriptLocator *cm15.RightScriptLocator
 	if foundId == "" {
 		fmt.Printf("Creating a new RightScript named '%s' from %s\n", r.Metadata.Name, r.Path)
 		// New one, perform create call
@@ -322,25 +410,97 @@ func (r *RightScript) Push() error {
 			Description: r.Metadata.Description,
 			Source:      string(pathSrc),
 		}
-		//rightscriptLocator = client.RightScriptLocator(fmt.Sprintf("/api/right_scripts", foundId))
-		_, err = rightscriptLocator.Create(&params)
+		rightscriptLocator, err = createLocator.Create(&params)
+		fmt.Printf("  RightScript created with HREF %s\n", rightscriptLocator.Href)
 	} else {
-		fmt.Printf("Updating existing RightScript named '%s' from %s\n", r.Metadata.Name, r.Path)
+		href := fmt.Sprintf("/api/right_scripts/%s", foundId)
+		fmt.Printf("Updating existing RightScript named '%s' with HREF %s from %s\n", r.Metadata.Name, href, r.Path)
 
 		params := cm15.RightScriptParam3{
 			Name:        r.Metadata.Name,
 			Description: r.Metadata.Description,
 			Source:      string(pathSrc),
 		}
-		rightscriptLocator = client.RightScriptLocator(fmt.Sprintf("/api/right_scripts/%s", foundId))
+		rightscriptLocator = client.RightScriptLocator(href)
 		err = rightscriptLocator.Update(&params)
 		// Found existing, do an update
 	}
+
+	if err != nil {
+		return err
+	}
+
+	attachmentsHref := fmt.Sprintf("%s/attachments", rightscriptLocator.Href)
+	attachmentsLocator := client.RightScriptAttachmentLocator(attachmentsHref)
+	attachments, err := attachmentsLocator.Index(rsapi.APIParams{})
+	if err != nil {
+		return err
+	}
+
+	toUpload := make(map[string]string)                           // scripts we want to upload
+	onRightscript := make(map[string]*cm15.RightScriptAttachment) // scripts attached to the rightsript
+	for _, a := range r.Metadata.Attachments {
+		fullPath := filepath.Join(filepath.Dir(r.Path), a)
+		md5, err := md5sum(fullPath)
+		if err != nil {
+			return err
+		}
+		toUpload[md5] = a
+	}
+	for _, a := range attachments {
+		onRightscript[a.Digest] = a
+	}
+
+	// Two passes. First pass we delete RightScripts. This comes up when a file was
+	// removed from the RightScript, or when the contents of a file on disk changed.
+	// In the second case, the second pass will reupload the correct attachment.
+	for digest, a := range onRightscript {
+		if _, ok := toUpload[digest]; !ok {
+			// HACK: self href for attachment is wrong for now. Back this out when its fixed
+			scriptHref := ""
+			for _, l := range a.Links {
+				if l["rel"] == "right_script" {
+					scriptHref = l["href"]
+				}
+			}
+			href := fmt.Sprintf("%s/attachments/%d", scriptHref, a.Id)
+			loc := client.RightScriptAttachmentLocator(href)
+			fmt.Printf("  Deleting attachment '%s' with HREF '%s'\n", a.Name, href)
+			err := loc.Destroy()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Second pass, now upload any missing attachment and any attachments that were
+	// deleted because we changed file contents.
+	for digest, name := range toUpload {
+		if _, ok := onRightscript[digest]; ok {
+			fmt.Printf("  Attachment '%s' already uploaded with md5 %s\n", name, digest)
+			// TBD -- update if a.Name != name?
+		} else {
+			fullPath := filepath.Join(filepath.Dir(r.Path), name)
+			fmt.Printf("  Uploading attachment '%s' with md5 %s\n", name, digest)
+			f, err := os.Open(fullPath)
+			if err != nil {
+				return err
+			}
+			// FileUpload represents payload fields that correspond to multipart file uploads.
+			file := rsapi.FileUpload{Name: "right_script_attachment[content]", Reader: f, Filename: name}
+			//params := cm15.RightScriptAttachmentParam{Content: &file, Name: a}
+			err = uploadAttachment(attachmentsLocator, &file, path.Base(name))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return err
 }
 
 func fatalError(format string, v ...interface{}) {
-	msg := fmt.Sprintf("ERROR: "+format, v)
+	msg := fmt.Sprintf("ERROR: "+format, v...)
 	fmt.Println(msg)
 	os.Exit(1)
 }
@@ -362,7 +522,9 @@ func validateRightScript(path string) error {
 	fmt.Printf("%s - valid metadata\n", path)
 
 	for _, attachment := range metadata.Attachments {
-		md5, err := md5Attachment(path, attachment)
+		fullPath := filepath.Join(filepath.Dir(path), attachment)
+
+		md5, err := md5sum(fullPath)
 		if err != nil {
 			return err
 		}
@@ -372,8 +534,7 @@ func validateRightScript(path string) error {
 	return nil
 }
 
-func md5Attachment(script, attachment string) (string, error) {
-	path := filepath.Join(filepath.Dir(script), attachment)
+func md5sum(path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return "", err
