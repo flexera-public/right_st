@@ -10,6 +10,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gbytes"
 )
 
 var _ = Describe("Metadata", func() {
@@ -21,11 +22,17 @@ var _ = Describe("Metadata", func() {
 		incorrectInputTypeSyntaxScript  io.ReadSeeker
 		incorrectInputValueSyntaxScript io.ReadSeeker
 		unknownFieldScript              io.ReadSeeker
+		buffer                          *gbytes.Buffer
+		emptyMetadata                   RightScriptMetadata
+		emptyMetadataScript             string
+		populatedMetadata               RightScriptMetadata
+		populatedMetadataScript         string
+		differentCommentMetadata        RightScriptMetadata
+		differentCommentMetadataScript  string
 	)
 
 	BeforeEach(func() {
-		validScript = strings.NewReader(`
-#!/bin/bash
+		validScript = strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -52,8 +59,7 @@ var _ = Describe("Metadata", func() {
 #   - attachments/another_attachment.tar.xz
 # ...
 `)
-		missingEndDelimiterScript = strings.NewReader(`
-#!/bin/bash
+		missingEndDelimiterScript = strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -71,8 +77,7 @@ var _ = Describe("Metadata", func() {
 #
 # We should have used the '...' end delimiter above
 `)
-		invalidYamlSyntaxScript = strings.NewReader(`
-#!/bin/bash
+		invalidYamlSyntaxScript = strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -87,8 +92,7 @@ var _ = Describe("Metadata", func() {
 # ...
 # The Default line is invalid YAML
 `)
-		invalidMetadataStructureScript = strings.NewReader(`
-#!/bin/bash
+		invalidMetadataStructureScript = strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -97,8 +101,7 @@ var _ = Describe("Metadata", func() {
 # ...
 # The Inputs field should have a map not an array
 `)
-		incorrectInputTypeSyntaxScript = strings.NewReader(`
-#!/bin/bash
+		incorrectInputTypeSyntaxScript = strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -112,8 +115,7 @@ var _ = Describe("Metadata", func() {
 # ...
 # The Input Type line is not a valid type
 `)
-		incorrectInputValueSyntaxScript = strings.NewReader(`
-#!/bin/bash
+		incorrectInputValueSyntaxScript = strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -128,14 +130,83 @@ var _ = Describe("Metadata", func() {
 # ...
 # The Default line is not valid Inputs 2.0 syntax
 `)
-		unknownFieldScript = strings.NewReader(`
-#!/bin/bash
+		unknownFieldScript = strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
 # Some Bogus Field: Some bogus value
 # ...
 `)
+		buffer = gbytes.NewBuffer()
+		emptyMetadata = RightScriptMetadata{}
+		emptyMetadataScript = `# ---
+# RightScript Name: ""
+# Description: ""
+# Inputs: {}
+# Attachments: []
+# ...
+`
+		populatedMetadata = RightScriptMetadata{
+			Name:        "Some RightScript Name",
+			Description: "Some description of stuff",
+			Inputs: map[string]InputMetadata{
+				"TEXT_INPUT": {
+					Category:       "Uncategorized",
+					Description:    "Some test input",
+					InputType:      0,
+					Required:       true,
+					Advanced:       false,
+					Default:        &InputValue{"text", "foobar"},
+					PossibleValues: []InputValue{{"text", "foobar"}, {"text", "barfoo"}},
+				},
+				"SUPPORTED_VERSIONS": {
+					Category:    "Uncategorized",
+					Description: "Some array input",
+					InputType:   1,
+					Required:    false,
+					Advanced:    true,
+					Default:     &InputValue{"array", `["text:v1","text:v2"]`},
+				},
+			},
+			Attachments: []string{
+				"attachments/some_attachment.zip",
+				"attachments/another_attachment.tar.xz",
+			},
+		}
+		populatedMetadataScript = `# ---
+# RightScript Name: Some RightScript Name
+# Description: Some description of stuff
+# Inputs:
+#   SUPPORTED_VERSIONS:
+#     Category: Uncategorized
+#     Description: Some array input
+#     Input Type: array
+#     Required: false
+#     Advanced: true
+#     Default: array:["text:v1","text:v2"]
+#   TEXT_INPUT:
+#     Category: Uncategorized
+#     Description: Some test input
+#     Input Type: single
+#     Required: true
+#     Advanced: false
+#     Default: text:foobar
+#     Possible Values:
+#     - text:foobar
+#     - text:barfoo
+# Attachments:
+# - attachments/some_attachment.zip
+# - attachments/another_attachment.tar.xz
+# ...
+`
+		differentCommentMetadata = RightScriptMetadata{Comment: "//"}
+		differentCommentMetadataScript = `// ---
+// RightScript Name: ""
+// Description: ""
+// Inputs: {}
+// Attachments: []
+// ...
+`
 	})
 
 	Describe("Parse RightScript metadata", func() {
@@ -184,7 +255,7 @@ var _ = Describe("Metadata", func() {
 			It("should return an error", func() {
 				_, err := ParseRightScriptMetadata(invalidYamlSyntaxScript)
 				Expect(err).To(HaveOccurred())
-				Expect(err).To(MatchError("yaml: line 13: mapping values are not allowed in this context"))
+				Expect(err).To(MatchError("yaml: line 12: mapping values are not allowed in this context"))
 			})
 		})
 
@@ -194,7 +265,7 @@ var _ = Describe("Metadata", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(&yaml.TypeError{
 					Errors: []string{
-						"line 8: cannot unmarshal !!seq into map[string]main.InputMetadata",
+						"line 7: cannot unmarshal !!seq into map[string]main.InputMetadata",
 					},
 				}))
 			})
@@ -222,9 +293,36 @@ var _ = Describe("Metadata", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(&yaml.TypeError{
 					Errors: []string{
-						"line 5: no such field 'Some Bogus Field' in struct 'main.RightScriptMetadata'",
+						"line 4: no such field 'Some Bogus Field' in struct 'main.RightScriptMetadata'",
 					},
 				}))
+			})
+		})
+	})
+
+	Describe("Write RightScript metadata", func() {
+		Context("With empty metadata", func() {
+			It("should write a metadata comment", func() {
+				n, err := emptyMetadata.WriteTo(buffer)
+				Expect(err).To(Succeed())
+				Expect(buffer.Contents()).To(BeEquivalentTo(emptyMetadataScript))
+				Expect(n).To(BeEquivalentTo(84))
+			})
+		})
+		Context("With populated metadata", func() {
+			It("should write a metadata comment", func() {
+				n, err := populatedMetadata.WriteTo(buffer)
+				Expect(err).To(Succeed())
+				Expect(buffer.Contents()).To(BeEquivalentTo(populatedMetadataScript))
+				Expect(n).To(BeEquivalentTo(637))
+			})
+		})
+		Context("With a different comment string for metadata", func() {
+			It("should write a metadata comment", func() {
+				n, err := differentCommentMetadata.WriteTo(buffer)
+				Expect(err).To(Succeed())
+				Expect(buffer.Contents()).To(BeEquivalentTo(differentCommentMetadataScript))
+				Expect(n).To(BeEquivalentTo(90))
 			})
 		})
 	})

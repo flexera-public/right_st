@@ -255,7 +255,7 @@ func rightscriptParamToHref(param string) (string, error) {
 			// TODO, do first pass for head revisions only, second for non-heads?
 			if rs.Name == param && rs.Revision == 0 {
 				if foundId != "" {
-					return "", fmt.Errorf("Error, matched multiple RightScripts with the same name. Don't know which one to download. Please delete one or specify an HREF to download such as /api/right_scripts/%d", rs.Id)
+					return "", fmt.Errorf("Error, matched multiple RightScripts with the same name. Don't know which one to download. Please delete one or specify an HREF to download such as /api/right_scripts/%s", rs.Id)
 				} else {
 					foundId = rs.Id
 				}

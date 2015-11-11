@@ -20,24 +20,25 @@ const (
 
 var (
 	comment       = regexp.MustCompile(`^\s*(?:#|//|--)\s?(.*)$`)
-	metadataStart = regexp.MustCompile(`^\s*(?:#|//|--)\s?(\s*-{3}\s*)$`)
+	metadataStart = regexp.MustCompile(`^\s*(#|//|--)\s?(\s*-{3}\s*)$`)
 	metadataEnd   = regexp.MustCompile(`^\s*(?:#|//|--)\s?(\s*\.{3}\s*)$`)
 	yamlLineError = regexp.MustCompile(`^(yaml: )?line (\d+):`)
 )
 
 type RightScriptMetadata struct {
 	Name        string                   `yaml:"RightScript Name"`
-	Description string                   `yaml:"Description,omitempty"`
-	Inputs      map[string]InputMetadata `yaml:"Inputs,omitempty"`
-	Attachments []string                 `yaml:"Attachments,omitempty"`
+	Description string                   `yaml:"Description"`
+	Inputs      map[string]InputMetadata `yaml:"Inputs"`
+	Attachments []string                 `yaml:"Attachments"`
+	Comment     string                   `yaml:"-"`
 }
 
 type InputMetadata struct {
-	Category       string       `yaml:"Category,omitempty"`
-	Description    string       `yaml:"Description,omitempty"`
-	InputType      InputType    `yaml:"Input Type,omitempty"`
-	Required       bool         `yaml:"Required,omitempty"`
-	Advanced       bool         `yaml:"Advanced,omitempty"`
+	Category       string       `yaml:"Category"`
+	Description    string       `yaml:"Description"`
+	InputType      InputType    `yaml:"Input Type"`
+	Required       bool         `yaml:"Required"`
+	Advanced       bool         `yaml:"Advanced"`
 	Default        *InputValue  `yaml:"Default,omitempty"`
 	PossibleValues []InputValue `yaml:"Possible Values,omitempty"`
 }
@@ -56,6 +57,8 @@ func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error
 	var buffer bytes.Buffer
 	var lineNumber, offset uint
 	inMetadata := false
+	var metadata RightScriptMetadata
+
 	for scanner.Scan() {
 		lineNumber++
 		line := scanner.Text()
@@ -73,7 +76,8 @@ func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error
 			}
 		case metadataStart.MatchString(line):
 			submatches := metadataStart.FindStringSubmatch(line)
-			buffer.WriteString(submatches[1] + "\n")
+			metadata.Comment = submatches[1]
+			buffer.WriteString(submatches[2] + "\n")
 			inMetadata = true
 			offset = lineNumber
 		}
@@ -85,7 +89,6 @@ func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error
 		return nil, fmt.Errorf("Unterminated RightScript metadata comment")
 	}
 
-	var metadata RightScriptMetadata
 	err := yaml.Unmarshal(buffer.Bytes(), &metadata)
 	if err != nil {
 		yamlLineReplace := func(line string) string {
@@ -107,6 +110,37 @@ func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error
 	return &metadata, nil
 }
 
+func (metadata *RightScriptMetadata) WriteTo(script io.Writer) (n int64, err error) {
+	if metadata.Comment == "" {
+		metadata.Comment = "#"
+	}
+
+	c, err := fmt.Fprintf(script, "%s ---\n", metadata.Comment)
+	if n += int64(c); err != nil {
+		return
+	}
+
+	yml, err := yaml.Marshal(metadata)
+	scanner := bufio.NewScanner(bytes.NewBuffer(yml))
+
+	for scanner.Scan() {
+		c, err = fmt.Fprintf(script, "%s %s\n", metadata.Comment, scanner.Text())
+		if n += int64(c); err != nil {
+			return
+		}
+	}
+	if err = scanner.Err(); err != nil {
+		return
+	}
+
+	c, err = fmt.Fprintf(script, "%s ...\n", metadata.Comment)
+	if n += int64(c); err != nil {
+		return
+	}
+
+	return
+}
+
 func (i InputType) String() string {
 	switch i {
 	case Single:
@@ -118,12 +152,12 @@ func (i InputType) String() string {
 	}
 }
 
-func (i *InputType) MarshalYAML() (interface{}, error) {
-	switch *i {
+func (i InputType) MarshalYAML() (interface{}, error) {
+	switch i {
 	case Single, Array:
 		return i.String(), nil
 	default:
-		return "", fmt.Errorf("Invalid input type value: %d", *i)
+		return "", fmt.Errorf("Invalid input type value: %d", i)
 	}
 }
 
@@ -148,7 +182,7 @@ func (i InputValue) String() string {
 	return i.Type + ":" + i.Value
 }
 
-func (i *InputValue) MarshalYAML() (interface{}, error) {
+func (i InputValue) MarshalYAML() (interface{}, error) {
 	return i.String(), nil
 }
 
