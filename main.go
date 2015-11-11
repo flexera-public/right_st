@@ -119,9 +119,9 @@ func main() {
 		if rightscript.Revision != 0 {
 			rev = fmt.Sprintf("%d", rightscript.Revision)
 		}
+		fmt.Printf("Name: %s\n", rightscript.Name)
 		fmt.Printf("HREF: /api/right_scripts/%s\n", rightscript.Id)
 		fmt.Printf("Revision: %5s\n", rev)
-		fmt.Printf("Name: %s\n", rightscript.Name)
 		fmt.Printf("Attachments (id, md5, name):\n")
 		for _, a := range attachments {
 			fmt.Printf("  %d %s %s\n", a.Id, a.Digest, a.Name)
@@ -178,11 +178,11 @@ func main() {
 
 		rightscript, err := rightscriptLocator.Show()
 		if err != nil {
-			fatalError("Could not find rightscript with href %s: %s", href, err.Error())
+			fatalError("Could not find RightScript with href %s: %s", href, err.Error())
 		}
 		source, err := getSource(rightscriptLocator)
 		if err != nil {
-			fatalError("Could get soruce for rightscript with href %s: %s", href, err.Error())
+			fatalError("Could get source for RightScript with href %s: %s", href, err.Error())
 		}
 
 		// attachments, err2 := attachmentsLocator.Index(rsapi.APIParams{})
@@ -445,18 +445,22 @@ func (r *RightScript) Push() error {
 		if err != nil {
 			return err
 		}
-		toUpload[md5] = a
+		// We use a compound key with the name+md5 here to work around a couple corner cases
+		//   - if the file is renamed, it'll be deleted and reuploaded
+		//   - if two files have the same md5 for whatever reason they won't clash
+		toUpload[path.Base(a)+"_"+md5] = a
 	}
 	for _, a := range attachments {
-		onRightscript[a.Digest] = a
+		onRightscript[path.Base(a.Name)+"_"+a.Digest] = a
 	}
 
 	// Two passes. First pass we delete RightScripts. This comes up when a file was
 	// removed from the RightScript, or when the contents of a file on disk changed.
 	// In the second case, the second pass will reupload the correct attachment.
-	for digest, a := range onRightscript {
-		if _, ok := toUpload[digest]; !ok {
-			// HACK: self href for attachment is wrong for now. Back this out when its fixed
+	for digestKey, a := range onRightscript {
+		if _, ok := toUpload[digestKey]; !ok {
+			// HACK: self href for attachment is wrong for now. We calculate our own
+			// below. We ca back this code out when its fixed
 			scriptHref := ""
 			for _, l := range a.Links {
 				if l["rel"] == "right_script" {
@@ -475,13 +479,15 @@ func (r *RightScript) Push() error {
 
 	// Second pass, now upload any missing attachment and any attachments that were
 	// deleted because we changed file contents.
-	for digest, name := range toUpload {
-		if _, ok := onRightscript[digest]; ok {
-			fmt.Printf("  Attachment '%s' already uploaded with md5 %s\n", name, digest)
+	for digestKey, name := range toUpload {
+		digestKeyParts := strings.Split(digestKey, "_")
+		md5 := digestKeyParts[len(digestKeyParts)-1]
+		if _, ok := onRightscript[digestKey]; ok {
+			fmt.Printf("  Attachment '%s' already uploaded with md5 %s\n", name, md5)
 			// TBD -- update if a.Name != name?
 		} else {
 			fullPath := filepath.Join(filepath.Dir(r.Path), name)
-			fmt.Printf("  Uploading attachment '%s' with md5 %s\n", name, digest)
+			fmt.Printf("  Uploading attachment '%s' with md5 %s\n", name, md5)
 			f, err := os.Open(fullPath)
 			if err != nil {
 				return err
