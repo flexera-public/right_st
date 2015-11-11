@@ -88,6 +88,9 @@ func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error
 	if inMetadata {
 		return nil, fmt.Errorf("Unterminated RightScript metadata comment")
 	}
+	if buffer.Len() == 0 {
+		return nil, nil
+	}
 
 	err := yaml.Unmarshal(buffer.Bytes(), &metadata)
 	if err != nil {

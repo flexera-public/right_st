@@ -16,6 +16,7 @@ import (
 var _ = Describe("Metadata", func() {
 	var (
 		validScript                     io.ReadSeeker
+		noMetadataScript                io.ReadSeeker
 		missingEndDelimiterScript       io.ReadSeeker
 		invalidYamlSyntaxScript         io.ReadSeeker
 		invalidMetadataStructureScript  io.ReadSeeker
@@ -58,6 +59,9 @@ var _ = Describe("Metadata", func() {
 #   - attachments/some_attachment.zip
 #   - attachments/another_attachment.tar.xz
 # ...
+`)
+		noMetadataScript = strings.NewReader(`#!/bin/bash
+# There is no metadata comment here
 `)
 		missingEndDelimiterScript = strings.NewReader(`#!/bin/bash
 # ---
@@ -240,6 +244,14 @@ var _ = Describe("Metadata", func() {
 					"attachments/some_attachment.zip",
 					"attachments/another_attachment.tar.xz",
 				}))
+			})
+		})
+
+		Context("With no script metadata", func() {
+			It("should not return metadata", func() {
+				metadata, err := ParseRightScriptMetadata(noMetadataScript)
+				Expect(err).To(Succeed())
+				Expect(metadata).To(BeNil())
 			})
 		})
 

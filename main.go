@@ -522,19 +522,23 @@ func validateRightScript(path string) error {
 	if err != nil {
 		return err
 	}
-	if *debug {
-		pretty.Println(metadata)
-	}
-	fmt.Printf("%s - valid metadata\n", path)
-
-	for _, attachment := range metadata.Attachments {
-		fullPath := filepath.Join(filepath.Dir(path), attachment)
-
-		md5, err := md5sum(fullPath)
-		if err != nil {
-			return err
+	if metadata != nil {
+		if *debug {
+			pretty.Println(metadata)
 		}
-		fmt.Println(attachment, md5)
+		fmt.Printf("%s: valid metadata\n", path)
+
+		for _, attachment := range metadata.Attachments {
+			fullPath := filepath.Join(filepath.Dir(path), attachment)
+
+			md5, err := md5sum(fullPath)
+			if err != nil {
+				return err
+			}
+			fmt.Println(attachment, md5)
+		}
+	} else {
+		fmt.Printf("%s: no metadata\n", path)
 	}
 
 	return nil
