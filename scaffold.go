@@ -100,6 +100,9 @@ func scaffoldRightScriptFile(script *os.File, backup bool) error {
 
 		for _, submatches := range variable.FindAllStringSubmatch(line, -1) {
 			name := submatches[1]
+			if ignoreVariables.MatchString(name) {
+				continue
+			}
 			if _, ok := metadata.Inputs[name]; !ok {
 				metadata.Inputs[name] = InputMetadata{
 					Category:    "(put your input category here)",
