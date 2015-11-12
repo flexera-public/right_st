@@ -41,14 +41,15 @@ var (
 
 	rightScriptUpload      = rightScript.Command("upload", "Upload a RightScript")
 	rightScriptUploadPaths = rightScriptUpload.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
-	rightScriptUploadForce = rightScriptUpload.Flag("force", "Force upload of file if metadata is not present").Bool()
+	rightScriptUploadForce = rightScriptUpload.Flag("force", "Force upload of file if metadata is not present").Short('f').Bool()
 
 	rightScriptDownload           = rightScript.Command("download", "Download a RightScript to a file or files")
 	rightScriptDownloadNameOrHref = rightScriptDownload.Arg("name_or_href", "Script Name or Href").Required().String()
 	rightScriptDownloadTo         = rightScriptDownload.Arg("path", "Download location").String()
 
-	rightScriptScaffold      = rightScript.Command("scaffold", "Add RightScript YAML metadata comments to a file or files")
-	rightScriptScaffoldPaths = rightScriptScaffold.Arg("path", "File or directory to set metadata for").Required().ExistingFilesOrDirs()
+	rightScriptScaffold         = rightScript.Command("scaffold", "Add RightScript YAML metadata comments to a file or files")
+	rightScriptScaffoldPaths    = rightScriptScaffold.Arg("path", "File or directory to set metadata for").Required().ExistingFilesOrDirs()
+	rightScriptScaffoldNoBackup = rightScriptScaffold.Flag("no-backup", "Do not create backup files before scaffolding").Short('n').Bool()
 
 	rightScriptValidate      = rightScript.Command("validate", "Validate RightScript YAML metadata comments in a file or files")
 	rightScriptValidatePaths = rightScriptValidate.Arg("path", "Path to script file or directory containing script files").Required().ExistingFilesOrDirs()
@@ -203,7 +204,7 @@ func main() {
 		}
 
 		for _, path := range paths {
-			err = AddRightScriptMetadata(path)
+			err = scaffoldRightScript(path, !*rightScriptScaffoldNoBackup)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
 				os.Exit(1)
