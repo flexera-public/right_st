@@ -26,21 +26,21 @@ var (
 )
 
 type RightScriptMetadata struct {
-	Name        string                   `yaml:"RightScript Name"`
-	Description string                   `yaml:"Description"`
-	Inputs      map[string]InputMetadata `yaml:"Inputs"`
-	Attachments []string                 `yaml:"Attachments"`
-	Comment     string                   `yaml:"-"`
+	Name        string                    `yaml:"RightScript Name"`
+	Description string                    `yaml:"Description"`
+	Inputs      map[string]*InputMetadata `yaml:"Inputs"`
+	Attachments []string                  `yaml:"Attachments"`
+	Comment     string                    `yaml:"-"`
 }
 
 type InputMetadata struct {
-	Category       string       `yaml:"Category"`
-	Description    string       `yaml:"Description"`
-	InputType      InputType    `yaml:"Input Type"`
-	Required       bool         `yaml:"Required"`
-	Advanced       bool         `yaml:"Advanced"`
-	Default        *InputValue  `yaml:"Default,omitempty"`
-	PossibleValues []InputValue `yaml:"Possible Values,omitempty"`
+	Category       string        `yaml:"Category"`
+	Description    string        `yaml:"Description"`
+	InputType      InputType     `yaml:"Input Type"`
+	Required       bool          `yaml:"Required"`
+	Advanced       bool          `yaml:"Advanced"`
+	Default        *InputValue   `yaml:"Default,omitempty"`
+	PossibleValues []*InputValue `yaml:"Possible Values,omitempty"`
 }
 
 type InputType int

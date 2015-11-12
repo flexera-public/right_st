@@ -65,7 +65,7 @@ func scaffoldRightScriptFile(script *os.File, backup bool) error {
 	metadata = &RightScriptMetadata{
 		Name:        strings.Title(separator.ReplaceAllLiteralString(strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)), " ")),
 		Description: "(put your description here, it can be multiple lines using YAML syntax)",
-		Inputs:      make(map[string]InputMetadata),
+		Inputs:      make(map[string]*InputMetadata),
 	}
 
 	variable := shellVariable
@@ -104,18 +104,30 @@ func scaffoldRightScriptFile(script *os.File, backup bool) error {
 				continue
 			}
 			if _, ok := metadata.Inputs[name]; !ok {
-				metadata.Inputs[name] = InputMetadata{
+				metadata.Inputs[name] = &InputMetadata{
 					Category:    "(put your input category here)",
 					Description: "(put your input description here, it can be multiple lines using YAML syntax)",
 				}
 			}
 			if len(submatches) > 2 && submatches[2] != "" && metadata.Inputs[name].Default == nil {
-				input := metadata.Inputs[name]
-				input.Default = &InputValue{
-					Type:  "text",
-					Value: submatches[2],
+				values := strings.Split(submatches[2], ",")
+				var (
+					inputType  InputType
+					inputValue InputValue
+				)
+				if len(values) == 1 {
+					inputType = Single
+					inputValue = InputValue{Type: "text", Value: values[0]}
+				} else {
+					array := make([]string, len(values))
+					for index, value := range values {
+						array[index] = fmt.Sprintf("%q", InputValue{Type: "text", Value: value})
+					}
+					inputType = Array
+					inputValue = InputValue{Type: "array", Value: strings.Join(array, ",")}
 				}
-				metadata.Inputs[name] = input
+				metadata.Inputs[name].InputType = inputType
+				metadata.Inputs[name].Default = &inputValue
 			}
 		}
 

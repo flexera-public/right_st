@@ -153,7 +153,7 @@ var _ = Describe("Metadata", func() {
 		populatedMetadata = RightScriptMetadata{
 			Name:        "Some RightScript Name",
 			Description: "Some description of stuff",
-			Inputs: map[string]InputMetadata{
+			Inputs: map[string]*InputMetadata{
 				"TEXT_INPUT": {
 					Category:       "Uncategorized",
 					Description:    "Some test input",
@@ -161,7 +161,7 @@ var _ = Describe("Metadata", func() {
 					Required:       true,
 					Advanced:       false,
 					Default:        &InputValue{"text", "foobar"},
-					PossibleValues: []InputValue{{"text", "foobar"}, {"text", "barfoo"}},
+					PossibleValues: []*InputValue{&InputValue{"text", "foobar"}, &InputValue{"text", "barfoo"}},
 				},
 				"SUPPORTED_VERSIONS": {
 					Category:    "Uncategorized",
@@ -221,7 +221,7 @@ var _ = Describe("Metadata", func() {
 				Expect(metadata).NotTo(BeNil())
 				Expect(metadata.Name).To(Equal("Some RightScript Name"))
 				Expect(metadata.Description).To(Equal("Some description of stuff"))
-				Expect(metadata.Inputs).To(Equal(map[string]InputMetadata{
+				Expect(metadata.Inputs).To(Equal(map[string]*InputMetadata{
 					"TEXT_INPUT": {
 						Category:       "Uncategorized",
 						Description:    "Some test input",
@@ -229,7 +229,7 @@ var _ = Describe("Metadata", func() {
 						Required:       true,
 						Advanced:       false,
 						Default:        &InputValue{"text", "foobar"},
-						PossibleValues: []InputValue{{"text", "foobar"}, {"text", "barfoo"}},
+						PossibleValues: []*InputValue{&InputValue{"text", "foobar"}, &InputValue{"text", "barfoo"}},
 					},
 					"SUPPORTED_VERSIONS": {
 						Category:    "Uncategorized",
@@ -277,7 +277,7 @@ var _ = Describe("Metadata", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(&yaml.TypeError{
 					Errors: []string{
-						"line 7: cannot unmarshal !!seq into map[string]main.InputMetadata",
+						"line 7: cannot unmarshal !!seq into map[string]*main.InputMetadata",
 					},
 				}))
 			})
