@@ -61,8 +61,7 @@ func main() {
 
 	err := readConfig(*configFile, *environment)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: Error reading config file: %s\n", filepath.Base(os.Args[0]), err)
-		os.Exit(1)
+		fatalError("%s: Error reading config file: %s\n", filepath.Base(os.Args[0]), err.Error())
 	}
 	client := config.environment.Client15()
 
@@ -132,7 +131,7 @@ func main() {
 		scripts := []RightScript{}
 		paths, err := walkPaths(rightScriptUploadPaths)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
+			fatalError("%s\n", err.Error())
 			os.Exit(1)
 		}
 
@@ -143,7 +142,10 @@ func main() {
 				fatalError("Cannot open %s", p)
 			}
 			defer f.Close()
-			metadata, err := ParseRightScriptMetadata(f)
+			metadata, err := validateRightScript(p)
+			if err != nil {
+				fatalError("%s: %s\n", p, err.Error())
+			}
 
 			if metadata.Name == "" {
 				if !*rightScriptUploadForce {
@@ -157,8 +159,6 @@ func main() {
 
 			script := RightScript{"", p, metadata}
 			scripts = append(scripts, script)
-
-			// validate all attachments exist and are readable
 		}
 
 		// Pass 2, upload
@@ -199,31 +199,33 @@ func main() {
 	case rightScriptScaffold.FullCommand():
 		paths, err := walkPaths(rightScriptScaffoldPaths)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
-			os.Exit(1)
+			fatalError("%s\n", err.Error())
 		}
 
 		for _, path := range paths {
 			err = scaffoldRightScript(path, !*rightScriptScaffoldNoBackup)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
-				os.Exit(1)
+				fatalError("%s\n", err.Error())
 			}
 		}
 	case rightScriptValidate.FullCommand():
 		paths, err := walkPaths(rightScriptValidatePaths)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(os.Args[0]), err)
-			os.Exit(1)
+			fatalError("%s\n", err.Error())
 		}
 
 		err_encountered := false
 
 		for _, path := range paths {
-			err = validateRightScript(path)
+			metadata, err := validateRightScript(path)
 			if err != nil {
 				err_encountered = true
-				fmt.Fprintf(os.Stderr, "%s - %s: %s\n", path, filepath.Base(os.Args[0]), err)
+				fmt.Fprintf(os.Stderr, "%s: %s\n", path, err.Error())
+			} else if metadata.Name == "" {
+				err_encountered = true
+				fmt.Fprintf(os.Stderr, "%s: %s\n", path, "Does not have metadata")
+			} else {
+				fmt.Printf("%s: Valid metadata\n", path)
 			}
 		}
 		if err_encountered {
@@ -508,41 +510,42 @@ func (r *RightScript) Push() error {
 
 func fatalError(format string, v ...interface{}) {
 	msg := fmt.Sprintf("ERROR: "+format, v...)
-	fmt.Println(msg)
+	fmt.Fprintf(os.Stderr, "%s", msg)
+
 	os.Exit(1)
 }
 
-func validateRightScript(path string) error {
+// Validates that a file has valid metadata, including attachments.
+// No metadata is considered valid, although the RightScriptMetadata returned will
+// be intialized to default values. A RightScriptMetadata struct might still be
+// returned if there are errors if the metadata was partially specified.
+func validateRightScript(path string) (*RightScriptMetadata, error) {
 	script, err := os.Open(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer script.Close()
 
 	metadata, err := ParseRightScriptMetadata(script)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if metadata != nil {
 		if *debug {
 			pretty.Println(metadata)
 		}
-		fmt.Printf("%s: valid metadata\n", path)
 
 		for _, attachment := range metadata.Attachments {
 			fullPath := filepath.Join(filepath.Dir(path), attachment)
 
-			md5, err := md5sum(fullPath)
+			_, err := md5sum(fullPath)
 			if err != nil {
-				return err
+				return metadata, err
 			}
-			fmt.Println(attachment, md5)
 		}
-	} else {
-		fmt.Printf("%s: no metadata\n", path)
 	}
 
-	return nil
+	return metadata, nil
 }
 
 func md5sum(path string) (string, error) {
