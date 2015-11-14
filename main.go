@@ -414,6 +414,9 @@ func (r *RightScript) Push() error {
 			Source:      string(pathSrc),
 		}
 		rightscriptLocator, err = createLocator.Create(&params)
+		if err != nil {
+			return err
+		}
 		fmt.Printf("  RightScript created with HREF %s\n", rightscriptLocator.Href)
 	} else {
 		href := fmt.Sprintf("/api/right_scripts/%s", foundId)
@@ -426,11 +429,10 @@ func (r *RightScript) Push() error {
 		}
 		rightscriptLocator = client.RightScriptLocator(href)
 		err = rightscriptLocator.Update(&params)
+		if err != nil {
+			return err
+		}
 		// Found existing, do an update
-	}
-
-	if err != nil {
-		return err
 	}
 
 	attachmentsHref := fmt.Sprintf("%s/attachments", rightscriptLocator.Href)
@@ -510,7 +512,7 @@ func (r *RightScript) Push() error {
 
 func fatalError(format string, v ...interface{}) {
 	msg := fmt.Sprintf("ERROR: "+format, v...)
-	fmt.Fprintf(os.Stderr, "%s", msg)
+	fmt.Fprintf(os.Stderr, "%s\n", msg)
 
 	os.Exit(1)
 }
