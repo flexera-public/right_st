@@ -50,6 +50,20 @@ type InputValue struct {
 	Value string
 }
 
+type Image struct {
+	CloudHref string `yaml:"CloudHref"`
+	Id        string `yaml:"Id"`
+	Name      string `yaml:"Name"`
+}
+
+type ServerTemplate struct {
+	Name             string                    `yaml:"RightScript Name"`
+	Description      string                    `yaml:"Description"`
+	Inputs           map[string]*InputMetadata `yaml:"Inputs"`
+	MultiCloudImages []string                  `yaml:"Attachments"`
+	Images           []Image                   `yaml:"Images"`
+}
+
 func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error) {
 	defer script.Seek(0, os.SEEK_SET)
 

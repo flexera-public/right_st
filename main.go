@@ -31,20 +31,30 @@ var (
 	configFile  = app.Flag("config", "Set the config file path.").Short('c').Default(defaultConfigFile()).String()
 	environment = app.Flag("environment", "Set the RightScale login environment.").Short('e').String()
 
-	rightScript = app.Command("rightscript", "RightScript stuff")
+	// ----- ServerTemplates -----
+	st = app.Command("st", "ServerTemplate")
+
+	stUpload      = st.Command("upload", "Upload a ServerTemplate specified by a YAML document")
+	stUploadPaths = stUpload.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
+
+	stShow           = st.Command("show", "Show a single ServerTemplate")
+	stShowNameOrHref = stShow.Arg("name|href|id", "ServerTemplate Name or HREF or Id").Required().String()
+
+	// ----- RightScripts -----
+	rightScript = app.Command("rightscript", "RightScript")
 
 	rightScriptList       = rightScript.Command("list", "List RightScripts")
 	rightScriptListFilter = rightScriptList.Arg("filter", "Filter by name").Required().String()
 
 	rightScriptShow           = rightScript.Command("show", "Show a single RightScript and its attachments")
-	rightScriptShowNameOrHref = rightScriptShow.Arg("name_or_href", "Script Name or Href").Required().String()
+	rightScriptShowNameOrHref = rightScriptShow.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
 
 	rightScriptUpload      = rightScript.Command("upload", "Upload a RightScript")
 	rightScriptUploadPaths = rightScriptUpload.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
 	rightScriptUploadForce = rightScriptUpload.Flag("force", "Force upload of file if metadata is not present").Short('f').Bool()
 
 	rightScriptDownload           = rightScript.Command("download", "Download a RightScript to a file or files")
-	rightScriptDownloadNameOrHref = rightScriptDownload.Arg("name_or_href", "Script Name or Href").Required().String()
+	rightScriptDownloadNameOrHref = rightScriptDownload.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
 	rightScriptDownloadTo         = rightScriptDownload.Arg("path", "Download location").String()
 
 	rightScriptScaffold         = rightScript.Command("scaffold", "Add RightScript YAML metadata comments to a file or files")
@@ -81,6 +91,79 @@ func main() {
 	app.Writer(os.Stdout)
 
 	switch command {
+	case stUpload.FullCommand():
+		paths, err := walkPaths(stUploadPaths)
+		if err != nil {
+			fatalError("%s\n", err.Error())
+			os.Exit(1)
+		}
+		fmt.Printf("%v", paths)
+		// Read and validate .yml describing ST, including validation of all RightScripts
+		// contained within.
+
+		// Upload and create ST
+	case stShow.FullCommand():
+		href, err := stParamToHref(*stShowNameOrHref)
+
+		stLocator := client.ServerTemplateLocator(href)
+
+		st, err := stLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
+		if err != nil {
+			fatalError("Could not find ServerTemplate with href %s: %s", href, err.Error())
+		}
+
+		mciLocator := client.MultiCloudImageLocator(getLink(st.Links, "multi_cloud_images"))
+		mcis, err := mciLocator.Index(rsapi.APIParams{})
+		if err != nil {
+			fatalError("Could not find MCIs with href %s: %s", mciLocator.Href, err.Error())
+		}
+
+		rbLocator := client.RunnableBindingLocator(getLink(st.Links, "runnable_bindings"))
+		rbs, err := rbLocator.Index(rsapi.APIParams{})
+		if err != nil {
+			fatalError("Could not find attached RightScripts with href %s: %s", rbLocator.Href, err.Error())
+		}
+
+		rev := "HEAD"
+		if st.Revision != 0 {
+			rev = fmt.Sprintf("%d", st.Revision)
+		}
+		stHref := getLink(st.Links, "self")
+
+		fmt.Printf("Name: %s\n", st.Name)
+		fmt.Printf("HREF: %s\n", stHref)
+		fmt.Printf("Revision: %s\n", rev)
+		fmt.Printf("Description: \n%s\n", st.Description)
+		fmt.Printf("MultiCloudImages: (href, rev, name) \n")
+		for _, item := range mcis {
+			mciHref := getLink(item.Links, "self")
+			rev := "HEAD"
+			if item.Revision != 0 {
+				rev = fmt.Sprintf("%d", item.Revision)
+			}
+			fmt.Printf("  %s %5s %s\n", mciHref, rev, item.Name)
+		}
+		sequenceTypes := []string{"boot", "operational", "decommission"}
+		for _, sequenceType := range sequenceTypes {
+			fmt.Printf("RightScripts - %s: (href, rev, name)\n", sequenceType)
+			for _, item := range rbs {
+				rsHref := getLink(item.Links, "right_script")
+				//if item.RightScript != cm15.RightScript(nil) {
+				rs := item.RightScript
+				if item.Sequence != sequenceType {
+					continue
+				}
+				rev := "HEAD"
+				if rs.Revision != 0 {
+					rev = fmt.Sprintf("%d", rs.Revision)
+				}
+				fmt.Printf("  %s %5s %s\n", rsHref, rev, rs.Name)
+				// } else {
+				// 	fmt.Printf(" RECIPE - NOT HANDLED YET")
+				// }
+			}
+		}
+
 	case rightScriptList.FullCommand():
 		rightscriptLocator := client.RightScriptLocator("/api/right_scripts")
 		var apiParams = rsapi.APIParams{"filter": []string{"name==" + *rightScriptListFilter}}
@@ -124,7 +207,7 @@ func main() {
 		fmt.Printf("Revision: %5s\n", rev)
 		fmt.Printf("Attachments (id, md5, name):\n")
 		for _, a := range attachments {
-			fmt.Printf("  %d %s %s\n", a.Id, a.Digest, a.Name)
+			fmt.Printf("  %s %s %s\n", a.Id, a.Digest, a.Name)
 		}
 	case rightScriptUpload.FullCommand():
 		// Pass 1, perform validations, gather up results
@@ -234,15 +317,52 @@ func main() {
 	}
 }
 
+func stParamToHref(param string) (string, error) {
+	client := config.environment.Client15()
+
+	idMatch := regexp.MustCompile(`^\d+$`)
+	hrefMatch := regexp.MustCompile(`^/api/server_templates/\d+$`)
+	var href string
+	if idMatch.Match([]byte(param)) {
+		href = fmt.Sprintf("/api/server_templates/%s", param)
+	} else if hrefMatch.Match([]byte(param)) {
+		href = param
+	} else {
+		stLocator := client.ServerTemplateLocator("/api/server_templates")
+		apiParams := rsapi.APIParams{"filter": []string{"name==" + param}}
+		sts, err := stLocator.Index(apiParams)
+		if err != nil {
+			return "", err
+		}
+		for _, st := range sts {
+			stHref := getLink(st.Links, "self")
+			//fmt.Printf("%#v\n", st)
+			// Recheck the name here, filter does a impartial match and we need an exact one
+			// TODO, do first pass for head revisions only, second for non-heads?
+			if st.Name == param && st.Revision == 0 {
+				if href != "" {
+					return "", fmt.Errorf("Error, matched multiple ServerTemplates with the same name. Don't know which one to download. Please delete one or specify an HREF to download such as %s", stHref)
+				} else {
+					href = stHref
+				}
+			}
+		}
+		if href == "" {
+			return "", fmt.Errorf("Found no ServerTemplates matching %s", param)
+		}
+	}
+	return href, nil
+}
+
 func rightscriptParamToHref(param string) (string, error) {
 	client := config.environment.Client15()
 
-	rsIdMatch := regexp.MustCompile(`^\d+$`)
-	rsHrefMatch := regexp.MustCompile(`^/api/right_scripts/\d+$`)
+	idMatch := regexp.MustCompile(`^\d+$`)
+	hrefMatch := regexp.MustCompile(`^/api/right_scripts/\d+$`)
 	var href string
-	if rsIdMatch.Match([]byte(param)) {
+	if idMatch.Match([]byte(param)) {
 		href = fmt.Sprintf("/api/right_scripts/%s", param)
-	} else if rsHrefMatch.Match([]byte(param)) {
+	} else if hrefMatch.Match([]byte(param)) {
 		href = param
 	} else {
 		rightscriptLocator := client.RightScriptLocator("/api/right_scripts")
@@ -270,6 +390,16 @@ func rightscriptParamToHref(param string) (string, error) {
 		href = fmt.Sprintf("/api/right_scripts/%s", foundId)
 	}
 	return href, nil
+}
+
+func getLink(links []map[string]string, name string) string {
+	href := ""
+	for _, l := range links {
+		if l["rel"] == name {
+			href = l["href"]
+		}
+	}
+	return href
 }
 
 // Turn a mixed array of directories and files into a linear list of files
@@ -392,7 +522,7 @@ func (r *RightScript) Push() error {
 		// Recheck the name here, filter does a impartial match and we need an exact one
 		if rs.Name == r.Metadata.Name && rs.Revision == 0 {
 			if foundId != "" {
-				fatalError("Error, matched multiple RightScripts with the same name, please delete one: %d %d", rs.Id, foundId)
+				fatalError("Error, matched multiple RightScripts with the same name, please delete one: %s %s", rs.Id, foundId)
 			} else {
 				foundId = rs.Id
 			}
@@ -466,15 +596,12 @@ func (r *RightScript) Push() error {
 		if _, ok := toUpload[digestKey]; !ok {
 			// HACK: self href for attachment is wrong for now. We calculate our own
 			// below. We ca back this code out when its fixed
-			scriptHref := ""
-			for _, l := range a.Links {
-				if l["rel"] == "right_script" {
-					scriptHref = l["href"]
-				}
-			}
-			href := fmt.Sprintf("%s/attachments/%d", scriptHref, a.Id)
-			loc := client.RightScriptAttachmentLocator(href)
-			fmt.Printf("  Deleting attachment '%s' with HREF '%s'\n", a.Name, href)
+			// scriptHref := getLink(a.Links, "right_script)")
+			// href := fmt.Sprintf("%s/attachments/%s", scriptHref, a.Id)
+			// loc := client.RightScriptAttachmentLocator(href)
+			loc := a.Locator(client)
+
+			fmt.Printf("  Deleting attachment '%s' with HREF '%s'\n", a.Name, loc.Href)
 			err := loc.Destroy()
 			if err != nil {
 				return err
