@@ -241,6 +241,12 @@ func uploadAttachment(loc *cm15.RightScriptAttachmentLocator,
 	// }
 }
 
+type Iterable struct {
+	Links    []map[string]string `json:"links,omitempty"`
+	Name     string              `json:"name,omitempty"`
+	Revision int                 `json:"revision,omitempty"`
+}
+
 type RightScript struct {
 	Href     string
 	Path     string

@@ -5,8 +5,10 @@ package main
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -92,7 +94,7 @@ func main() {
 		}
 		stUpload(files)
 	case stShowCmd.FullCommand():
-		href, err := stParamToHref(*stShowNameOrHref)
+		href, err := paramToHref("server_templates", *stShowNameOrHref)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
@@ -100,7 +102,7 @@ func main() {
 	case rightScriptListCmd.FullCommand():
 		rightScriptList(*rightScriptListFilter)
 	case rightScriptShowCmd.FullCommand():
-		href, err := rightscriptParamToHref(*rightScriptShowNameOrHref)
+		href, err := paramToHref("right_scripts", *rightScriptShowNameOrHref)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
@@ -108,7 +110,7 @@ func main() {
 	case rightScriptUploadCmd.FullCommand():
 		rightScriptUpload(*rightScriptUploadPaths, *rightScriptUploadForce)
 	case rightScriptDownloadCmd.FullCommand():
-		href, err := rightscriptParamToHref(*rightScriptDownloadNameOrHref)
+		href, err := paramToHref("right_scripts", *rightScriptDownloadNameOrHref)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
@@ -198,6 +200,57 @@ func stParamToHref(param string) (string, error) {
 		}
 		if href == "" {
 			return "", fmt.Errorf("Found no ServerTemplates matching %s", param)
+		}
+	}
+	return href, nil
+}
+
+func paramToHref(resourceType, param string) (string, error) {
+	client := config.environment.Client15()
+
+	idMatch := regexp.MustCompile(`^\d+$`)
+	hrefMatch := regexp.MustCompile(fmt.Sprintf("^/api/%s/\\d+$", resourceType))
+
+	var href string
+	if idMatch.Match([]byte(param)) {
+		href = fmt.Sprintf("/api/%s/%s", resourceType, param)
+	} else if hrefMatch.Match([]byte(param)) {
+		href = param
+	} else {
+		payload := rsapi.APIParams{}
+		params := rsapi.APIParams{"filter[]": []string{"name==" + param}}
+		uriPath := fmt.Sprintf("/api/%s", resourceType)
+
+		req, err := client.BuildHTTPRequest("GET", uriPath, "1.5", params, payload)
+		if err != nil {
+			return "", err
+		}
+		resp, err := client.PerformRequest(req)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+		respBody, _ := ioutil.ReadAll(resp.Body)
+		if resp.StatusCode < 200 || resp.StatusCode > 299 {
+			return "", fmt.Errorf("invalid response %s: %s", resp.Status, string(respBody))
+		}
+		items := []Iterable{}
+		err = json.Unmarshal(respBody, &items)
+		if err != nil {
+			return "", err
+		}
+		count := 0
+		for _, item := range items {
+			if item.Name == param && item.Revision == 0 {
+				href = getLink(item.Links, "self")
+				count = count + 1
+			}
+		}
+		if count == 0 {
+			return "", fmt.Errorf("Found no %s matching '%s'", resourceType, param)
+		} else if count > 1 {
+			return "", fmt.Errorf("Matched multiple %s with the name %s. "+
+				"Don't know which one to download. Please delete one or specify an HREF to download such as %s", resourceType, param, href)
 		}
 	}
 	return href, nil

@@ -2,13 +2,46 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"regexp"
 
+	"github.com/go-yaml/yaml"
 	"github.com/rightscale/rsc/rsapi"
 )
 
-func stUpload(files []string) {
+type Image struct {
+	Cloud     string `yaml:"Cloud"`
+	Id        string `yaml:"Id"`
+	Name      string `yaml:"Name"`
+	cloudHref string
+}
 
+type ServerTemplate struct {
+	Name             string                    `yaml:"Name"`
+	Description      string                    `yaml:"Description"`
+	Inputs           map[string]*InputMetadata `yaml:"Inputs"`
+	MultiCloudImages []string                  `yaml:"MultiCloudImages"`
+	Images           []Image                   `yaml:"Images"`
+	RightScripts     []string                  `yaml:"RightScripts"`
+	mciHrefs         []string
+}
+
+func stUpload(files []string) {
 	fmt.Printf("%v", files)
+	for _, file := range files {
+
+		st, errors := validateServerTemplate(file)
+		if len(errors) != 0 {
+			fmt.Println("Encountered the following errors with the ServerTemplate:")
+			for _, err := range errors {
+				fmt.Println(err)
+			}
+			os.Exit(1)
+		}
+
+		fmt.Printf("%#v", *st)
+	}
 	// Read and validate .yml describing ST, including validation of all RightScripts
 	// contained within.
 
@@ -76,4 +109,60 @@ func stShow(href string) {
 			// }
 		}
 	}
+}
+
+func validateServerTemplate(file string) (*ServerTemplate, []error) {
+	st := ServerTemplate{}
+	var errors []error
+
+	bytes, err := ioutil.ReadFile(file)
+	if err != nil {
+		errors = append(errors, err)
+		return nil, errors
+	}
+	err = yaml.Unmarshal(bytes, &st)
+	if err != nil {
+		errors = append(errors, err)
+		return nil, errors
+	}
+	client := config.environment.Client15()
+
+	idMatch := regexp.MustCompile(`^\d+$`)
+	hrefMatch := regexp.MustCompile(`^/api/multi_cloud_images/\d+$`)
+	st.mciHrefs = make([]string, len(st.MultiCloudImages))
+	for i, mciIdOrHref := range st.MultiCloudImages {
+		// TBD let people specify names. This gets tricky with multiple revisions and
+		// naming conflicts though so just have them use hrefs for now.
+		var href string
+		if idMatch.Match([]byte(mciIdOrHref)) {
+			href = fmt.Sprintf("/api/multi_cloud_images/%s", mciIdOrHref)
+		} else if hrefMatch.Match([]byte(mciIdOrHref)) {
+			href = mciIdOrHref
+		} else {
+			errors = append(errors, fmt.Errorf("MultiCloudImage parameter %s is not a MCI HREF", mciIdOrHref))
+		}
+		loc := client.MultiCloudImageLocator(href)
+		_, err := loc.Show()
+		if err != nil {
+			errors = append(errors, fmt.Errorf("Could not find MCI HREF %s in account", href))
+		}
+		st.mciHrefs[i] = href
+	}
+
+	for i, img := range st.Images {
+		if img.Name == "" || img.Cloud == "" || img.Id == "" {
+			errors = append(errors, fmt.Errorf("Image parameter %d must have Name, Cloud, and Id specified", i))
+		}
+
+	}
+
+	for _, rsName := range st.RightScripts {
+		_, err := validateRightScript(rsName)
+		if err != nil {
+			rsError := fmt.Errorf("RightScript error: %s: %s", rsName, err.Error())
+			errors = append(errors, rsError)
+		}
+	}
+
+	return &st, errors
 }
