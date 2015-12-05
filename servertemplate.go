@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -11,26 +12,26 @@ import (
 )
 
 type Image struct {
-	Cloud     string `yaml:"Cloud"`
-	Id        string `yaml:"Id"`
-	Name      string `yaml:"Name"`
-	cloudHref string
+	Href     string `yaml:"Href"`
+	Cloud    string `yaml:"Cloud"`
+	Image    string `yaml:"Image"`
+	Name     string `yaml:"Name"`
+	Revision int    `yaml:"Revision"`
 }
 
 type ServerTemplate struct {
 	Name             string                    `yaml:"Name"`
 	Description      string                    `yaml:"Description"`
 	Inputs           map[string]*InputMetadata `yaml:"Inputs"`
-	MultiCloudImages []string                  `yaml:"MultiCloudImages"`
-	Images           []Image                   `yaml:"Images"`
+	MultiCloudImages []*Image                  `yaml:"MultiCloudImages"`
 	RightScripts     []string                  `yaml:"RightScripts"`
 	mciHrefs         []string
 }
 
 func stUpload(files []string) {
-	fmt.Printf("%v", files)
-	for _, file := range files {
 
+	for _, file := range files {
+		fmt.Printf("Uploading %s\n", file)
 		st, errors := validateServerTemplate(file)
 		if len(errors) != 0 {
 			fmt.Println("Encountered the following errors with the ServerTemplate:")
@@ -41,11 +42,10 @@ func stUpload(files []string) {
 		}
 
 		fmt.Printf("%#v", *st)
-	}
-	// Read and validate .yml describing ST, including validation of all RightScripts
-	// contained within.
 
-	// Upload and create ST
+		// Upload and create ST
+	}
+
 }
 
 func stShow(href string) {
@@ -112,34 +112,44 @@ func stShow(href string) {
 }
 
 func validateServerTemplate(file string) (*ServerTemplate, []error) {
-	st := ServerTemplate{}
+
 	var errors []error
 
-	bytes, err := ioutil.ReadFile(file)
+	f, err := os.Open(file)
 	if err != nil {
 		errors = append(errors, err)
 		return nil, errors
 	}
-	err = yaml.Unmarshal(bytes, &st)
+	defer f.Close()
+
+	st, err := ParseServerTemplate(f)
 	if err != nil {
 		errors = append(errors, err)
 		return nil, errors
 	}
+
 	client := config.environment.Client15()
 
-	idMatch := regexp.MustCompile(`^\d+$`)
+	//idMatch := regexp.MustCompile(`^\d+$`)
 	hrefMatch := regexp.MustCompile(`^/api/multi_cloud_images/\d+$`)
 	st.mciHrefs = make([]string, len(st.MultiCloudImages))
-	for i, mciIdOrHref := range st.MultiCloudImages {
-		// TBD let people specify names. This gets tricky with multiple revisions and
-		// naming conflicts though so just have them use hrefs for now.
+	// Let people specify MCIs multiple ways:
+	//   1. Href
+	//   2. Name/revision pair (TBD)
+	//   3. Name/Cloud/Image combination (TBD)
+	for i, image := range st.MultiCloudImages {
 		var href string
-		if idMatch.Match([]byte(mciIdOrHref)) {
-			href = fmt.Sprintf("/api/multi_cloud_images/%s", mciIdOrHref)
-		} else if hrefMatch.Match([]byte(mciIdOrHref)) {
-			href = mciIdOrHref
+		if hrefMatch.Match([]byte(image.Href)) {
+			href = image.Href
+		} else if image.Name != "" && image.Revision != 0 {
+			errors = append(errors, fmt.Errorf("Cannot parse MCIs by name/revision yet"))
+			continue
+		} else if image.Name != "" && image.Cloud != "" && image.Image != "" {
+			errors = append(errors, fmt.Errorf("Cannot parse MCIs by cloud/image yet"))
+			continue
 		} else {
-			errors = append(errors, fmt.Errorf("MultiCloudImage parameter %s is not a MCI HREF", mciIdOrHref))
+			errors = append(errors, fmt.Errorf("MultiCloudImage item must be a hash with 'Href' key set to a valid value"))
+			continue
 		}
 		loc := client.MultiCloudImageLocator(href)
 		_, err := loc.Show()
@@ -147,13 +157,6 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 			errors = append(errors, fmt.Errorf("Could not find MCI HREF %s in account", href))
 		}
 		st.mciHrefs[i] = href
-	}
-
-	for i, img := range st.Images {
-		if img.Name == "" || img.Cloud == "" || img.Id == "" {
-			errors = append(errors, fmt.Errorf("Image parameter %d must have Name, Cloud, and Id specified", i))
-		}
-
 	}
 
 	for _, rsName := range st.RightScripts {
@@ -164,5 +167,18 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 		}
 	}
 
-	return &st, errors
+	return st, errors
+}
+
+func ParseServerTemplate(ymlData io.Reader) (*ServerTemplate, error) {
+	st := ServerTemplate{}
+	bytes, err := ioutil.ReadAll(ymlData)
+	if err != nil {
+		return nil, err
+	}
+	err = yaml.Unmarshal(bytes, &st)
+	if err != nil {
+		return nil, err
+	}
+	return &st, nil
 }

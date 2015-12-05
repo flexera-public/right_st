@@ -13,7 +13,7 @@ import (
 	"github.com/onsi/gomega/gbytes"
 )
 
-var _ = Describe("Metadata", func() {
+var _ = Describe("RightScript Metadata", func() {
 	var (
 		validScript                     io.ReadSeeker
 		noMetadataScript                io.ReadSeeker
