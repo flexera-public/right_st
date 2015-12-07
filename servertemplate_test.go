@@ -20,7 +20,12 @@ var _ = Describe("ServerTemplate", func() {
 Name: Test ST
 Description: Test ST Description
 RightScripts:
-  - Dummy.sh
+  Boot:
+    - Dummy.sh
+  Operational:
+    - Dummy2.sh
+  Decommission:
+    - Dummy3.sh
 Inputs:
   SERVER_HOSTNAME:
     Input Type: single
@@ -48,9 +53,9 @@ MultiCloudImages:
 						Default:     &InputValue{"text", "test.local"},
 					},
 				}))
-				Expect(st.RightScripts).To(Equal([]string{
-					"Dummy.sh",
-				}))
+				Expect(st.RightScripts["Boot"]).To(Equal([]string{"Dummy.sh"}))
+				Expect(st.RightScripts["Operational"]).To(Equal([]string{"Dummy2.sh"}))
+				Expect(st.RightScripts["Decommission"]).To(Equal([]string{"Dummy3.sh"}))
 				Expect(st.MultiCloudImages).To(Equal([]*Image{
 					&Image{Href: "/api/multi_cloud_images/403042003"},
 				}))
@@ -63,7 +68,8 @@ MultiCloudImages:
 Name: Test ST
 Description: Test ST Description
 RightScripts:
-  - Dummy.sh
+  Boot:
+    - Dummy.sh
 Inputs:
   - TEXT_INPUT
 # The Inputs field should have a map not an array
@@ -72,9 +78,25 @@ Inputs:
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(&yaml.TypeError{
 					Errors: []string{
-						"line 7: cannot unmarshal !!seq into map[string]*main.InputMetadata",
+						"line 8: cannot unmarshal !!seq into map[string]*main.InputMetadata",
 					},
 				}))
+			})
+		})
+
+		Context("With invalid RightScript type in YAML", func() {
+			It("should return an error", func() {
+				script := strings.NewReader(`---
+Name: Test ST
+Description: Test ST Description
+RightScripts:
+  Unknown:
+    - Dummy.sh
+Inputs: {}
+`)
+				_, err := ParseServerTemplate(script)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).Should(ContainSubstring("not a valid list name"))
 			})
 		})
 

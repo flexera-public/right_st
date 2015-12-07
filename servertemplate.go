@@ -8,6 +8,7 @@ import (
 	"regexp"
 
 	"github.com/go-yaml/yaml"
+	"github.com/rightscale/rsc/cm15"
 	"github.com/rightscale/rsc/rsapi"
 )
 
@@ -24,7 +25,7 @@ type ServerTemplate struct {
 	Description      string                    `yaml:"Description"`
 	Inputs           map[string]*InputMetadata `yaml:"Inputs"`
 	MultiCloudImages []*Image                  `yaml:"MultiCloudImages"`
-	RightScripts     []string                  `yaml:"RightScripts"`
+	RightScripts     map[string][]string       `yaml:"RightScripts"`
 	mciHrefs         []string
 }
 
@@ -42,12 +43,46 @@ func stUpload(files []string) {
 		}
 
 		fmt.Printf("%#v", *st)
-
-		// Upload and create ST
+		err := doUpload(st)
+		if err != nil {
+			fatalError("Failed to upload ServerTemplate '%s': %s", file, err.Error())
+		}
 	}
-
 }
 
+// Options:
+//   -- commit
+func doUpload(st *ServerTemplate) error {
+	// Check if ST with same name (HEAD revisions only) exists. If it does, update the head
+	//client := config.environment.Client15()
+	existingSt, err := getServerTemplateByName(st.Name)
+
+	if err != nil {
+		fatalError("Failed to query for ServerTemplate '%s': %s", st.Name, err.Error())
+	}
+	// MCI work:
+	// Get a list of MCIs on the existing ST.
+	if existingSt != nil {
+		fmt.Printf("%v", existingSt)
+	}
+	// Delete MCIs that exist on the existing ST but not in this definition.
+	// Add all MCIs. If the MCI has not changed (HREF is the same, or combination of values is the same) don't update?
+
+	// RightScript work:
+	// Get a list of all RightScripts on the existing ST
+	// Delete all RightScripts that exist on the existing ST but not in this definition
+	// Add All RightScripts. If a RightScript is committed with a previous revision, but the contents of
+	// that revision are equal to the contents on this one, do nothing.
+
+	// If the user requested a commit on changes, commit the ST. This will commit all RightScripts as well.
+	return nil
+}
+
+// TBD
+//   Show uncommitted changes
+//   Show a list of previous revisions?
+//   If we're not head, show a link to the head revision/lineage?
+//   AlertSpecs
 func stShow(href string) {
 	client := config.environment.Client15()
 
@@ -111,8 +146,10 @@ func stShow(href string) {
 	}
 }
 
+// TBD
+//   AlertSpecs
+//   Cookbooks in some way?
 func validateServerTemplate(file string) (*ServerTemplate, []error) {
-
 	var errors []error
 
 	f, err := os.Open(file)
@@ -159,12 +196,15 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 		st.mciHrefs[i] = href
 	}
 
-	for _, rsName := range st.RightScripts {
-		_, err := validateRightScript(rsName)
-		if err != nil {
-			rsError := fmt.Errorf("RightScript error: %s: %s", rsName, err.Error())
-			errors = append(errors, rsError)
+	for scriptType, scripts := range st.RightScripts {
+		for _, rsName := range scripts {
+			_, err := validateRightScript(rsName)
+			if err != nil {
+				rsError := fmt.Errorf("RightScript error: %s:%s: %s", scriptType, rsName, err.Error())
+				errors = append(errors, rsError)
+			}
 		}
+
 	}
 
 	return st, errors
@@ -180,5 +220,33 @@ func ParseServerTemplate(ymlData io.Reader) (*ServerTemplate, error) {
 	if err != nil {
 		return nil, err
 	}
+	for scriptType, _ := range st.RightScripts {
+		if scriptType != "Boot" && scriptType != "Operational" && scriptType != "Decommission" {
+			typeError := fmt.Errorf("%s is not a valid list name for RightScripts.  Must be Boot, Operational, or Decommission:", scriptType)
+			return nil, typeError
+		}
+	}
 	return &st, nil
+}
+
+func getServerTemplateByName(name string) (*cm15.ServerTemplate, error) {
+	client := config.environment.Client15()
+
+	stLocator := client.ServerTemplateLocator("/api/server_templates")
+	apiParams := rsapi.APIParams{"filter": []string{"name==" + name}}
+	fuzzySts, err := stLocator.Index(apiParams)
+	if err != nil {
+		return nil, err
+	}
+	var foundSt *cm15.ServerTemplate
+	for _, st := range fuzzySts {
+		if st.Name == name && st.Revision == 0 {
+			if foundSt != nil {
+				return nil, fmt.Errorf("Error, matched multiple ServerTemplates with the same name. Don't know which one to upload to. Please delete one of '%s'", name)
+			} else {
+				foundSt = st
+			}
+		}
+	}
+	return foundSt, nil
 }
