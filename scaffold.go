@@ -124,7 +124,7 @@ func scaffoldRightScriptFile(script *os.File, backup bool) error {
 						array[index] = fmt.Sprintf("%q", InputValue{Type: "text", Value: value})
 					}
 					inputType = Array
-					inputValue = InputValue{Type: "array", Value: strings.Join(array, ",")}
+					inputValue = InputValue{Type: "array", Value: "[" + strings.Join(array, ",") + "]"}
 				}
 				metadata.Inputs[name].InputType = inputType
 				metadata.Inputs[name].Default = &inputValue

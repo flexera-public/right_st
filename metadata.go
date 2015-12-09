@@ -182,7 +182,12 @@ func (i *InputType) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (i InputValue) String() string {
-	return i.Type + ":" + i.Value
+	switch i.Type {
+	case "blank", "ignore":
+		return i.Type
+	default:
+		return i.Type + ":" + i.Value
+	}
 }
 
 func (i InputValue) MarshalYAML() (interface{}, error) {
@@ -196,9 +201,14 @@ func (i *InputValue) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 	values := strings.SplitN(value, ":", 2)
-	if len(values) < 2 {
-		return fmt.Errorf("Invalid input value: %s", value)
+	switch values[0] {
+	case "blank", "ignore":
+		*i = InputValue{Type: values[0]}
+	default:
+		if len(values) < 2 {
+			return fmt.Errorf("Invalid input value: %s", value)
+		}
+		*i = InputValue{Type: values[0], Value: values[1]}
 	}
-	*i = InputValue{Type: values[0], Value: values[1]}
 	return nil
 }
