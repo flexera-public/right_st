@@ -216,6 +216,9 @@ func (i *InputValue) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			return fmt.Errorf("Invalid input value: %s", value)
 		}
 		*i = InputValue{Type: values[0], Value: values[1]}
+		if i.Type == "text" && i.Value == "" {
+			return fmt.Errorf("Use 'blank' or 'ignore' instead of 'text:'")
+		}
 	}
 	return nil
 }

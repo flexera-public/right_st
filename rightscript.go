@@ -397,12 +397,12 @@ func validateRightScript(file string) (*RightScriptMetadata, error) {
 		return nil, err
 	}
 	if metadata != nil {
-		if *debug {
-			pretty.Println(metadata)
-		}
-
 		if metadata.Inputs == nil {
 			return metadata, fmt.Errorf("Inputs must be specified")
+		}
+
+		if *debug {
+			pretty.Println(metadata)
 		}
 
 		for _, attachment := range metadata.Attachments {

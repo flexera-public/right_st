@@ -22,6 +22,7 @@ var _ = Describe("RightScript Metadata", func() {
 		invalidMetadataStructureScript  io.ReadSeeker
 		incorrectInputTypeSyntaxScript  io.ReadSeeker
 		incorrectInputValueSyntaxScript io.ReadSeeker
+		emptyTextValueScript            io.ReadSeeker
 		unknownFieldScript              io.ReadSeeker
 		buffer                          *gbytes.Buffer
 		emptyMetadata                   RightScriptMetadata
@@ -133,6 +134,21 @@ var _ = Describe("RightScript Metadata", func() {
 #     Default: foobar
 # ...
 # The Default line is not valid Inputs 2.0 syntax
+`)
+		emptyTextValueScript = strings.NewReader(`#!/bin/bash
+# ---
+# RightScript Name: Some RightScript Name
+# Description: Some description of stuff
+# Inputs:
+#   TEXT_INPUT:
+#     Category: Uncategorized
+#     Description: Some test input
+#     Input Type: single
+#     Required: true
+#     Advanced: false
+#     Default: "text:"
+# ...
+# The Default line should be blank or ignore in Inputs 2.0 syntax
 `)
 		unknownFieldScript = strings.NewReader(`#!/bin/bash
 # ---
@@ -296,6 +312,14 @@ var _ = Describe("RightScript Metadata", func() {
 				_, err := ParseRightScriptMetadata(incorrectInputValueSyntaxScript)
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError("Invalid input value: foobar"))
+			})
+		})
+
+		Context("With a blank text input value in script metadata", func() {
+			It("should return an error", func() {
+				_, err := ParseRightScriptMetadata(emptyTextValueScript)
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(MatchError("Use 'blank' or 'ignore' instead of 'text:'"))
 			})
 		})
 
