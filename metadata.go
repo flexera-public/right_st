@@ -26,11 +26,11 @@ var (
 )
 
 type RightScriptMetadata struct {
-	Name        string                    `yaml:"RightScript Name"`
-	Description string                    `yaml:"Description"`
-	Inputs      map[string]*InputMetadata `yaml:"Inputs"`
-	Attachments []string                  `yaml:"Attachments"`
-	Comment     string                    `yaml:"-"`
+	Name        string    `yaml:"RightScript Name"`
+	Description string    `yaml:"Description"`
+	Inputs      *InputMap `yaml:"Inputs"`
+	Attachments []string  `yaml:"Attachments"`
+	Comment     string    `yaml:"-"`
 }
 
 type InputMetadata struct {
@@ -42,6 +42,8 @@ type InputMetadata struct {
 	Default        *InputValue   `yaml:"Default,omitempty"`
 	PossibleValues []*InputValue `yaml:"Possible Values,omitempty"`
 }
+
+type InputMap map[string]*InputMetadata
 
 type InputType int
 
@@ -116,6 +118,11 @@ func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error
 func (metadata *RightScriptMetadata) WriteTo(script io.Writer) (n int64, err error) {
 	if metadata.Comment == "" {
 		metadata.Comment = "#"
+	}
+
+	if metadata.Inputs == nil {
+		inputs := make(InputMap)
+		metadata.Inputs = &inputs
 	}
 
 	c, err := fmt.Fprintf(script, "%s ---\n", metadata.Comment)

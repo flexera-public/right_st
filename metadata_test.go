@@ -153,7 +153,7 @@ var _ = Describe("RightScript Metadata", func() {
 		populatedMetadata = RightScriptMetadata{
 			Name:        "Some RightScript Name",
 			Description: "Some description of stuff",
-			Inputs: map[string]*InputMetadata{
+			Inputs: &InputMap{
 				"TEXT_INPUT": {
 					Category:       "Uncategorized",
 					Description:    "Some test input",
@@ -221,7 +221,7 @@ var _ = Describe("RightScript Metadata", func() {
 				Expect(metadata).NotTo(BeNil())
 				Expect(metadata.Name).To(Equal("Some RightScript Name"))
 				Expect(metadata.Description).To(Equal("Some description of stuff"))
-				Expect(metadata.Inputs).To(Equal(map[string]*InputMetadata{
+				Expect(metadata.Inputs).To(Equal(&InputMap{
 					"TEXT_INPUT": {
 						Category:       "Uncategorized",
 						Description:    "Some test input",
@@ -277,7 +277,7 @@ var _ = Describe("RightScript Metadata", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(&yaml.TypeError{
 					Errors: []string{
-						"line 7: cannot unmarshal !!seq into map[string]*main.InputMetadata",
+						"line 7: cannot unmarshal !!seq into main.InputMap",
 					},
 				}))
 			})

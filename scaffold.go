@@ -58,14 +58,15 @@ func scaffoldRightScriptFile(script *os.File, backup bool) error {
 		return err
 	}
 	if metadata != nil {
-		fmt.Printf("%s: already contains metadata\n", path)
+		fmt.Printf("%s: Already contains metadata\n", path)
 		return nil
 	}
 
+	inputs := make(InputMap)
 	metadata = &RightScriptMetadata{
 		Name:        strings.Title(separator.ReplaceAllLiteralString(strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)), " ")),
 		Description: "(put your description here, it can be multiple lines using YAML syntax)",
-		Inputs:      make(map[string]*InputMetadata),
+		Inputs:      &inputs,
 	}
 
 	variable := shellVariable
@@ -103,13 +104,14 @@ func scaffoldRightScriptFile(script *os.File, backup bool) error {
 			if ignoreVariables.MatchString(name) {
 				continue
 			}
-			if _, ok := metadata.Inputs[name]; !ok {
-				metadata.Inputs[name] = &InputMetadata{
+			inputs = *metadata.Inputs
+			if _, ok := inputs[name]; !ok {
+				inputs[name] = &InputMetadata{
 					Category:    "(put your input category here)",
 					Description: "(put your input description here, it can be multiple lines using YAML syntax)",
 				}
 			}
-			if len(submatches) > 2 && submatches[2] != "" && metadata.Inputs[name].Default == nil {
+			if len(submatches) > 2 && submatches[2] != "" && inputs[name].Default == nil {
 				values := strings.Split(submatches[2], ",")
 				var (
 					inputType  InputType
@@ -126,8 +128,8 @@ func scaffoldRightScriptFile(script *os.File, backup bool) error {
 					inputType = Array
 					inputValue = InputValue{Type: "array", Value: "[" + strings.Join(array, ",") + "]"}
 				}
-				metadata.Inputs[name].InputType = inputType
-				metadata.Inputs[name].Default = &inputValue
+				inputs[name].InputType = inputType
+				inputs[name].Default = &inputValue
 			}
 		}
 
@@ -160,6 +162,6 @@ func scaffoldRightScriptFile(script *os.File, backup bool) error {
 		return err
 	}
 
-	fmt.Printf("%s: added metadata\n", path)
+	fmt.Printf("%s: Added metadata\n", path)
 	return nil
 }

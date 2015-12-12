@@ -401,6 +401,10 @@ func validateRightScript(file string) (*RightScriptMetadata, error) {
 			pretty.Println(metadata)
 		}
 
+		if metadata.Inputs == nil {
+			return metadata, fmt.Errorf("Inputs must be specified")
+		}
+
 		for _, attachment := range metadata.Attachments {
 			fullPath := filepath.Join(filepath.Dir(file), attachment)
 
