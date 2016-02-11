@@ -30,5 +30,8 @@ _testmain.go
 *.test
 *.prof
 
+hello.sh
+*.bak
+
 # vim
 .*.sw[nmop]

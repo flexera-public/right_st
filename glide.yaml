@@ -39,4 +39,3 @@ import:
   version: right_scripts_update_source2
   repo: https://github.com/lopaka/rsc
   vcs: git
-- package: github.com/spf13/

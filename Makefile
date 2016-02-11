@@ -38,6 +38,15 @@ ACL=public-read
 GOPKG_VERS=v1
 # Dependencies handled by go+glide. Requires 1.5+
 export GO15VENDOREXPERIMENT=1
+GLIDE_VERSION?=0.8.3
+GOOS=$(shell go env GOOS)
+GOARCH=$(shell go env GOARCH)
+GLIDE_TGZ=glide-$(GLIDE_VERSION)-$(GOOS)-$(GOARCH).tar.gz
+ifeq ($(GOOS),windows)
+GLIDE_EXEC=glide-$(GLIDE_VERSION).exe
+else
+GLIDE_EXEC=glide-$(GLIDE_VERSION)
+endif
 # github.com/rogpeppe/gover requires auth?
 #=== below this line ideally remains unchanged, add new targets at the end  ===
 
@@ -106,10 +115,17 @@ version:
 	  >version.go
 	@echo "version.go: `tail -1 version.go`"
 
+bin/$(GLIDE_EXEC):
+	mkdir -p bin tmp
+	cd tmp && curl -sSfL --tlsv1 --connect-timeout 30 --max-time 180 --retry 3 \
+	  -O https://github.com/Masterminds/glide/releases/download/$(GLIDE_VERSION)/$(GLIDE_TGZ)
+	cd tmp && tar xzvf $(GLIDE_TGZ)
+	mv tmp/$(GOOS)-$(GOARCH)/glide* bin/$(GLIDE_EXEC)
+	rm -rf tmp
+
 # Handled natively in GO now for 1.5! Use glide to manage!
-depend:
-#	github.com/Masterminds/glide
-	glide up
+depend: bin/$(GLIDE_EXEC)
+	./bin/$(GLIDE_EXEC) --quiet install --quick
 
 clean:
 	rm -rf build $(EXE)
