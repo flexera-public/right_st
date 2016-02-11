@@ -10,4 +10,4 @@ os:
   - osx
 script:
   - make test
-  - make build
+  - if [[ `go env GOOS` == linux ]]; then make build; fi
