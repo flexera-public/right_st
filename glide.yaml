@@ -16,6 +16,9 @@ import:
 - package: github.com/onsi/ginkgo
   subpackages:
   - ginkgo
+- package: github.com/onsi/gomega
+  subpackages:
+  - gomega
 - package: gopkg.in/fsnotify.v1
 - package: github.com/douglaswth/rsrdp
   subpackages:

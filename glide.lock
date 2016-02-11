@@ -1,5 +1,5 @@
-hash: 0000e80c89321e021ef9b66df649e8b93e7bae3f39be3813c02f0e5386c3601e
-updated: 2016-02-10T17:16:17.9974627-08:00
+hash: 72d2717adf03fdfd2930db5f37db518a4af7a1832fd5fc31ea2315bcf9194a96
+updated: 2016-02-10T17:39:54.7350181-08:00
 imports:
 - name: bitbucket.org/pkg/inflect
   version: 8961c3750a47
@@ -36,6 +36,11 @@ imports:
   version: d1ed510449924a57f7b6e3cac374691332141316
   repo: https://github.com/douglaswth/yaml
   vcs: git
+- name: github.com/golang/protobuf
+  version: 8ea33d25124a63a964f248594fdd8887178543f2
+  subpackages:
+  - proto
+  - proto/testdata
 - name: github.com/hashicorp/hcl
   version: 1c284ec98f4b398443cbabb0d9197f7f4cc0077c
   subpackages:
@@ -86,6 +91,20 @@ imports:
   - ginkgo/testsuite
   - ginkgo/watch
   - internal/leafnodes
+- name: github.com/onsi/gomega
+  version: c72df929b80ef4930aaa75d5e486887ff2f3e06a
+  subpackages:
+  - gomega
+  - internal/assertion
+  - internal/asyncassertion
+  - internal/testingtsupport
+  - matchers
+  - types
+  - internal/oraclematcher
+  - matchers/support/goraph/bipartitegraph
+  - matchers/support/goraph/edge
+  - matchers/support/goraph/node
+  - matchers/support/goraph/util
 - name: github.com/pmezard/go-difflib
   version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
   subpackages:
