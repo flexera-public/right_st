@@ -5,9 +5,7 @@ environment:
   GO15VENDOREXPERIMENT: 1
 install:
   - appveyor SetVariable -Name PATH -Value "%GOPATH%\bin;%PATH%;C:\Ruby21-x64\DevKit\mingw\bin;C:\cygwin\bin"
-  - go get github.com/Masterminds/glide
-  - go get github.com/onsi/ginkgo/ginkgo
-  - glide up
+  - make depend
 build_script:
   - make
 test_script:

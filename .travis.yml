@@ -4,9 +4,7 @@ env:
 go:
   - 1.5
 install:
-  - go get github.com/Masterminds/glide
-  - go get github.com/onsi/ginkgo/ginkgo
-  - glide up
+  - make depend
 os:
   - linux
   - osx
