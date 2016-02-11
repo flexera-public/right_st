@@ -126,6 +126,7 @@ bin/$(GLIDE_EXEC):
 # Handled natively in GO now for 1.5! Use glide to manage!
 depend: bin/$(GLIDE_EXEC)
 	./bin/$(GLIDE_EXEC) --quiet install --quick
+	cd vendor/github.com/onsi/ginkgo/ginkgo && go install
 
 clean:
 	rm -rf build $(EXE)
@@ -141,7 +142,7 @@ lint:
 	go tool vet -composites=false *.go
 
 test: lint
-	ginkgo -cover $(shell glide novendor)
+	ginkgo -cover $(shell ./bin/$(GLIDE_EXEC) novendor)
 
 #===== SPECIAL TARGETS FOR right_st =====
 
