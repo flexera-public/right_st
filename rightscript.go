@@ -276,7 +276,7 @@ func (r *RightScript) Push() error {
 
 	var rightscriptLocator *cm15.RightScriptLocator
 	if foundId == "" {
-		fmt.Printf("Creating a new RightScript named '%s' from %s\n", r.Metadata.Name, r.Path)
+		fmt.Printf("  Creating a new RightScript named '%s' from %s\n", r.Metadata.Name, r.Path)
 		// New one, perform create call
 		params := cm15.RightScriptParam2{
 			Name:        r.Metadata.Name,
@@ -287,12 +287,12 @@ func (r *RightScript) Push() error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("  RightScript created with HREF %s\n", rightscriptLocator.Href)
+		fmt.Printf("    RightScript created with HREF %s\n", rightscriptLocator.Href)
 		r.Href = string(rightscriptLocator.Href)
 	} else {
 		// Found existing, do an update
 		href := fmt.Sprintf("/api/right_scripts/%s", foundId)
-		fmt.Printf("Updating existing RightScript named '%s' with HREF %s from %s\n", r.Metadata.Name, href, r.Path)
+		fmt.Printf("  Updating existing RightScript named '%s' with HREF %s from %s\n", r.Metadata.Name, href, r.Path)
 
 		params := cm15.RightScriptParam3{
 			Name:        r.Metadata.Name,
