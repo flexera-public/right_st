@@ -138,6 +138,9 @@ func scaffoldRightScriptFile(script *os.File, backup bool) error {
 	if err := scanner.Err(); err != nil {
 		return err
 	}
+	if shebangEnd < 0 {
+		shebangEnd = 0
+	}
 
 	_, err = script.Seek(int64(shebangEnd), os.SEEK_SET)
 	if err != nil {
