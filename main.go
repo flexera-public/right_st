@@ -66,6 +66,11 @@ var (
 	rightScriptValidateCmd   = rightScriptCmd.Command("validate", "Validate RightScript YAML metadata comments in a file or files")
 	rightScriptValidatePaths = rightScriptValidateCmd.Arg("path", "Path to script file or directory containing script files").Required().ExistingFilesOrDirs()
 
+	// ----- Configuration -----
+	configCmd = app.Command("config", "Manage Configuration")
+
+	configAddCmd = configCmd.Command("add", "Add configuration environment")
+
 	// ----- Update right_st -----
 	updateCmd = app.Command("update", "Update "+app.Name+" executable")
 
@@ -83,7 +88,7 @@ func main() {
 	command := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	err := readConfig(*configFile, *environment)
-	if err != nil {
+	if err != nil && command != "config add" {
 		fatalError("%s: Error reading config file: %s\n", filepath.Base(os.Args[0]), err.Error())
 	}
 
@@ -156,6 +161,8 @@ func main() {
 			fatalError("%s\n", err.Error())
 		}
 		rightScriptValidate(files)
+	case configAddCmd.FullCommand():
+		generateConfig(*configFile)
 	case updateListCmd.FullCommand():
 		err := UpdateList(VV, os.Stdout)
 		if err != nil {

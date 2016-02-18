@@ -79,3 +79,36 @@ func (config *Config) getEnvironment(account int, host string) (*Environment, er
 
 	return nil, fmt.Errorf("Error finding environment for account/host: %d %s", account, host)
 }
+
+// Obtain input via STDIN then print out to config file
+// Example of config file
+// login:
+//   default_environment: doug
+//   environments:
+//     rightlink:
+//       account: 67972
+//       host: us-3.rightscale.com
+//       refresh_token: xxxx
+//     doug:
+//       account: 60073
+//       host: dougmoo-moo-403.test.rightscale.com
+//       refresh_token: token_here
+func generateConfig(configfile string) {
+
+	var EnvironmentName string
+	var AccountNum string
+	var HostEndPoint string
+	var RefreshToken string
+
+	fmt.Print("Environment Name: ")
+	fmt.Scanln(&EnvironmentName)
+
+	fmt.Print("Account Number: ")
+	fmt.Scanln(&AccountNum)
+
+	fmt.Print("Host End Point: ")
+	fmt.Scanln(&HostEndPoint)
+
+	fmt.Print("Refresh Token: ")
+	fmt.Scanln(&RefreshToken)
+}
