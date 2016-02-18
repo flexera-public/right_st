@@ -13,6 +13,18 @@ import (
 	"github.com/tonnerre/golang-pretty"
 )
 
+type Iterable struct {
+	Links    []map[string]string `json:"links,omitempty"`
+	Name     string              `json:"name,omitempty"`
+	Revision int                 `json:"revision,omitempty"`
+}
+
+type RightScript struct {
+	Href     string
+	Path     string
+	Metadata RightScriptMetadata
+}
+
 func rightScriptList(filter string) {
 	client := config.environment.Client15()
 
@@ -63,7 +75,7 @@ func rightScriptShow(href string) {
 
 func rightScriptUpload(files []string, force bool) {
 	// Pass 1, perform validations, gather up results
-	scripts := []RightScript{}
+	scripts := []*RightScript{}
 	files, err := walkPaths(files)
 	if err != nil {
 		fatalError("%s\n", err.Error())
@@ -77,22 +89,11 @@ func rightScriptUpload(files []string, force bool) {
 			fatalError("Cannot open %s", p)
 		}
 		defer f.Close()
-		metadata, err := validateRightScript(p)
+		script, err := validateRightScript(p, force)
 		if err != nil {
 			fatalError("%s: %s\n", p, err.Error())
 		}
 
-		if metadata.Name == "" {
-			if !force {
-				fatalError("No embedded metadata for %s. Use --force to upload anyways.", p)
-			}
-			scriptname := path.Base(p)
-			scriptext := path.Ext(scriptname)
-			scriptname = strings.TrimRight(scriptname, scriptext)
-			metadata.Name = scriptname
-		}
-
-		script := RightScript{"", p, metadata}
 		scripts = append(scripts, script)
 	}
 
@@ -149,13 +150,10 @@ func rightScriptValidate(files []string) {
 
 	err_encountered := false
 	for _, file := range files {
-		metadata, err := validateRightScript(file)
+		_, err := validateRightScript(file, true)
 		if err != nil {
 			err_encountered = true
 			fmt.Fprintf(os.Stderr, "%s: %s\n", file, err.Error())
-		} else if metadata.Name == "" {
-			err_encountered = true
-			fmt.Fprintf(os.Stderr, "%s: %s\n", file, "Does not have metadata")
 		} else {
 			fmt.Printf("%s: Valid metadata\n", file)
 		}
@@ -241,36 +239,34 @@ func uploadAttachment(loc *cm15.RightScriptAttachmentLocator,
 	// }
 }
 
-type Iterable struct {
-	Links    []map[string]string `json:"links,omitempty"`
-	Name     string              `json:"name,omitempty"`
-	Revision int                 `json:"revision,omitempty"`
-}
-
-type RightScript struct {
-	Href     string
-	Path     string
-	Metadata *RightScriptMetadata
+func rightScriptIdByName(name string) (string, error) {
+	client := config.environment.Client15()
+	createLocator := client.RightScriptLocator("/api/right_scripts")
+	apiParams := rsapi.APIParams{"filter": []string{"name==" + name}}
+	rightscripts, err := createLocator.Index(apiParams)
+	if err != nil {
+		return "", err
+	}
+	foundId := ""
+	for _, rs := range rightscripts {
+		// Recheck the name here, filter does a impartial match and we need an exact one
+		if rs.Name == name && rs.Revision == 0 {
+			if foundId != "" {
+				return "", fmt.Errorf("Error, matched multiple RightScripts with the same name, please delete one: %s %s", rs.Id, foundId)
+			} else {
+				foundId = rs.Id
+			}
+		}
+	}
+	return foundId, nil
 }
 
 func (r *RightScript) Push() error {
 	client := config.environment.Client15()
 	createLocator := client.RightScriptLocator("/api/right_scripts")
-	apiParams := rsapi.APIParams{"filter": []string{"name==" + r.Metadata.Name}}
-	rightscripts, err := createLocator.Index(apiParams)
+	foundId, err := rightScriptIdByName(r.Metadata.Name)
 	if err != nil {
 		return err
-	}
-	foundId := ""
-	for _, rs := range rightscripts {
-		// Recheck the name here, filter does a impartial match and we need an exact one
-		if rs.Name == r.Metadata.Name && rs.Revision == 0 {
-			if foundId != "" {
-				fatalError("Error, matched multiple RightScripts with the same name, please delete one: %s %s", rs.Id, foundId)
-			} else {
-				foundId = rs.Id
-			}
-		}
 	}
 
 	fileSrc, err := ioutil.ReadFile(r.Path)
@@ -292,7 +288,9 @@ func (r *RightScript) Push() error {
 			return err
 		}
 		fmt.Printf("  RightScript created with HREF %s\n", rightscriptLocator.Href)
+		r.Href = string(rightscriptLocator.Href)
 	} else {
+		// Found existing, do an update
 		href := fmt.Sprintf("/api/right_scripts/%s", foundId)
 		fmt.Printf("Updating existing RightScript named '%s' with HREF %s from %s\n", r.Metadata.Name, href, r.Path)
 
@@ -306,7 +304,7 @@ func (r *RightScript) Push() error {
 		if err != nil {
 			return err
 		}
-		// Found existing, do an update
+		r.Href = href
 	}
 
 	attachmentsHref := fmt.Sprintf("%s/attachments", rightscriptLocator.Href)
@@ -320,7 +318,7 @@ func (r *RightScript) Push() error {
 	onRightscript := make(map[string]*cm15.RightScriptAttachment) // scripts attached to the rightsript
 	for _, a := range r.Metadata.Attachments {
 		fullPath := filepath.Join(filepath.Dir(r.Path), a)
-		md5, err := md5sum(fullPath)
+		md5, err := fmd5sum(fullPath)
 		if err != nil {
 			return err
 		}
@@ -385,7 +383,7 @@ func (r *RightScript) Push() error {
 // No metadata is considered valid, although the RightScriptMetadata returned will
 // be intialized to default values. A RightScriptMetadata struct might still be
 // returned if there are errors if the metadata was partially specified.
-func validateRightScript(file string) (*RightScriptMetadata, error) {
+func validateRightScript(file string, ignoreMissingMetadata bool) (*RightScript, error) {
 	script, err := os.Open(file)
 	if err != nil {
 		return nil, err
@@ -396,24 +394,40 @@ func validateRightScript(file string) (*RightScriptMetadata, error) {
 	if err != nil {
 		return nil, err
 	}
-	if metadata != nil {
-		if metadata.Inputs == nil {
-			return metadata, fmt.Errorf("Inputs must be specified")
+
+	if metadata == nil {
+		if ignoreMissingMetadata {
+			metadata = new(RightScriptMetadata)
+			scriptname := path.Base(file)
+			scriptext := path.Ext(scriptname)
+			scriptname = strings.TrimRight(scriptname, scriptext)
+			metadata.Name = scriptname
+		} else {
+			return nil, fmt.Errorf("No embedded metadata for %s. Use --force to upload anyways.", file)
 		}
+	}
+	rightScript := RightScript{"", file, *metadata}
 
-		if *debug {
-			pretty.Println(metadata)
-		}
+	if *debug {
+		pretty.Println(metadata)
+	}
 
-		for _, attachment := range metadata.Attachments {
-			fullPath := filepath.Join(filepath.Dir(file), attachment)
+	if metadata.Inputs == nil {
+		return &rightScript, fmt.Errorf("Inputs must be specified")
+	}
 
-			_, err := md5sum(fullPath)
-			if err != nil {
-				return metadata, err
-			}
+	for _, attachment := range metadata.Attachments {
+		fullPath := filepath.Join(filepath.Dir(file), attachment)
+
+		_, err := fmd5sum(fullPath)
+		if err != nil {
+			return &rightScript, err
 		}
 	}
 
-	return metadata, nil
+	if metadata.Name == "" {
+		return &rightScript, fmt.Errorf("Name must be specified")
+	}
+
+	return &rightScript, nil
 }

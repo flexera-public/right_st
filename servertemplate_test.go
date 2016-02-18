@@ -96,7 +96,7 @@ Inputs: {}
 `)
 				_, err := ParseServerTemplate(script)
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).Should(ContainSubstring("not a valid list name"))
+				Expect(err.Error()).Should(ContainSubstring("not a valid sequence name"))
 			})
 		})
 

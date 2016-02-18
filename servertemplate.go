@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/go-yaml/yaml"
 	"github.com/rightscale/rsc/cm15"
@@ -29,11 +30,13 @@ type ServerTemplate struct {
 	mciHrefs         []string
 }
 
+var sequenceTypes []string = []string{"Boot", "Operational", "Decommission"}
+
 func stUpload(files []string) {
 
 	for _, file := range files {
 		fmt.Printf("Uploading %s\n", file)
-		st, errors := validateServerTemplate(file)
+		st, rightscripts, errors := validateServerTemplate(file)
 		if len(errors) != 0 {
 			fmt.Println("Encountered the following errors with the ServerTemplate:")
 			for _, err := range errors {
@@ -42,8 +45,9 @@ func stUpload(files []string) {
 			os.Exit(1)
 		}
 
-		fmt.Printf("%#v", *st)
-		err := doUpload(st)
+		fmt.Printf("ST: %#v\n", *st)
+		err := doUpload(*st, *rightscripts)
+
 		if err != nil {
 			fatalError("Failed to upload ServerTemplate '%s': %s", file, err.Error())
 		}
@@ -52,27 +56,175 @@ func stUpload(files []string) {
 
 // Options:
 //   -- commit
-func doUpload(st *ServerTemplate) error {
+func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]RightScript) error {
 	// Check if ST with same name (HEAD revisions only) exists. If it does, update the head
-	//client := config.environment.Client15()
-	existingSt, err := getServerTemplateByName(st.Name)
+	client := config.environment.Client15()
+	st, err := getServerTemplateByName(stDef.Name)
 
 	if err != nil {
-		fatalError("Failed to query for ServerTemplate '%s': %s", st.Name, err.Error())
+		fatalError("Failed to query for ServerTemplate '%s': %s", stDef.Name, err.Error())
 	}
-	// MCI work:
+
+	// -----------------
+	// Synchronize ST
+	// -----------------
+	// st = ST cloud object. stDef = ST defined in YAML on disk
+	stVerb := "Updating"
+	if st == nil {
+		params := cm15.ServerTemplateParam{
+			Description: stDef.Description,
+			Name:        stDef.Name,
+		}
+		stLoc, err := client.ServerTemplateLocator("/api/server_templates").Create(&params)
+		if err != nil {
+			fatalError("Failed to create ServerTemplate '%s': %s", stDef.Name, err.Error())
+		}
+		st, err = stLoc.Show(rsapi.APIParams{})
+		if err != nil {
+			fatalError("Failed to refetch ServerTemplate '%s': %s", stLoc.Href, err.Error())
+		}
+		stVerb = "Creating"
+	}
+	stHref := getLink(st.Links, "self")
+	fmt.Printf("%s ServerTemplate %s\n", stVerb, getLink(st.Links, "self"))
+
+	// -----------------
+	// Synchonize MCIs
+	// -----------------
 	// Get a list of MCIs on the existing ST.
-	if existingSt != nil {
-		fmt.Printf("%v", existingSt)
+	mciLocator := client.ServerTemplateMultiCloudImageLocator("/api/server_template_multi_cloud_images")
+
+	existingMcis, err := mciLocator.Index(rsapi.APIParams{"filter": []string{"server_template_href==" + stHref}})
+	if err != nil {
+		fatalError("Could not find MCIs with href %s: %s", mciLocator.Href, err.Error())
 	}
 	// Delete MCIs that exist on the existing ST but not in this definition.
-	// Add all MCIs. If the MCI has not changed (HREF is the same, or combination of values is the same) don't update?
+	for _, mci := range existingMcis {
+		mciHref := getLink(mci.Links, "multi_cloud_image")
+		foundMci := false // found on ST definition
+		for _, stDefHref := range stDef.mciHrefs {
+			if stDefHref == mciHref {
+				foundMci = true
+			}
+		}
+		if !foundMci {
+			fmt.Printf("Removing MCI %s\n", mciHref)
+			mci.Locator(client).Destroy()
+		}
+	}
 
-	// RightScript work:
-	// Get a list of all RightScripts on the existing ST
-	// Delete all RightScripts that exist on the existing ST but not in this definition
-	// Add All RightScripts. If a RightScript is committed with a previous revision, but the contents of
-	// that revision are equal to the contents on this one, do nothing.
+	// Add all MCIs. If the MCI has not changed (HREF is the same, or combination of values is the same) don't update?
+	for i, stDefMciHref := range stDef.mciHrefs {
+		foundMci := false // found on ST
+		for _, mci := range existingMcis {
+			mciHref := getLink(mci.Links, "multi_cloud_image")
+			if stDefMciHref == mciHref {
+				foundMci = true
+			}
+		}
+		if !foundMci {
+			params := cm15.ServerTemplateMultiCloudImageParam{
+				MultiCloudImageHref: stDefMciHref,
+				ServerTemplateHref:  stHref,
+			}
+			fmt.Printf("Adding MCI %s\n", stDefMciHref)
+			loc, err := mciLocator.Create(&params)
+			if err != nil {
+				fatalError("Failed to associate MCI '%s' with ServerTemplate '%s': %s", stDefMciHref, stHref, err.Error())
+			}
+			if i == 0 {
+				_ = loc.MakeDefault()
+			}
+		}
+	}
+
+	// -----------------
+	// Synchronize RightScripts
+	// -----------------
+
+	// By the time we get to here, we've done a good bit of error checking, so don't have to recheck much.
+	// We know the files on disk are all openable, the RightScripts on disk have valid metadata.
+	//   TBD: issue: we don't check for duplicate rightscript names till .Push(). move that check to validation section?
+	// Get RightScript object in RightScale. RightScript.Push() handles both cases below:
+	//		1. Doesn't exist: create
+	//		2. Exists: Update contents
+	for _, sequenceType := range sequenceTypes {
+		for _, script := range rightScriptsDef[sequenceType] {
+			// Push() has the side effort of always populating script.Href which we use below -- probably
+			// rework this to be a bit more upfront in the future.
+			err := script.Push()
+			if err != nil {
+				fatalError("%s", err.Error())
+			}
+		}
+	}
+
+	// Add new RightScripts to the sequence list. Don't worry about order for now, that'll be fixed up below
+	rbLoc := client.RunnableBindingLocator(getLink(st.Links, "runnable_bindings"))
+	existingRbs, _ := rbLoc.Index(rsapi.APIParams{})
+	seenExistingRbs := make([]bool, len(existingRbs), len(existingRbs))
+	for _, sequenceType := range sequenceTypes {
+		for _, script := range rightScriptsDef[sequenceType] {
+			seenScript := false
+			for i, rb := range existingRbs {
+				rbHref := getLink(rb.Links, "right_script")
+				if rb.Sequence == strings.ToLower(sequenceType) && rbHref == script.Href {
+					seenScript = true
+					seenExistingRbs[i] = true
+				}
+			}
+			if !seenScript {
+				params := cm15.RunnableBindingParam{
+					RightScriptHref: script.Href,
+					Sequence:        strings.ToLower(sequenceType),
+				}
+				fmt.Printf("Adding %s to ServerTemplate\n", script.Href)
+				_, err := rbLoc.Create(&params)
+				if err != nil {
+					fatalError("Could not create %s RunnableBinding for HREF %s: %s", sequenceType, script.Href, err.Error())
+				}
+			}
+		}
+	}
+	// Remove RightScripts that don't belong from the sequence list
+	for i, rb := range existingRbs {
+		if !seenExistingRbs[i] {
+			fmt.Printf("Removing %s from ServerTemplate\n", getLink(rb.Links, "right_script"))
+			err := rb.Locator(client).Destroy()
+			if err != nil {
+				fatalError("Could not destroy RunnableBinding %s: %s", getLink(rb.Links, "right_script"), err.Error())
+			}
+		}
+	}
+
+	// All RightScripts should now be attached. Do a multi_update to get the position numbers correct
+	existingRbs, _ = rbLoc.Index(rsapi.APIParams{})
+	rbLookup := make(map[string]*cm15.RunnableBinding)
+	for _, rb := range existingRbs {
+		key := rb.Sequence + "_" + getLink(rb.Links, "right_script")
+		rbLookup[key] = rb
+	}
+
+	for _, sequenceType := range sequenceTypes {
+		bindings := []*cm15.RunnableBindings{}
+		for i, script := range rightScriptsDef[sequenceType] {
+			key := strings.ToLower(sequenceType) + "_" + script.Href
+			rb, ok := rbLookup[key]
+			if !ok {
+				fatalError("Could not lookup RunnableBinding %s", key)
+			}
+			b := cm15.RunnableBindings{
+				Id:       rb.Id,
+				Position: fmt.Sprintf("%d", i+1),
+				Sequence: rb.Sequence,
+			}
+			bindings = append(bindings, &b)
+		}
+		err := rbLoc.MultiUpdate(bindings)
+		if err != nil {
+			fatalError("MultiUpdatet to set RunnableBinding order for %s failed: %s", sequenceType, err.Error())
+		}
+	}
 
 	// If the user requested a commit on changes, commit the ST. This will commit all RightScripts as well.
 	return nil
@@ -87,7 +239,6 @@ func stShow(href string) {
 	client := config.environment.Client15()
 
 	stLocator := client.ServerTemplateLocator(href)
-
 	st, err := stLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
 	if err != nil {
 		fatalError("Could not find ServerTemplate with href %s: %s", href, err.Error())
@@ -124,14 +275,13 @@ func stShow(href string) {
 		}
 		fmt.Printf("  %s %5s %s\n", mciHref, rev, item.Name)
 	}
-	sequenceTypes := []string{"boot", "operational", "decommission"}
 	for _, sequenceType := range sequenceTypes {
 		fmt.Printf("RightScripts - %s: (href, rev, name)\n", sequenceType)
 		for _, item := range rbs {
 			rsHref := getLink(item.Links, "right_script")
 			//if item.RightScript != cm15.RightScript(nil) {
 			rs := item.RightScript
-			if item.Sequence != sequenceType {
+			if item.Sequence != strings.ToLower(sequenceType) {
 				continue
 			}
 			rev := "HEAD"
@@ -149,20 +299,20 @@ func stShow(href string) {
 // TBD
 //   AlertSpecs
 //   Cookbooks in some way?
-func validateServerTemplate(file string) (*ServerTemplate, []error) {
+func validateServerTemplate(file string) (*ServerTemplate, *map[string][]RightScript, []error) {
 	var errors []error
 
 	f, err := os.Open(file)
 	if err != nil {
 		errors = append(errors, err)
-		return nil, errors
+		return nil, nil, errors
 	}
 	defer f.Close()
 
 	st, err := ParseServerTemplate(f)
 	if err != nil {
 		errors = append(errors, err)
-		return nil, errors
+		return nil, nil, errors
 	}
 
 	client := config.environment.Client15()
@@ -196,18 +346,19 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 		st.mciHrefs[i] = href
 	}
 
-	for scriptType, scripts := range st.RightScripts {
+	rightscripts := make(map[string][]RightScript)
+	for sequence, scripts := range st.RightScripts {
 		for _, rsName := range scripts {
-			_, err := validateRightScript(rsName)
+			rs, err := validateRightScript(rsName, false)
 			if err != nil {
-				rsError := fmt.Errorf("RightScript error: %s:%s: %s", scriptType, rsName, err.Error())
+				rsError := fmt.Errorf("RightScript error: %s:%s: %s", sequence, rsName, err.Error())
 				errors = append(errors, rsError)
 			}
+			rightscripts[sequence] = append(rightscripts[sequence], *rs)
 		}
-
 	}
 
-	return st, errors
+	return st, &rightscripts, errors
 }
 
 func ParseServerTemplate(ymlData io.Reader) (*ServerTemplate, error) {
@@ -220,9 +371,9 @@ func ParseServerTemplate(ymlData io.Reader) (*ServerTemplate, error) {
 	if err != nil {
 		return nil, err
 	}
-	for scriptType, _ := range st.RightScripts {
-		if scriptType != "Boot" && scriptType != "Operational" && scriptType != "Decommission" {
-			typeError := fmt.Errorf("%s is not a valid list name for RightScripts.  Must be Boot, Operational, or Decommission:", scriptType)
+	for sequence, _ := range st.RightScripts {
+		if sequence != "Boot" && sequence != "Operational" && sequence != "Decommission" {
+			typeError := fmt.Errorf("%s is not a valid sequence name for RightScripts.  Must be Boot, Operational, or Decommission:", sequence)
 			return nil, typeError
 		}
 	}

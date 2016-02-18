@@ -223,15 +223,19 @@ func fatalError(format string, v ...interface{}) {
 	os.Exit(1)
 }
 
-func md5sum(path string) (string, error) {
+func fmd5sum(path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
 	defer file.Close()
+	return md5sum(file)
+}
+
+func md5sum(data io.Reader) (string, error) {
 	hash := md5.New()
 
-	_, err = io.Copy(hash, file)
+	_, err := io.Copy(hash, data)
 	if err != nil {
 		return "", err
 	}
