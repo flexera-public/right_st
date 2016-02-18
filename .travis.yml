@@ -11,3 +11,7 @@ os:
 script:
   - make test
   - if [[ `go env GOOS` == linux ]]; then make build; fi
+  # Deploy build result to s3
+  - export AWS_ACCESS_KEY_ID=AKIAIX3L4RHHIREAHABQ
+  - export AWS_SECRET_ACCESS_KEY=${RSBIN_KEY}
+  - make upload

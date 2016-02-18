@@ -47,6 +47,9 @@ GLIDE_EXEC=glide-$(GLIDE_VERSION).exe
 else
 GLIDE_EXEC=glide-$(GLIDE_VERSION)
 endif
+# Dependencies that need to be installed
+INSTALL_DEPEND=	github.com/onsi/ginkgo/ginkgo \
+		github.com/rlmcpherson/s3gof3r/gof3r
 # github.com/rogpeppe/gover requires auth?
 #=== below this line ideally remains unchanged, add new targets at the end  ===
 
@@ -126,7 +129,7 @@ bin/$(GLIDE_EXEC):
 # Handled natively in GO now for 1.5! Use glide to manage!
 depend: bin/$(GLIDE_EXEC)
 	./bin/$(GLIDE_EXEC) --quiet install --quick
-	cd vendor/github.com/onsi/ginkgo/ginkgo && go install
+	for d in $(INSTALL_DEPEND); do (cd vendor/$$d && go install); done
 
 clean:
 	rm -rf build $(EXE)
