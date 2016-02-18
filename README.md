@@ -4,14 +4,14 @@ right_st is a tool for managing RightScale ServerTemplate and RightScripts. The 
 
 ## Managing RightScripts
 
-RightScripts consist of a script body, attachments, and metadata describing the inputs, description, and name. Metadata is expected to be embedded as a comment at the top of the RightScript. Metadata format is as follows:
+RightScripts consist of a script body, attachments, and metadata. Metadata is the list of inputs, description, and name of the RightScript. Metadata is expected to be embedded as a YAML formatted comment at the top of the RightScript. Metadata format is as follows:
 
 | Field | Format | Description |
 | ----- | ------ | ----------- |
 | RightScript Name | String | Name of RightScript. Name must be unique for your account. |
 | Description | String | Description field for the RightScript |
-| Inputs | Hash of String -> Input | The hash is key is the input name. The hash value is an Input definition (defined below) |
-| Attachments | Array of Strings | Each string is a path (relative to the .yml) pointing to the attachment file |
+| Inputs | Hash of String -> Input | The hash key is the input name. The hash value is an Input definition (defined below) |
+| Attachments | Array of Strings | Each string is a path (relative to the RightScript file on disk) pointing to the attachment file |
 
 Input definition format is as follows:
 
@@ -19,10 +19,10 @@ Input definition format is as follows:
 | ----- | ------ | ----------- |
 | Input Type | String | "single" or "array" |
 | Category | String | Category to group Input under |
-| Description | Description field for the Input |
+| Description | String | Description field for the Input |
 | Default | String | Default value. Value must be in [Inputs 2.0 format](http://reference.rightscale.com/api1.5/resources/ResourceInputs.html) from RightScale API which consists of a type followed by a colon then the value. I.e. "text:Foo", "ignore", "env:ENV_VAR" |
-| Required | Boolean(true|false) | Whether or not the Input is required |
-| Advanced | Boolean(true|false) | Whether or not the Input is advanced (hidden by default) |
+| Required | Boolean | "true" or "false". Whether or not the Input is required |
+| Advanced | Boolean | "true" or "false". Whether or not the Input is advanced (hidden by default) |
 
 
 Example RightScript is as follows:
@@ -50,6 +50,29 @@ chmod a+x /usr/local/bin/foo
 foo $FOO_PARAM
 ```
 
+### Usage
+RightScript related commands are as follows:
+
+~~~bash
+right_st rightscript list <filter>
+  List RightScripts
+
+right_st rightscript show <name|href|id>
+  Show a single RightScript and its attachments
+
+right_st rightscript upload [<flags>] <path>...
+  Upload a RightScript
+
+right_st rightscript download <name|href|id> [<path>]
+  Download a RightScript to a file or files
+
+right_st rightscript scaffold [<flags>] <path>...
+  Add RightScript YAML metadata comments to a file or files
+
+right_st rightscript validate <path>...
+  Validate RightScript YAML metadata comments in a file or files
+~~~
+
 
 ## Managing ServerTemplates
 
@@ -63,7 +86,7 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | Inputs | Hash of String -> Input | The hash key is the input name. The hash value is the Input definition (defined above). |
 | MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash specifying a MCI. Currently the only MultiCloudImage definition format is by Href. See example below |
 
-Example format is as follows:
+Here is an example ServerTemplate yaml file:
 ```yaml
 ---
 Name: My ServerTemplate
@@ -87,6 +110,10 @@ Inputs:
 MultiCloudImages:
   - Href: /api/multi_cloud_images/403042003
 ```
+
+### Usage
+
+TBD
 
 ## Contributors
 
