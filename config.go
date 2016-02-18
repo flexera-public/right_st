@@ -93,7 +93,7 @@ func (config *Config) getEnvironment(account int, host string) (*Environment, er
 //       account: 60073
 //       host: dougmoo-moo-403.test.rightscale.com
 //       refresh_token: token_here
-func generateConfig(configfile string) {
+func generateConfig(configFile string) {
 
 	var EnvironmentName string
 	var AccountNum string
