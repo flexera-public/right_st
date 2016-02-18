@@ -1,5 +1,5 @@
 parent: null
-package: github.com/douglaswth/right_st
+package: github.com/rightscale/right_st
 import:
 - package: github.com/tonnerre/golang-pretty
 - package: github.com/go-yaml/yaml
