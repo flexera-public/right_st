@@ -5,6 +5,7 @@ right_st is a tool for managing RightScale ServerTemplate and RightScripts. The 
 ## Managing RightScripts
 
 RightScripts consist of a script body, attachments, and metadata describing the inputs, description, and name. Metadata is expected to be embedded as a comment at the top of the RightScript. Metadata format is as follows:
+
 | Field | Format | Description |
 | ----- | ------ | ----------- |
 | RightScript Name | String | Name of RightScript. Name must be unique for your account. |
@@ -13,6 +14,7 @@ RightScripts consist of a script body, attachments, and metadata describing the 
 | Attachments | Array of Strings | Each string is a path (relative to the .yml) pointing to the attachment file |
 
 Input definition format is as follows:
+
 | Field | Format | Description |
 | ----- | ------ | ----------- |
 | Input Type | String | "single" or "array" |
@@ -52,6 +54,7 @@ foo $FOO_PARAM
 ## Managing ServerTemplates
 
 ServerTemplates are defined by a YAML format representing the ServerTemplate. The following keys are supported:
+
 | Field | Format | Description |
 | ----- | ------ | ----------- |
 | Name | String | Name of the ServerTemplate. Name must be unique for your account. |
