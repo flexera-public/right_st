@@ -1,4 +1,4 @@
-clone_folder: C:\projects\go\src\github.com\douglaswth\right_st
+clone_folder: C:\projects\go\src\github.com\rightscale\right_st
 environment:
   CYGWIN: nodosfilewarning
   GOPATH: C:\projects\go

@@ -4,7 +4,7 @@ import (
 	"io"
 	"strings"
 
-	. "github.com/douglaswth/right_st"
+	. "github.com/rightscale/right_st"
 
 	"github.com/go-yaml/yaml"
 	. "github.com/onsi/ginkgo"
