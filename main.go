@@ -23,7 +23,6 @@ import (
 
 var (
 	app         = kingpin.New("right_st", "A command-line application for managing RightScripts")
-	version     = app.Flag("version", "Print version").Short('v').Bool()
 	debug       = app.Flag("debug", "Debug mode").Short('d').Bool()
 	configFile  = app.Flag("config", "Set the config file path.").Short('c').Default(defaultConfigFile()).String()
 	environment = app.Flag("environment", "Set the RightScale login environment.").Short('e').String()
@@ -63,7 +62,10 @@ var (
 )
 
 func main() {
+	app.Writer(os.Stdout)
+	app.Version(VV)
 	app.HelpFlag.Short('h')
+	app.VersionFlag.Short('v')
 	command := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	err := readConfig(*configFile, *environment)

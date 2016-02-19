@@ -56,7 +56,7 @@ INSTALL_DEPEND=	github.com/onsi/ginkgo/ginkgo \
 TRAVIS_BRANCH?=dev
 DATE=$(shell date '+%F %T')
 SECONDS=$(shell date '+%s')
-TRAVIS_COMMIT?=$(shell git symbolic-ref HEAD | cut -d"/" -f 3)
+TRAVIS_COMMIT?=$(shell git rev-parse HEAD)
 GIT_BRANCH:=$(shell git symbolic-ref --short -q HEAD || echo "master")
 SHELL:=/bin/bash
 
