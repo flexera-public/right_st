@@ -83,16 +83,16 @@ func (config *Config) getEnvironment(account int, host string) (*Environment, er
 // Obtain input via STDIN then print out to config file
 // Example of config file
 // login:
-//   default_environment: doug
+//   default_environment: acct1
 //   environments:
-//     rightlink:
+//     acct1:
 //       account: 67972
 //       host: us-3.rightscale.com
-//       refresh_token: xxxx
-//     doug:
+//       refresh_token: abc123abc123abc123abc123abc123abc123abc1
+//     acct2:
 //       account: 60073
-//       host: dougmoo-moo-403.test.rightscale.com
-//       refresh_token: token_here
+//       host: us-4.rightscale.com
+//       refresh_token: zxy987zxy987zxy987zxy987xzy987zxy987xzy9
 func generateConfig(configFile, EnvironmentName string) {
 
 	// Read config file if it exists and obtain info if environment exists
