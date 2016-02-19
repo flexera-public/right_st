@@ -1,4 +1,4 @@
-// +build !make
+// +build !right_st_make
 
 package main
 

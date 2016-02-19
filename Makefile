@@ -68,7 +68,7 @@ endif
 # the default target builds a binary in the top-level dir for whatever the local OS is
 default: $(EXE)
 $(EXE): *.go version
-	go build -o $(EXE) .
+	go build -tags right_st_make -o $(EXE) .
 
 install: $(EXE)
 	go install
@@ -81,7 +81,7 @@ build: $(EXE) build/$(NAME)-linux-amd64.tgz build/$(NAME)-darwin-amd64.tgz build
 build/$(NAME)-%.tgz: *.go version
 	rm -rf build/$(NAME)
 	mkdir -p build/$(NAME)
-	tgt=$*; GOOS=$${tgt%-*} GOARCH=$${tgt#*-} go build  -o build/$(NAME)/$(NAME) .
+	tgt=$*; GOOS=$${tgt%-*} GOARCH=$${tgt#*-} go build -tags right_st_make -o build/$(NAME)/$(NAME) .
 	chmod +x build/$(NAME)/$(NAME)
 	tar -zcf $@ -C build $(NAME)
 	rm -r build/$(NAME)
@@ -91,7 +91,7 @@ build/$(NAME)-%.tgz: *.go version
 build/$(NAME)-%.zip: *.go version
 	rm -rf build/$(NAME)
 	mkdir -p build/$(NAME)
-	tgt=$*; GOOS=$${tgt%-*} GOARCH=$${tgt#*-} go build -o build/$(NAME)/$(NAME).exe .
+	tgt=$*; GOOS=$${tgt%-*} GOARCH=$${tgt#*-} go build -tags right_st_make -o build/$(NAME)/$(NAME).exe .
 	cd build; zip -r $(notdir $@) $(NAME)
 	rm -r build/$(NAME)
 
@@ -128,7 +128,7 @@ bin/$(GLIDE_EXEC):
 
 # Handled natively in GO now for 1.5! Use glide to manage!
 depend: bin/$(GLIDE_EXEC)
-	./bin/$(GLIDE_EXEC) --quiet install --quick
+	./bin/$(GLIDE_EXEC) --quiet install --quick --update-vendored
 	for d in $(INSTALL_DEPEND); do (cd vendor/$$d && go install); done
 
 clean:
