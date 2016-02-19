@@ -128,7 +128,7 @@ bin/$(GLIDE_EXEC):
 
 # Handled natively in GO now for 1.5! Use glide to manage!
 depend: bin/$(GLIDE_EXEC)
-	./bin/$(GLIDE_EXEC) --quiet install --quick --update-vendored
+	./bin/$(GLIDE_EXEC) --quiet install --quick
 	for d in $(INSTALL_DEPEND); do (cd vendor/$$d && go install); done
 
 clean:
