@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -22,55 +23,66 @@ var (
 )
 
 func ScaffoldRightScript(path string, backup bool, stdout io.Writer) error {
-	script, err := os.OpenFile(path, os.O_RDWR, 0)
+	scriptBytes, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	defer script.Close()
-	return ScaffoldRightScriptFile(script, backup, stdout)
-}
-
-func ScaffoldRightScriptFile(script *os.File, backup bool, stdout io.Writer) error {
-	path := script.Name()
-	if backup {
-		backupScript, err := os.Create(path + ".bak")
-		if err != nil {
-			return err
-		}
-		defer backupScript.Close()
-
-		_, err = io.Copy(backupScript, script)
-		if err != nil {
-			return err
-		}
-		err = backupScript.Close()
-		if err != nil {
-			return err
-		}
-		_, err = script.Seek(0, os.SEEK_SET)
-		if err != nil {
-			return err
-		}
-	}
-
-	metadata, err := ParseRightScriptMetadata(script)
+	stat, err := os.Stat(path)
 	if err != nil {
 		return err
-	}
-	if metadata != nil {
-		fmt.Fprintf(stdout, "%s: Already contains metadata\n", path)
-		return nil
 	}
 
 	inputs := make(InputMap)
-	metadata = &RightScriptMetadata{
+	metadata := RightScriptMetadata{
 		Name:        strings.Title(separator.ReplaceAllLiteralString(strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)), " ")),
 		Description: "(put your description here, it can be multiple lines using YAML syntax)",
 		Inputs:      &inputs,
 	}
 
+	scaffoldedScript, err := scaffoldBuffer(scriptBytes, metadata, path)
+	if err != nil {
+		return err
+	}
+	scaffoldedScriptBytes, _ := ioutil.ReadAll(scaffoldedScript)
+	if bytes.Compare(scaffoldedScriptBytes, scriptBytes) == 0 {
+		fmt.Fprintf(stdout, "%s: Script unchanged, already contains metadata\n", path)
+	} else {
+		if backup {
+			err := ioutil.WriteFile(path+".bak", scriptBytes, stat.Mode())
+			if err != nil {
+				return err
+			}
+		}
+		err := ioutil.WriteFile(path, scaffoldedScriptBytes, stat.Mode())
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "%s: Added metadata\n", path)
+	}
+	return nil
+}
+
+// Params:
+//   source - Source buffer. Will not be modified
+//   defaults - Default values. Parsed values will be merged in.
+//   filename - Used to help determine the script type.
+// Return values:
+//   *bytes.Buffer - New buffer with added metadata. Currently metadata will only be added if there is none. We don't
+//                   currently bother with any fancy merging or updating if new inputs/attachments get added in the API or disk
+//   err error - error value
+func scaffoldBuffer(source []byte, defaults RightScriptMetadata, filename string) (*bytes.Buffer, error) {
+	metadata, err := ParseRightScriptMetadata(bytes.NewReader(source))
+	if err != nil {
+		return nil, err
+	}
+	if metadata != nil {
+		return bytes.NewBuffer(source), nil
+	}
+	// TBD merge defaults into metadata or vice versa. For now, just start with the defaults
+	metadata = &defaults
+
 	variable := shellVariable
-	switch strings.ToLower(filepath.Ext(path)) {
+	switch strings.ToLower(filepath.Ext(filename)) {
 	case ".rb":
 		variable = rubyVariable
 	case ".pl":
@@ -79,7 +91,7 @@ func ScaffoldRightScriptFile(script *os.File, backup bool, stdout io.Writer) err
 		variable = powershellVariable
 	}
 
-	scanner := bufio.NewScanner(script)
+	scanner := bufio.NewScanner(bytes.NewReader(source))
 	shebangEnd := -1
 	var buffer bytes.Buffer
 	for scanner.Scan() {
@@ -104,7 +116,7 @@ func ScaffoldRightScriptFile(script *os.File, backup bool, stdout io.Writer) err
 			if ignoreVariables.MatchString(name) {
 				continue
 			}
-			inputs = *metadata.Inputs
+			inputs := *metadata.Inputs
 			if _, ok := inputs[name]; !ok {
 				inputs[name] = &InputMetadata{
 					Category:    "(put your input category here)",
@@ -136,35 +148,36 @@ func ScaffoldRightScriptFile(script *os.File, backup bool, stdout io.Writer) err
 		buffer.WriteString(line + "\n")
 	}
 	if err := scanner.Err(); err != nil {
-		return err
+		return nil, err
 	}
+
+	// _, err = script.Seek(int64(shebangEnd), os.SEEK_SET)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
 	if shebangEnd < 0 {
 		shebangEnd = 0
 	}
+	scriptBytes := make([]byte, len(source))
+	copy(scriptBytes, source)
+	script := bytes.NewBuffer(scriptBytes)
+	script.Truncate(shebangEnd)
 
-	_, err = script.Seek(int64(shebangEnd), os.SEEK_SET)
-	if err != nil {
-		return err
-	}
-	err = script.Truncate(int64(shebangEnd))
-	if err != nil {
-		return err
-	}
 	if shebangEnd != 0 {
 		_, err = script.WriteString("\n")
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	_, err = metadata.WriteTo(script)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	_, err = buffer.WriteTo(script)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	fmt.Fprintf(stdout, "%s: Added metadata\n", path)
-	return nil
+	return script, nil
 }

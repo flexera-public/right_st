@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -109,8 +111,9 @@ func rightScriptUpload(files []string, force bool) {
 func rightScriptDownload(href, downloadTo string) {
 	client := config.environment.Client15()
 
+	attachmentsHref := fmt.Sprintf("%s/attachments", href)
 	rightscriptLocator := client.RightScriptLocator(href)
-	// attachmentsLocator := client.RightScriptLocator(fmt.Sprintf("%s/attachments", href))
+	attachmentsLocator := client.RightScriptAttachmentLocator(attachmentsHref)
 
 	rightscript, err := rightscriptLocator.Show()
 	if err != nil {
@@ -121,14 +124,55 @@ func rightScriptDownload(href, downloadTo string) {
 		fatalError("Could get source for RightScript with href %s: %s", href, err.Error())
 	}
 
-	// attachments, err2 := attachmentsLocator.Index(rsapi.APIParams{})
+	attachments, err := attachmentsLocator.Index(rsapi.APIParams{"view": "full"})
+	if err != nil {
+		fatalError("Could get attachments for RightScript from href %s: %s", attachmentsHref, err.Error())
+	}
+
 	if downloadTo == "" {
 		downloadTo = rightscript.Name
 	}
-	fmt.Printf("Downloading '%s' to %s\n", rightscript.Name, downloadTo)
-	err = ioutil.WriteFile(downloadTo, source, 0755)
+	fmt.Printf("Downloading '%s' to '%s'\n", rightscript.Name, downloadTo)
+
+	attachmentNames := make([]string, len(attachments))
+	for i, attachment := range attachments {
+		attachmentNames[i] = attachment.Filename
+	}
+	inputs := make(InputMap) // TBD get these definitions from the API somehow!
+	metadata := RightScriptMetadata{
+		Name:        rightscript.Name,
+		Description: rightscript.Description,
+		Inputs:      &inputs,
+		Attachments: attachmentNames,
+	}
+
+	scaffoldedSource, err := scaffoldBuffer(source, metadata, "")
+	if err == nil {
+		scaffoldedSourceBytes := scaffoldedSource.Bytes()
+		if bytes.Compare(scaffoldedSourceBytes, source) != 0 {
+			fmt.Println("Automatically inserted RightScript metadata.")
+		}
+		err = ioutil.WriteFile(downloadTo, scaffoldedSourceBytes, 0755)
+	} else {
+		fmt.Printf("Downloaded script as is. An error occurred generating metadata to insert into the RightScript: %s", err.Error())
+		err = ioutil.WriteFile(downloadTo, source, 0755)
+	}
 	if err != nil {
 		fatalError("Could not create file: %s", err.Error())
+	}
+	downloadItems := []*downloadItem{}
+	for _, attachment := range attachments {
+		attachmentPath := filepath.Join(filepath.Dir(downloadTo), "attachments", attachment.Filename)
+		downloadUrl, err := url.Parse(attachment.DownloadUrl)
+		if err != nil {
+			fatalError("Could not parse URL of attachment: %s", err.Error())
+		}
+		downloadItems = append(downloadItems, &downloadItem{url: *downloadUrl, filename: attachmentPath, md5: attachment.Digest})
+	}
+	fmt.Printf("Download %d attachments:\n", len(downloadItems))
+	err = downloadManager(downloadItems)
+	if err != nil {
+		fatalError("Failed to download all attachments: %s", err.Error())
 	}
 }
 
@@ -417,12 +461,23 @@ func validateRightScript(file string, ignoreMissingMetadata bool) (*RightScript,
 	}
 
 	for _, attachment := range metadata.Attachments {
-		fullPath := filepath.Join(filepath.Dir(file), attachment)
+		// To make this easier on ourselves and mirror how things are stored in RightScale, attachments can't have any path
+		// elements in them. This assures all attachments will be placed in an "attachments" subdir by convention.
+		if path.Base(attachment) != attachment {
+			return nil, fmt.Errorf("Attachment name invalid: %s. Attachment names can't contain slashes.", attachment)
+		}
+		fullPath := filepath.Join(filepath.Dir(file), "attachments", attachment)
 
-		_, err := fmd5sum(fullPath)
+		file, err := os.Open(fullPath)
+		if err != nil {
+			return &rightScript, fmt.Errorf("Could not open attachment: %s. Make sure attachment is in \"attachments/\" subdirectory", err.Error())
+		}
+		_, err = md5sum(file)
+		file.Close()
 		if err != nil {
 			return &rightScript, err
 		}
+
 	}
 
 	if metadata.Name == "" {

@@ -112,7 +112,7 @@ echo 'I have metadata already!'
 		It("should not add metadata", func() {
 			err := ScaffoldRightScript(metadataScript, false, buffer)
 			Expect(err).To(Succeed())
-			Expect(buffer.Contents()).To(BeEquivalentTo(metadataScript + ": Already contains metadata\n"))
+			Expect(buffer.Contents()).To(BeEquivalentTo(metadataScript + ": Script unchanged, already contains metadata\n"))
 
 			script, err := ioutil.ReadFile(metadataScript)
 			Expect(err).To(Succeed())

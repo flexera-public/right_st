@@ -11,7 +11,7 @@ RightScripts consist of a script body, attachments, and metadata. Metadata is th
 | RightScript Name | String | Name of RightScript. Name must be unique for your account. |
 | Description | String | Description field for the RightScript |
 | Inputs | Hash of String -> Input | The hash key is the input name. The hash value is an Input definition (defined below) |
-| Attachments | Array of Strings | Each string is a path (relative to the RightScript file on disk) pointing to the attachment file |
+| Attachments | Array of Strings | Each string is a filename of an attachment file. Attachments must be placed in an "attachments/" subdirectory |
 
 Input definition format is as follows:
 
@@ -25,7 +25,8 @@ Input definition format is as follows:
 | Advanced | Boolean | "true" or "false". Whether or not the Input is advanced (hidden by default) |
 
 
-Example RightScript is as follows:
+Example RightScript is as follows. This RightScript has one attachment, which must be located at "attachments/foo" relative
+to the script.
 ```bash
 #! /bin/bash -e
 
@@ -41,7 +42,7 @@ Example RightScript is as follows:
 #     Required: false
 #     Advanced: true
 # Attachments:
-#   - attachments/foo
+#   - foo
 # ...
 #
 
@@ -49,7 +50,7 @@ cp -f $RS_ATTACH_DIR/foo /usr/local/bin/foo
 chmod a+x /usr/local/bin/foo
 foo $FOO_PARAM
 ```
-
+ 
 ### Usage
 RightScript related commands are as follows:
 
