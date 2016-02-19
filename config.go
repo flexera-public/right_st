@@ -24,7 +24,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -99,9 +98,9 @@ func generateConfig(configFile, EnvironmentName string) {
 	// Read config file if it exists and obtain info if environment exists
 	readConfig(configFile, EnvironmentName)
 
-	AccountNum := config.GetString(strings.Join([]string{"login.environments", EnvironmentName, "account"}, "."))
-	HostEndPoint := config.GetString(strings.Join([]string{"login.environments", EnvironmentName, "host"}, "."))
-	RefreshToken := config.GetString(strings.Join([]string{"login.environments", EnvironmentName, "refresh_token"}, "."))
+	AccountNum := config.GetString("login.environments." + EnvironmentName + ".account")
+	HostEndPoint := config.GetString("login.environments." + EnvironmentName + ".host")
+	RefreshToken := config.GetString("login.environments." + EnvironmentName + ".refresh_token")
 
 	fmt.Printf("Account Number (%s): ", AccountNum)
 	fmt.Scanln(&AccountNum)
