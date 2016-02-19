@@ -39,9 +39,6 @@ var (
 	// ----- RightScripts -----
 	rightScript = app.Command("rightscript", "RightScript")
 
-	rightScriptListCmd    = rightScript.Command("list", "List RightScripts")
-	rightScriptListFilter = rightScriptListCmd.Arg("filter", "Filter by name").Required().String()
-
 	rightScriptShowCmd        = rightScript.Command("show", "Show a single RightScript and its attachments")
 	rightScriptShowNameOrHref = rightScriptShowCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
 
@@ -101,8 +98,6 @@ func main() {
 			fatalError("%s", err.Error())
 		}
 		stShow(href)
-	case rightScriptListCmd.FullCommand():
-		rightScriptList(*rightScriptListFilter)
 	case rightScriptShowCmd.FullCommand():
 		href, err := paramToHref("right_scripts", *rightScriptShowNameOrHref)
 		if err != nil {

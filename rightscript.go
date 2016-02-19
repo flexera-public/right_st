@@ -27,26 +27,6 @@ type RightScript struct {
 	Metadata RightScriptMetadata
 }
 
-func rightScriptList(filter string) {
-	client := config.environment.Client15()
-
-	rightscriptLocator := client.RightScriptLocator("/api/right_scripts")
-	var apiParams = rsapi.APIParams{"filter": []string{"name==" + filter}}
-	fmt.Printf("Listing %s:\n", filter)
-	//log15.Info("Listing", "RightScript", filter)
-	rightscripts, err := rightscriptLocator.Index(apiParams)
-	if err != nil {
-		fatalError("%s", err.Error())
-	}
-	for _, rs := range rightscripts {
-		rev := "HEAD"
-		if rs.Revision != 0 {
-			rev = fmt.Sprintf("%d", rs.Revision)
-		}
-		fmt.Printf("/api/right_scripts/%s %5s %s\n", rs.Id, rev, rs.Name)
-	}
-}
-
 func rightScriptShow(href string) {
 	client := config.environment.Client15()
 
