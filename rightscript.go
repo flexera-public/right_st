@@ -139,7 +139,7 @@ func rightScriptScaffold(files []string, backup bool) {
 	}
 
 	for _, file := range files {
-		err = scaffoldRightScript(file, backup)
+		err = ScaffoldRightScript(file, backup, os.Stdout)
 		if err != nil {
 			fatalError("%s\n", err.Error())
 		}

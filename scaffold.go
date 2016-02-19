@@ -15,22 +15,22 @@ var (
 	shebang            = regexp.MustCompile(`^#!.*$`)
 	separator          = regexp.MustCompile(`[-_]`)
 	rubyVariable       = regexp.MustCompile(`ENV\[["']([A-Z][A-Z0-9_]*)["']\]`)
-	perlVariable       = regexp.MustCompile(`\$ENV\{["']([A-Z][A-Z0-9_]*)["']\]`)
-	powershellVariable = regexp.MustCompile(`\$(?i:ENV):([A-Z][A-Z0-9_]*)`)
+	perlVariable       = regexp.MustCompile(`\$ENV\{["']?([A-Z][A-Z0-9_]*)["']?\}`)
+	powershellVariable = regexp.MustCompile(`\$\{?(?i:ENV):([A-Z][A-Z0-9_]*)\}?`)
 	shellVariable      = regexp.MustCompile(`\$\{?([A-Z][A-Z0-9_]*)(?::=([^}]*))?\}?`)
 	ignoreVariables    = regexp.MustCompile(`^(?:ATTACH_DIR|SHELL|TERM|USER|PATH|MAIL|PWD|HOME|RS_.*|INSTANCE_ID|PRIVATE_ID|DATACENTER|EC2_.*)$`)
 )
 
-func scaffoldRightScript(path string, backup bool) error {
+func ScaffoldRightScript(path string, backup bool, stdout io.Writer) error {
 	script, err := os.OpenFile(path, os.O_RDWR, 0)
 	if err != nil {
 		return err
 	}
 	defer script.Close()
-	return scaffoldRightScriptFile(script, backup)
+	return ScaffoldRightScriptFile(script, backup, stdout)
 }
 
-func scaffoldRightScriptFile(script *os.File, backup bool) error {
+func ScaffoldRightScriptFile(script *os.File, backup bool, stdout io.Writer) error {
 	path := script.Name()
 	if backup {
 		backupScript, err := os.Create(path + ".bak")
@@ -58,7 +58,7 @@ func scaffoldRightScriptFile(script *os.File, backup bool) error {
 		return err
 	}
 	if metadata != nil {
-		fmt.Printf("%s: Already contains metadata\n", path)
+		fmt.Fprintf(stdout, "%s: Already contains metadata\n", path)
 		return nil
 	}
 
@@ -165,6 +165,6 @@ func scaffoldRightScriptFile(script *os.File, backup bool) error {
 		return err
 	}
 
-	fmt.Printf("%s: Added metadata\n", path)
+	fmt.Fprintf(stdout, "%s: Added metadata\n", path)
 	return nil
 }
