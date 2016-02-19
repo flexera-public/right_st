@@ -114,7 +114,7 @@ upload:
 # produce a version string that is embedded into the binary that captures the branch, the date
 # and the commit we're building
 version:
-	@echo -e "package main\n\nconst VV = \"$(NAME) $(TRAVIS_BRANCH) - $(DATE) - $(TRAVIS_COMMIT)\"" \
+	@echo -e "// +build right_st_make\n\npackage main\n\nconst VV = \"$(NAME) $(TRAVIS_BRANCH) - $(DATE) - $(TRAVIS_COMMIT)\"" \
 	  >version.go
 	@echo "version.go: `tail -1 version.go`"
 
@@ -133,7 +133,7 @@ depend: bin/$(GLIDE_EXEC)
 
 clean:
 	rm -rf build $(EXE)
-	rm -f version.go httpclient/user_agent.go
+	rm -f version.go
 
 # gofmt uses the awkward *.go */*.go because gofmt -l . descends into the Godeps workspace
 # and then pointlessly complains about bad formatting in imported packages, sigh
