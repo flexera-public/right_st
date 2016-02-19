@@ -291,8 +291,9 @@ func stShow(href string) {
 		}
 		fmt.Printf("  %s %5s %s\n", mciHref, rev, item.Name)
 	}
+	fmt.Printf("RightScripts:\n")
+	seenSequence := make(map[string]bool)
 	for _, sequenceType := range sequenceTypes {
-		fmt.Printf("RightScripts - %s: (href, rev, name)\n", sequenceType)
 		for _, item := range rbs {
 			rsHref := getLink(item.Links, "right_script")
 			//if item.RightScript != cm15.RightScript(nil) {
@@ -300,11 +301,15 @@ func stShow(href string) {
 			if item.Sequence != strings.ToLower(sequenceType) {
 				continue
 			}
+			if !seenSequence[item.Sequence] {
+				fmt.Printf("  %s: (href, rev, name)\n", sequenceType)
+			}
+			seenSequence[item.Sequence] = true
 			rev := "HEAD"
 			if rs.Revision != 0 {
 				rev = fmt.Sprintf("%d", rs.Revision)
 			}
-			fmt.Printf("  %s %5s %s\n", rsHref, rev, rs.Name)
+			fmt.Printf("    %s %5s %s\n", rsHref, rev, rs.Name)
 			// } else {
 			//  fmt.Printf(" RECIPE - NOT HANDLED YET")
 			// }

@@ -69,7 +69,7 @@ func rightScriptShow(href string) {
 	fmt.Printf("Revision: %5s\n", rev)
 	fmt.Printf("Attachments (id, md5, name):\n")
 	for _, a := range attachments {
-		fmt.Printf("  %s %s %s\n", a.Id, a.Digest, a.Name)
+		fmt.Printf("  %s %s %s\n", a.Id, a.Digest, a.Filename)
 	}
 }
 
@@ -328,7 +328,7 @@ func (r *RightScript) Push() error {
 		toUpload[path.Base(a)+"_"+md5] = a
 	}
 	for _, a := range attachments {
-		onRightscript[path.Base(a.Name)+"_"+a.Digest] = a
+		onRightscript[path.Base(a.Filename)+"_"+a.Digest] = a
 	}
 
 	// Two passes. First pass we delete RightScripts. This comes up when a file was
@@ -343,7 +343,7 @@ func (r *RightScript) Push() error {
 			// loc := client.RightScriptAttachmentLocator(href)
 			loc := a.Locator(client)
 
-			fmt.Printf("  Deleting attachment '%s' with HREF '%s'\n", a.Name, loc.Href)
+			fmt.Printf("  Deleting attachment '%s' with HREF '%s'\n", a.Filename, loc.Href)
 			err := loc.Destroy()
 			if err != nil {
 				return err
