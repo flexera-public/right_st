@@ -69,7 +69,8 @@ var (
 	// ----- Configuration -----
 	configCmd = app.Command("config", "Manage Configuration")
 
-	configAddCmd = configCmd.Command("add", "Add configuration environment")
+	configUpdateCmd = configCmd.Command("update", "Add/Edit configuration environment")
+	configUpdateEnv = configUpdateCmd.Arg("environment", "Environment to manage in config file").Required().String()
 
 	// ----- Update right_st -----
 	updateCmd = app.Command("update", "Update "+app.Name+" executable")
@@ -88,7 +89,7 @@ func main() {
 	command := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	err := readConfig(*configFile, *environment)
-	if err != nil && command != "config add" {
+	if err != nil && !strings.HasPrefix(command, "config") {
 		fatalError("%s: Error reading config file: %s\n", filepath.Base(os.Args[0]), err.Error())
 	}
 
@@ -161,8 +162,8 @@ func main() {
 			fatalError("%s\n", err.Error())
 		}
 		rightScriptValidate(files)
-	case configAddCmd.FullCommand():
-		generateConfig(*configFile)
+	case configUpdateCmd.FullCommand():
+		generateConfig(*configFile, *configUpdateEnv)
 	case updateListCmd.FullCommand():
 		err := UpdateList(VV, os.Stdout)
 		if err != nil {

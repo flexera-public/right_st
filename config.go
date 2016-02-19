@@ -24,6 +24,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -93,22 +94,21 @@ func (config *Config) getEnvironment(account int, host string) (*Environment, er
 //       account: 60073
 //       host: dougmoo-moo-403.test.rightscale.com
 //       refresh_token: token_here
-func generateConfig(configFile string) {
+func generateConfig(configFile, EnvironmentName string) {
 
-	var EnvironmentName string
-	var AccountNum string
-	var HostEndPoint string
-	var RefreshToken string
+	// Read config file if it exists and obtain info if environment exists
+	readConfig(configFile, EnvironmentName)
 
-	fmt.Print("Environment Name: ")
-	fmt.Scanln(&EnvironmentName)
+	AccountNum := config.GetString(strings.Join([]string{"login.environments", EnvironmentName, "account"}, "."))
+	HostEndPoint := config.GetString(strings.Join([]string{"login.environments", EnvironmentName, "host"}, "."))
+	RefreshToken := config.GetString(strings.Join([]string{"login.environments", EnvironmentName, "refresh_token"}, "."))
 
-	fmt.Print("Account Number: ")
+	fmt.Printf("Account Number (%s): ", AccountNum)
 	fmt.Scanln(&AccountNum)
 
-	fmt.Print("Host End Point: ")
+	fmt.Printf("Host End Point (%s): ", HostEndPoint)
 	fmt.Scanln(&HostEndPoint)
 
-	fmt.Print("Refresh Token: ")
+	fmt.Printf("Refresh Token: (%s): ", RefreshToken)
 	fmt.Scanln(&RefreshToken)
 }
