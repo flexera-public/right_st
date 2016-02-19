@@ -3,11 +3,14 @@ env:
   - GO15VENDOREXPERIMENT=1
 go:
   - 1.5
-install:
-  - make depend
 os:
   - linux
   - osx
+cache:
+  directories:
+    - vendor
+install:
+  - make depend
 script:
   - make test
   - if [[ `go env GOOS` == linux ]]; then make build; fi
