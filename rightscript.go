@@ -346,7 +346,7 @@ func (r *RightScript) Push() error {
 	toUpload := make(map[string]string)                           // scripts we want to upload
 	onRightscript := make(map[string]*cm15.RightScriptAttachment) // scripts attached to the rightsript
 	for _, a := range r.Metadata.Attachments {
-		fullPath := filepath.Join(filepath.Dir(r.Path), a)
+		fullPath := filepath.Join(filepath.Dir(r.Path), "attachments", a)
 		md5, err := fmd5sum(fullPath)
 		if err != nil {
 			return err

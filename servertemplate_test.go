@@ -27,13 +27,7 @@ RightScripts:
   Decommission:
     - Dummy3.sh
 Inputs:
-  SERVER_HOSTNAME:
-    Input Type: single
-    Category: RightScale
-    Description: Sets the hostname
-    Default: "text:test.local"
-    Required: false
-    Advanced: true
+  SERVER_HOSTNAME: text:test.local
 MultiCloudImages:
   - Href: /api/multi_cloud_images/403042003
 `)
@@ -43,16 +37,7 @@ MultiCloudImages:
 				Expect(st).NotTo(BeNil())
 				Expect(st.Name).To(Equal("Test ST"))
 				Expect(st.Description).To(Equal("Test ST Description"))
-				Expect(st.Inputs).To(Equal(map[string]*InputMetadata{
-					"SERVER_HOSTNAME": {
-						Category:    "RightScale",
-						Description: "Sets the hostname",
-						InputType:   0,
-						Required:    false,
-						Advanced:    true,
-						Default:     &InputValue{"text", "test.local"},
-					},
-				}))
+				Expect(st.Inputs).To(Equal(map[string]*InputValue{"SERVER_HOSTNAME": &InputValue{Type: "text", Value: "test.local"}}))
 				Expect(st.RightScripts["Boot"]).To(Equal([]string{"Dummy.sh"}))
 				Expect(st.RightScripts["Operational"]).To(Equal([]string{"Dummy2.sh"}))
 				Expect(st.RightScripts["Decommission"]).To(Equal([]string{"Dummy3.sh"}))
@@ -78,7 +63,7 @@ Inputs:
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(&yaml.TypeError{
 					Errors: []string{
-						"line 8: cannot unmarshal !!seq into map[string]*main.InputMetadata",
+						"line 8: cannot unmarshal !!seq into map[string]*main.InputValue",
 					},
 				}))
 			})

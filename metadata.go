@@ -207,18 +207,28 @@ func (i *InputValue) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err != nil {
 		return err
 	}
+
+	iv_pnt, err := parseInputValue(value)
+	if err != nil {
+		return err
+	}
+	*i = *iv_pnt
+	return nil
+}
+
+func parseInputValue(value string) (*InputValue, error) {
 	values := strings.SplitN(value, ":", 2)
 	switch values[0] {
 	case "blank", "ignore":
-		*i = InputValue{Type: values[0]}
+		return &InputValue{Type: values[0]}, nil
 	default:
 		if len(values) < 2 {
-			return fmt.Errorf("Invalid input value: %s", value)
+			return nil, fmt.Errorf("Invalid input value: %s", value)
 		}
-		*i = InputValue{Type: values[0], Value: values[1]}
+		i := InputValue{Type: values[0], Value: values[1]}
 		if i.Type == "text" && i.Value == "" {
-			return fmt.Errorf("Use 'blank' or 'ignore' instead of 'text:'")
+			return nil, fmt.Errorf("Use 'blank' or 'ignore' instead of 'text:'")
 		}
+		return &i, nil
 	}
-	return nil
 }

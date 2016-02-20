@@ -23,12 +23,12 @@ type Image struct {
 }
 
 type ServerTemplate struct {
-	Name             string              `yaml:"Name"`
-	Description      string              `yaml:"Description"`
-	Inputs           map[string]string   `yaml:"Inputs"`
-	RightScripts     map[string][]string `yaml:"RightScripts"`
-	MultiCloudImages []*Image            `yaml:"MultiCloudImages"`
-	Alerts           []string            `yaml:"Alerts"`
+	Name             string                 `yaml:"Name"`
+	Description      string                 `yaml:"Description"`
+	Inputs           map[string]*InputValue `yaml:"Inputs"`
+	RightScripts     map[string][]string    `yaml:"RightScripts"`
+	MultiCloudImages []*Image               `yaml:"MultiCloudImages"`
+	Alerts           []string               `yaml:"Alerts"`
 	mciHrefs         []string
 }
 
@@ -243,6 +243,17 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript) e
 		fatalError("  MultiUpdate to set RunnableBinding order failed: %s", err.Error())
 	}
 	fmt.Println("  RightScript order set")
+	fmt.Println("Setting Inputs")
+	inputsLoc := client.InputLocator(stHref + "/inputs")
+	inputParams := make(map[string]interface{})
+	for k, v := range stDef.Inputs {
+		inputParams[k] = v.String()
+	}
+	err = inputsLoc.MultiUpdate(inputParams)
+	if err != nil {
+		fatalError("  Failed to MultiUpdate inputs: %s", err.Error())
+	}
+	fmt.Println("  Inputs set")
 	fmt.Printf("Successfully uploaded ServerTemplate %s with HREF %s\n", st.Name, stHref)
 	// If the user requested a commit on changes, commit the ST. This will commit all RightScripts as well.
 	return nil
@@ -357,9 +368,13 @@ func stDownload(href, downloadTo string) {
 		rightScriptNames[strings.Title(rb.Sequence)][rb.Position-1] = rb.RightScript.Name
 	}
 
-	stInputs := make(map[string]string)
+	stInputs := make(map[string]*InputValue)
 	for _, inputHash := range st.Inputs {
-		stInputs[inputHash["name"]] = inputHash["value"]
+		iv, err := parseInputValue(inputHash["value"])
+		if err != nil {
+			fatalError("Error parsing input value from API:", err.Error())
+		}
+		stInputs[inputHash["name"]] = iv
 	}
 
 	stDef := ServerTemplate{
