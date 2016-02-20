@@ -115,4 +115,4 @@ This tool is maintained by [Douglas Thrift (douglaswth)](https://github.com/doug
 ## License
 
 The `right_st` source code is subject to the MIT license, see the
-[LICENSE](https://github.com/douglaswth/right_st/blob/master/) file.
+[LICENSE](https://github.com/douglaswth/right_st/blob/master/LICENSE) file.
