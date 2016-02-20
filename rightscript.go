@@ -149,11 +149,16 @@ func rightScriptDownload(href, downloadTo string) {
 		}
 		downloadItems = append(downloadItems, &downloadItem{url: *downloadUrl, filename: attachmentPath, md5: attachment.Digest})
 	}
-	fmt.Printf("Download %d attachments:\n", len(downloadItems))
-	err = downloadManager(downloadItems)
-	if err != nil {
-		fatalError("Failed to download all attachments: %s", err.Error())
+	if len(downloadItems) == 0 {
+		fmt.Println("No attachments to download")
+	} else {
+		fmt.Printf("Download %d attachments:\n", len(downloadItems))
+		err = downloadManager(downloadItems)
+		if err != nil {
+			fatalError("Failed to download all attachments: %s", err.Error())
+		}
 	}
+
 }
 
 func rightScriptScaffold(files []string, backup bool) {

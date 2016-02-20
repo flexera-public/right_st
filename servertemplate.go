@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -14,19 +15,20 @@ import (
 )
 
 type Image struct {
-	Href     string `yaml:"Href"`
-	Cloud    string `yaml:"Cloud"`
-	Image    string `yaml:"Image"`
-	Name     string `yaml:"Name"`
-	Revision int    `yaml:"Revision"`
+	Href     string `yaml:"Href,omitempty"`
+	Cloud    string `yaml:"Cloud,omitempty"`
+	Image    string `yaml:"Image,omitempty"`
+	Name     string `yaml:"Name,omitempty"`
+	Revision int    `yaml:"Revision,omitempty"`
 }
 
 type ServerTemplate struct {
-	Name             string                    `yaml:"Name"`
-	Description      string                    `yaml:"Description"`
-	Inputs           map[string]*InputMetadata `yaml:"Inputs"`
-	MultiCloudImages []*Image                  `yaml:"MultiCloudImages"`
-	RightScripts     map[string][]string       `yaml:"RightScripts"`
+	Name             string              `yaml:"Name"`
+	Description      string              `yaml:"Description"`
+	Inputs           map[string]string   `yaml:"Inputs"`
+	RightScripts     map[string][]string `yaml:"RightScripts"`
+	MultiCloudImages []*Image            `yaml:"MultiCloudImages"`
+	Alerts           []string            `yaml:"Alerts"`
 	mciHrefs         []string
 }
 
@@ -317,9 +319,101 @@ func stShow(href string) {
 	}
 }
 
+func stDownload(href, downloadTo string) {
+	client := config.environment.Client15()
+	fmt.Printf("Downloading '%s'\n", href)
+
+	stLocator := client.ServerTemplateLocator(href)
+	st, err := stLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
+
+	if err != nil {
+		fatalError("Could not find ServerTemplate with href %s: %s", href, err.Error())
+	}
+
+	mciLocator := client.MultiCloudImageLocator(getLink(st.Links, "multi_cloud_images"))
+	mcis, err := mciLocator.Index(rsapi.APIParams{})
+	if err != nil {
+		fatalError("Could not find MCIs with href %s: %s", mciLocator.Href, err.Error())
+	}
+	mciImages := make([]*Image, len(mcis))
+	for i, mci := range mcis {
+		mciImages[i] = &Image{Href: getLink(mci.Links, "self")}
+	}
+
+	rbLocator := client.RunnableBindingLocator(getLink(st.Links, "runnable_bindings"))
+	rbs, err := rbLocator.Index(rsapi.APIParams{})
+	if err != nil {
+		fatalError("Could not find attached RightScripts with href %s: %s", rbLocator.Href, err.Error())
+	}
+	rightScriptNames := make(map[string][]string)
+	countBySequence := make(map[string]int)
+	for _, rb := range rbs {
+		countBySequence[strings.Title(rb.Sequence)] += 1
+	}
+	for sequenceType, count := range countBySequence {
+		rightScriptNames[sequenceType] = make([]string, count)
+	}
+	for _, rb := range rbs {
+		rightScriptNames[strings.Title(rb.Sequence)][rb.Position-1] = rb.RightScript.Name
+	}
+
+	stInputs := make(map[string]string)
+	for _, inputHash := range st.Inputs {
+		stInputs[inputHash["name"]] = inputHash["value"]
+	}
+
+	stDef := ServerTemplate{
+		Name:             st.Name,
+		Description:      st.Description,
+		Inputs:           stInputs,
+		MultiCloudImages: mciImages,
+		RightScripts:     rightScriptNames,
+	}
+	bytes, err := yaml.Marshal(&stDef)
+	if err != nil {
+		fatalError("Creating yaml failed: %s", err.Error())
+	}
+
+	if downloadTo == "" {
+		// TBD clean up name?
+		downloadTo = st.Name
+	}
+	fmt.Printf("Downloading '%s' to '%s'\n", st.Name, downloadTo)
+
+	err = ioutil.WriteFile(downloadTo, bytes, 0755)
+	if err != nil {
+		fatalError("Could not create file: %s", err.Error())
+	}
+
+	fmt.Printf("Downloading %d attached RightScripts:\n", len(rbs))
+	for _, rb := range rbs {
+		rsHref := getLink(rb.Links, "right_script")
+		rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo), rb.RightScript.Name))
+	}
+	fmt.Printf("Finished downloading '%s' to '%s'\n", st.Name, downloadTo)
+}
+
+func stValidate(files []string) {
+	err_encountered := false
+	for _, file := range files {
+		_, _, errors := validateServerTemplate(file)
+		if len(errors) != 0 {
+			err_encountered = true
+			for _, err := range errors {
+				fmt.Fprintf(os.Stderr, "%s: %s\n", file, err.Error())
+			}
+		} else {
+			fmt.Printf("%s: Valid ServerTemplate\n", file)
+		}
+	}
+	if err_encountered {
+		os.Exit(1)
+	}
+}
+
 // TBD
 //   AlertSpecs
-//   Cookbooks in some way?
+//   Handle Cookbooks in some way (error out)
 func validateServerTemplate(file string) (*ServerTemplate, *map[string][]*RightScript, []error) {
 	var errors []error
 
@@ -370,7 +464,7 @@ func validateServerTemplate(file string) (*ServerTemplate, *map[string][]*RightS
 	rightscripts := make(map[string][]*RightScript)
 	for sequence, scripts := range st.RightScripts {
 		for _, rsName := range scripts {
-			rs, err := validateRightScript(rsName, false)
+			rs, err := validateRightScript(filepath.Join(filepath.Dir(file), rsName), false)
 			if err != nil {
 				rsError := fmt.Errorf("RightScript error: %s:%s: %s", sequence, rsName, err.Error())
 				errors = append(errors, rsError)

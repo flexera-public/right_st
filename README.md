@@ -42,7 +42,7 @@ to the script.
 #     Required: false
 #     Advanced: true
 # Attachments:
-#   - foo
+# - foo
 # ...
 #
 
@@ -55,9 +55,6 @@ foo $FOO_PARAM
 RightScript related commands are as follows:
 
 ~~~bash
-right_st rightscript list <filter>
-  List RightScripts
-
 right_st rightscript show <name|href|id>
   Show a single RightScript and its attachments
 
@@ -84,32 +81,26 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | Name | String | Name of the ServerTemplate. Name must be unique for your account. |
 | Description | String | Description field for the ServerTemplate. |
 | RightScripts | Hash | The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of strings, where each string is a relative pathname to a RightScript on disk. |
-| Inputs | Hash of String -> Input | The hash key is the input name. The hash value is the Input definition (defined above). |
+| Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overriden in a ServerTemplate. |
 | MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash specifying a MCI. Currently the only MultiCloudImage definition format is by Href. See example below |
 
 Here is an example ServerTemplate yaml file:
 ```yaml
----
 Name: My ServerTemplate
 Description: This is an example Description
+Inputs:
+  FIRST_INPUT: "text:overriding value"
+  SECOND_INPUT: "env:RS_UUID"
 RightScripts:
   Boot:
-    - path/to/script1.sh
-    - path/to/script2.sh
+  - path/to/script1.sh
+  - path/to/script2.sh
   Operational:
-    - path/to/script1.sh
+  - path/to/script1.sh
   Decommission:
-    - path/to/decom_script1.sh
-Inputs:
-  FIRST_INPUT:
-    Input Type: single
-    Category: RightScale
-    Description: Example Description
-    Default: "text:default value"
-    Required: false
-    Advanced: true
+  - path/to/decom_script1.sh
 MultiCloudImages:
-  - Href: /api/multi_cloud_images/403042003
+- Href: /api/multi_cloud_images/403042003
 ```
 
 ### Usage

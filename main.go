@@ -30,11 +30,18 @@ var (
 	// ----- ServerTemplates -----
 	st = app.Command("st", "ServerTemplate")
 
+	stShowCmd        = st.Command("show", "Show a single ServerTemplate")
+	stShowNameOrHref = stShowCmd.Arg("name|href|id", "ServerTemplate Name or HREF or Id").Required().String()
+
 	stUploadCmd   = st.Command("upload", "Upload a ServerTemplate specified by a YAML document")
 	stUploadPaths = stUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
 
-	stShowCmd        = st.Command("show", "Show a single ServerTemplate")
-	stShowNameOrHref = stShowCmd.Arg("name|href|id", "ServerTemplate Name or HREF or Id").Required().String()
+	stDownloadCmd        = st.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
+	stDownloadNameOrHref = stDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
+	stDownloadTo         = stDownloadCmd.Arg("path", "Download location").String()
+
+	stValidateCmd   = st.Command("validate", "Validate a ServerTemplate YAML document")
+	stValidatePaths = stValidateCmd.Arg("path", "Path to script file(s)").Required().ExistingFiles()
 
 	// ----- RightScripts -----
 	rightScript = app.Command("rightscript", "RightScript")
@@ -86,18 +93,30 @@ func main() {
 	app.Writer(os.Stdout)
 
 	switch command {
-	case stUploadCmd.FullCommand():
-		files, err := walkPaths(*stUploadPaths)
-		if err != nil {
-			fatalError("%s\n", err.Error())
-		}
-		stUpload(files)
 	case stShowCmd.FullCommand():
 		href, err := paramToHref("server_templates", *stShowNameOrHref)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
 		stShow(href)
+	case stUploadCmd.FullCommand():
+		files, err := walkPaths(*stUploadPaths)
+		if err != nil {
+			fatalError("%s\n", err.Error())
+		}
+		stUpload(files)
+	case stDownloadCmd.FullCommand():
+		href, err := paramToHref("server_templates", *stDownloadNameOrHref)
+		if err != nil {
+			fatalError("%s", err.Error())
+		}
+		stDownload(href, *stDownloadTo)
+	case stValidateCmd.FullCommand():
+		files, err := walkPaths(*stValidatePaths)
+		if err != nil {
+			fatalError("%s\n", err.Error())
+		}
+		stValidate(files)
 	case rightScriptShowCmd.FullCommand():
 		href, err := paramToHref("right_scripts", *rightScriptShowNameOrHref)
 		if err != nil {

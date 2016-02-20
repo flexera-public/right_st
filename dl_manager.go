@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -94,7 +95,7 @@ func downloadManager(items []*downloadItem) error {
 	}
 	wg.Wait()
 	dt := time.Since(t)
-	fmt.Printf("    Done with %d attachments: %dKB in %.1fs -> %.3fMB/s", len(items),
+	fmt.Printf("    Done with %d attachments: %dKB in %.1fs -> %.3fMB/s\n", len(items),
 		size/1024, float32(dt)/float32(time.Second),
 		float32(size)/1024/1024/(float32(dt)/float32(time.Second)))
 	return err
@@ -104,7 +105,6 @@ func downloadManager(items []*downloadItem) error {
 // a boolean that is true if an error occurred that is retryable; also returns an int, which
 // is the size of the item.
 func downloadOneItem(item *downloadItem) (bool, int64, error) {
-
 	// Check existence
 	if _, err := os.Stat(item.filename); err == nil {
 		// file already exists, don't re-download
@@ -116,6 +116,11 @@ func downloadOneItem(item *downloadItem) (bool, int64, error) {
 			fmt.Printf("    Skipping attachments/%s, already downloaded\n", path.Base(item.filename))
 			return false, 0, nil
 		}
+	}
+	// Create parent directory
+	err := os.MkdirAll(filepath.Dir(item.filename), 0755)
+	if err != nil {
+		return false, 0, fmt.Errorf("Erroring creating directory: %s", err.Error())
 	}
 
 	// Open the file
