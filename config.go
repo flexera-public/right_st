@@ -168,3 +168,34 @@ func generateConfig(configFile, EnvironmentName string) error {
 	}
 	return nil
 }
+
+func listConfig(configFile string) error {
+	// Check if config file exists
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+		fmt.Printf("config file %s does not exist\n", configFile)
+	} else {
+		config := viper.New()
+		config.SetConfigFile(configFile)
+
+		// Read config file for environments
+		err := config.ReadInConfig()
+		if err != nil {
+			return err
+		}
+
+		// Grab list of all environments currently in config file
+		EnvironmentList := config.GetStringMapString("login.environments")
+		fmt.Println("")
+		for EnvName := range EnvironmentList {
+			fmt.Println("----------")
+			fmt.Printf("Environment Name: %s\n", EnvName)
+			fmt.Printf("  Account Number: %s\n", config.GetString("login.environments."+EnvName+".account"))
+			fmt.Printf("  Host End Point: %s\n", config.GetString("login.environments."+EnvName+".host"))
+			fmt.Printf("   Refresh Token: %s\n", config.GetString("login.environments."+EnvName+".refresh_token"))
+		}
+		fmt.Println("----------")
+		fmt.Println("")
+	}
+
+	return nil
+}

@@ -72,6 +72,8 @@ var (
 	configUpdateCmd = configCmd.Command("update", "Add/Edit configuration environment")
 	configUpdateEnv = configUpdateCmd.Arg("environment", "Environment to manage in config file").Required().String()
 
+	configListCmd = configCmd.Command("list", "List environments")
+
 	// ----- Update right_st -----
 	updateCmd = app.Command("update", "Update "+app.Name+" executable")
 
@@ -164,6 +166,8 @@ func main() {
 		rightScriptValidate(files)
 	case configUpdateCmd.FullCommand():
 		generateConfig(*configFile, *configUpdateEnv)
+	case configListCmd.FullCommand():
+		listConfig(*configFile)
 	case updateListCmd.FullCommand():
 		err := UpdateList(VV, os.Stdout)
 		if err != nil {
