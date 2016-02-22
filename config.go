@@ -24,6 +24,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 
 	"github.com/spf13/viper"
 )
@@ -93,21 +94,57 @@ func (config *Config) getEnvironment(account int, host string) (*Environment, er
 //       account: 60073
 //       host: us-4.rightscale.com
 //       refresh_token: zxy987zxy987zxy987zxy987xzy987zxy987xzy9
-func generateConfig(configFile, EnvironmentName string) {
+func generateConfig(configFile, EnvironmentName string) error {
+	genconfig := viper.New()
+	genconfig.SetConfigFile(configFile)
 
 	// Read config file if it exists and obtain info if environment exists
-	readConfig(configFile, EnvironmentName)
+	err := genconfig.ReadInConfig()
+	if err != nil {
+		return err
+	}
 
+	// Grab list of all environments currently in config file
+	EnvironmentList := genconfig.GetStringMapString("login.environments")
+	// If EnvironmentName not in list, add it. Viper does not create it
+	// even if populating items in the environment.
+	if !genconfig.IsSet("login.environments." + EnvironmentName) {
+		EnvironmentList[EnvironmentName] = ""
+	}
+
+	// Populate variables specific to the environment to be used as defaults
 	AccountNum := config.GetString("login.environments." + EnvironmentName + ".account")
 	HostEndPoint := config.GetString("login.environments." + EnvironmentName + ".host")
 	RefreshToken := config.GetString("login.environments." + EnvironmentName + ".refresh_token")
 
+	// Prompt for updated/new info and set it
 	fmt.Printf("Account Number (%s): ", AccountNum)
 	fmt.Scanln(&AccountNum)
+	genconfig.Set("login.environments."+EnvironmentName+".account", AccountNum)
 
 	fmt.Printf("Host End Point (%s): ", HostEndPoint)
 	fmt.Scanln(&HostEndPoint)
+	genconfig.Set("login.environments."+EnvironmentName+".host", HostEndPoint)
 
 	fmt.Printf("Refresh Token: (%s): ", RefreshToken)
 	fmt.Scanln(&RefreshToken)
+	genconfig.Set("login.environments."+EnvironmentName+".refresh_token", RefreshToken)
+
+	// Build config file
+	NewConfig := []byte("login:\n")
+	NewConfig = append(NewConfig, "  default_environment: "+genconfig.GetString("login.default_environment")+"\n"...)
+	NewConfig = append(NewConfig, "  environments:\n"...)
+	for k := range EnvironmentList {
+		NewConfig = append(NewConfig, "    "+k+":\n"...)
+		NewConfig = append(NewConfig, "      account: "+genconfig.GetString("login.environments."+k+".account")+"\n"...)
+		NewConfig = append(NewConfig, "      host: "+genconfig.GetString("login.environments."+k+".host")+"\n"...)
+		NewConfig = append(NewConfig, "      refresh_token: "+genconfig.GetString("login.environments."+k+".refresh_token")+"\n"...)
+	}
+
+	// Write config file
+	err = ioutil.WriteFile(configFile, NewConfig, 0600)
+	if err != nil {
+		return err
+	}
+	return nil
 }
