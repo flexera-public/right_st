@@ -90,7 +90,6 @@ func main() {
 	}
 	handler := log15.LvlFilterHandler(logLevel, log15.StreamHandler(colorable.NewColorableStdout(), log15.TerminalFormat()))
 	log15.Root().SetHandler(handler)
-	app.Writer(os.Stdout)
 
 	switch command {
 	case stShowCmd.FullCommand():
