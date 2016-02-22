@@ -83,6 +83,15 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | RightScripts | Hash | The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of strings, where each string is a relative pathname to a RightScript on disk. |
 | Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overriden in a ServerTemplate. |
 | MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash specifying a MCI. Currently the only MultiCloudImage definition format is by Href. See example below |
+| Alerts | Array of Alerts | An array of Alert definitions, defined below. |
+
+An Alert definition consists of three fields: a Name, Definition, and Clause (all strings). The Clause is a text description of the Alert with this exact format: `If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Action> <ActionValue>`.
+* Metric is a collectd metric name such as `cpu-0/cpu-idle`. 
+* ValueType is the metric type (`value`, `count`, etc - allowable values differ for each metric so look in the dashboard!). 
+* ComparisonOperator is `>`, `>=`, `<`, `<=`, `==`, or `!=`
+* Threshold is a numeric value such as `100` or `0.5` or `NaN` for all Metrics except for the RS/* ones. For the RS/* ones its a one of the following server states: `pending`, `booting`, `operational`, `decommission`, `shutting-down`, `terminated`
+* Duration is minutes and must be an integer greater than 0.
+* Action is either "escalate" in which case the ActionValue is the name of the escalation. Or Action is "grow" or "shrink" in which case ActionValue is the custom tag value to use as the voting tag.
 
 Here is an example ServerTemplate yaml file:
 ```yaml
@@ -101,6 +110,13 @@ RightScripts:
   - path/to/decom_script1.sh
 MultiCloudImages:
 - Href: /api/multi_cloud_images/403042003
+Alerts:
+- Name: CPU Scale Down
+  Description: Votes to shrink ServerArray by setting tag rs_vote:my_app_name=shrink
+  Clause: If cpu-0/cpu-idle.value > '50' for 3 minutes Then shrink my_app_name
+- Name: Low memory warning
+  Description: Runs escalation named "warning_email" if free memory drops to < 100MB
+  Clause: If memory/memory-free.value < 100000000 for 5 minutes Then escalate warning_email
 ```
 
 ### Usage

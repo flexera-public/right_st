@@ -365,11 +365,6 @@ func (r *RightScript) Push() error {
 	// In the second case, the second pass will reupload the correct attachment.
 	for digestKey, a := range onRightscript {
 		if _, ok := toUpload[digestKey]; !ok {
-			// HACK: self href for attachment is wrong for now. We calculate our own
-			// below. We ca back this code out when its fixed
-			// scriptHref := getLink(a.Links, "right_script)")
-			// href := fmt.Sprintf("%s/attachments/%s", scriptHref, a.Id)
-			// loc := client.RightScriptAttachmentLocator(href)
 			loc := a.Locator(client)
 
 			fmt.Printf("  Deleting attachment '%s' with HREF '%s'\n", a.Filename, loc.Href)

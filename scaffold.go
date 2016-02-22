@@ -151,11 +151,6 @@ func scaffoldBuffer(source []byte, defaults RightScriptMetadata, filename string
 		return nil, err
 	}
 
-	// _, err = script.Seek(int64(shebangEnd), os.SEEK_SET)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	if shebangEnd < 0 {
 		shebangEnd = 0
 	}

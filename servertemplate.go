@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/go-yaml/yaml"
@@ -28,8 +29,14 @@ type ServerTemplate struct {
 	Inputs           map[string]*InputValue `yaml:"Inputs"`
 	RightScripts     map[string][]string    `yaml:"RightScripts"`
 	MultiCloudImages []*Image               `yaml:"MultiCloudImages"`
-	Alerts           []string               `yaml:"Alerts"`
+	Alerts           []*Alert               `yaml:"Alerts"`
 	mciHrefs         []string
+}
+
+type Alert struct {
+	Name        string `yaml:"Name"`
+	Description string `yaml:"Description,omitempty"`
+	Clause      string `yaml:"Clause"`
 }
 
 var sequenceTypes []string = []string{"Boot", "Operational", "Decommission"}
@@ -116,7 +123,10 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript) e
 		}
 		if !foundMci {
 			fmt.Printf("  Removing MCI %s\n", mciHref)
-			mci.Locator(client).Destroy()
+			err := mci.Locator(client).Destroy()
+			if err != nil {
+				fatalError("  Could not Remove MCI %s", mciHref)
+			}
 		}
 	}
 
@@ -195,7 +205,7 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript) e
 					RightScriptHref: scriptHref,
 					Sequence:        strings.ToLower(sequenceType),
 				}
-				fmt.Printf("  Adding %s to ServerTemplate\n", scriptHref)
+				fmt.Printf("  Adding %s to ServerTemplate %s bundle\n", scriptHref, sequenceType)
 				_, err := rbLoc.Create(&params)
 				if err != nil {
 					fatalError("  Could not create %s RunnableBinding for HREF %s: %s", sequenceType, scriptHref, err.Error())
@@ -243,6 +253,10 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript) e
 		fatalError("  MultiUpdate to set RunnableBinding order failed: %s", err.Error())
 	}
 	fmt.Println("  RightScript order set")
+
+	// -----------------
+	// Set Inputs
+	// -----------------
 	fmt.Println("Setting Inputs")
 	inputsLoc := client.InputLocator(stHref + "/inputs")
 	inputParams := make(map[string]interface{})
@@ -254,7 +268,80 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript) e
 		fatalError("  Failed to MultiUpdate inputs: %s", err.Error())
 	}
 	fmt.Println("  Inputs set")
+
+	// -----------------
+	// Synchronize Alerts
+	// -----------------
+	fmt.Println("Synchonizing Alerts")
+	alertsLocator := client.AlertSpecLocator(getLink(st.Links, "alert_specs"))
+	existingAlerts, err := alertsLocator.Index(rsapi.APIParams{})
+	if err != nil {
+		fatalError("Could not find AlertSpecs with href %s: %s", alertsLocator.Href, err.Error())
+	}
+	seenAlert := make(map[string]bool)
+	alertLookup := make(map[string]*cm15.AlertSpec)
+	for _, alert := range existingAlerts {
+		alertLookup[alert.Name] = alert
+	}
+	// Add/Update alerts
+	for _, alert := range stDef.Alerts {
+		parsedAlert, _ := parseAlertClause(alert.Clause)
+		seenAlert[alert.Name] = true
+		existingAlert, ok := alertLookup[alert.Name]
+		if ok { // update
+			if alert.Clause != printAlertClause(*existingAlert) || alert.Description != existingAlert.Description {
+				alertsUpdateLocator := client.AlertSpecLocator(getLink(existingAlert.Links, "self"))
+
+				fmt.Printf("  Updating Alert %s\n", alert.Name)
+				params := cm15.AlertSpecParam2{
+					Condition:      parsedAlert.Condition,
+					Description:    alert.Description,
+					Duration:       strconv.Itoa(parsedAlert.Duration),
+					EscalationName: parsedAlert.EscalationName,
+					File:           parsedAlert.File,
+					Name:           alert.Name,
+					Threshold:      parsedAlert.Threshold,
+					Variable:       parsedAlert.Variable,
+					VoteTag:        parsedAlert.VoteTag,
+					VoteType:       parsedAlert.VoteType,
+				}
+				err := alertsUpdateLocator.Update(&params)
+				if err != nil {
+					fatalError("  Failed to update Alert %s: %s", alert.Name, err.Error())
+				}
+			}
+		} else { // new alert
+			fmt.Printf("  Adding Alert %s\n", alert.Name)
+			params := cm15.AlertSpecParam{
+				Condition:      parsedAlert.Condition,
+				Description:    alert.Description,
+				Duration:       strconv.Itoa(parsedAlert.Duration),
+				EscalationName: parsedAlert.EscalationName,
+				File:           parsedAlert.File,
+				Name:           alert.Name,
+				Threshold:      parsedAlert.Threshold,
+				Variable:       parsedAlert.Variable,
+				VoteTag:        parsedAlert.VoteTag,
+				VoteType:       parsedAlert.VoteType,
+			}
+			_, err := alertsLocator.Create(&params)
+			if err != nil {
+				fatalError("  Failed to create Alert %s: %s", alert.Name, err.Error())
+			}
+		}
+	}
+	for _, alert := range existingAlerts {
+		if !seenAlert[alert.Name] {
+			fmt.Printf("  Removing alert %s\n", alert.Name)
+			err := alert.Locator(client).Destroy()
+			if err != nil {
+				fatalError("  Could not destroy Alert %s: %s", alert.Name, err.Error())
+			}
+		}
+	}
+
 	fmt.Printf("Successfully uploaded ServerTemplate %s with HREF %s\n", st.Name, stHref)
+
 	// If the user requested a commit on changes, commit the ST. This will commit all RightScripts as well.
 	return nil
 }
@@ -263,7 +350,6 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript) e
 //   Show uncommitted changes
 //   Show a list of previous revisions?
 //   If we're not head, show a link to the head revision/lineage?
-//   AlertSpecs
 func stShow(href string) {
 	client := config.environment.Client15()
 
@@ -283,6 +369,12 @@ func stShow(href string) {
 	rbs, err := rbLocator.Index(rsapi.APIParams{})
 	if err != nil {
 		fatalError("Could not find attached RightScripts with href %s: %s", rbLocator.Href, err.Error())
+	}
+
+	alertsLocator := client.AlertSpecLocator(getLink(st.Links, "alert_specs"))
+	alerts, err := alertsLocator.Index(rsapi.APIParams{})
+	if err != nil {
+		fatalError("Could not find AlertSpecs with href %s: %s", alertsLocator.Href, err.Error())
 	}
 
 	rev := "HEAD"
@@ -328,6 +420,13 @@ func stShow(href string) {
 			// }
 		}
 	}
+	fmt.Printf("Alerts:\n")
+	for _, alert := range alerts {
+		fmt.Printf("  - Name: %s\n", alert.Name)
+		fmt.Printf("    Description: %s\n", alert.Description)
+		fmt.Printf("    Value: %s\n", printAlertClause(*alert))
+
+	}
 }
 
 func stDownload(href, downloadTo string) {
@@ -368,6 +467,20 @@ func stDownload(href, downloadTo string) {
 		rightScriptNames[strings.Title(rb.Sequence)][rb.Position-1] = rb.RightScript.Name
 	}
 
+	alertsLocator := client.AlertSpecLocator(getLink(st.Links, "alert_specs"))
+	alertSpecs, err := alertsLocator.Index(rsapi.APIParams{})
+	if err != nil {
+		fatalError("Could not find Alerts with href %s: %s", alertsLocator.Href, err.Error())
+	}
+	alerts := make([]*Alert, len(alertSpecs))
+	for i, alertSpec := range alertSpecs {
+		alerts[i] = &Alert{
+			Name:        alertSpec.Name,
+			Description: alertSpec.Description,
+			Clause:      printAlertClause(*alertSpec),
+		}
+	}
+
 	stInputs := make(map[string]*InputValue)
 	for _, inputHash := range st.Inputs {
 		iv, err := parseInputValue(inputHash["value"])
@@ -383,6 +496,7 @@ func stDownload(href, downloadTo string) {
 		Inputs:           stInputs,
 		MultiCloudImages: mciImages,
 		RightScripts:     rightScriptNames,
+		Alerts:           alerts,
 	}
 	bytes, err := yaml.Marshal(&stDef)
 	if err != nil {
@@ -427,7 +541,6 @@ func stValidate(files []string) {
 }
 
 // TBD
-//   AlertSpecs
 //   Handle Cookbooks in some way (error out)
 func validateServerTemplate(file string) (*ServerTemplate, *map[string][]*RightScript, []error) {
 	var errors []error
@@ -481,10 +594,22 @@ func validateServerTemplate(file string) (*ServerTemplate, *map[string][]*RightS
 		for _, rsName := range scripts {
 			rs, err := validateRightScript(filepath.Join(filepath.Dir(file), rsName), false)
 			if err != nil {
-				rsError := fmt.Errorf("RightScript error: %s:%s: %s", sequence, rsName, err.Error())
+				rsError := fmt.Errorf("RightScript error: %s - %s: %s", sequence, rsName, err.Error())
 				errors = append(errors, rsError)
 			}
 			rightscripts[sequence] = append(rightscripts[sequence], rs)
+		}
+	}
+
+	for i, alert := range st.Alerts {
+		if alert.Name == "" {
+			alertError := fmt.Errorf("Alert %d error: Name field must be present", i)
+			errors = append(errors, alertError)
+		}
+		_, err := parseAlertClause(alert.Clause)
+		if err != nil {
+			alertError := fmt.Errorf("Alert %d error: %s", i, err.Error())
+			errors = append(errors, alertError)
 		}
 	}
 
@@ -530,4 +655,85 @@ func getServerTemplateByName(name string) (*cm15.ServerTemplate, error) {
 		}
 	}
 	return foundSt, nil
+}
+
+// Expected Format with array index offsets into tokens array below:
+// If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Escalate|Grow|Shrink> <ActionValue>
+// 0  1                       2                    3           4   5          6       7    8											9
+func parseAlertClause(alert string) (*cm15.AlertSpec, error) {
+	alertSpec := new(cm15.AlertSpec)
+	tokens := strings.SplitN(alert, " ", 10)
+	alertFmt := `If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Action> <ActionValue>`
+	if len(tokens) != 10 {
+		return nil, fmt.Errorf("Alert clause misformatted: not long enough. Must be of format: '%s'", alertFmt)
+	}
+	if strings.ToLower(tokens[0]) != "if" {
+		return nil, fmt.Errorf("Alert clause misformatted: missing If. Must be of format: '%s'", alertFmt)
+	}
+	metricTokens := strings.Split(tokens[1], ".")
+	if len(metricTokens) != 2 {
+		return nil, fmt.Errorf("Alert <Metric>.<ValueType> misformatted, should be like 'cpu-0/cpu-idle.value'.")
+	}
+	// Check metricTokens[0] should contain a slash.
+	// Check metricTokens[1] can be numerous types: count, cumulative_requests, current_session, free
+	//   midterm, percent, processes, read, running, rx, tx, shortterm, state, status, threads,
+	//   used, users, value, write
+	alertSpec.File = metricTokens[0]
+	alertSpec.Variable = metricTokens[1]
+	comparisonValues := []string{">", ">=", "<", "<=", "==", "!="}
+	foundValue := false
+	for _, val := range comparisonValues {
+		if tokens[2] == val {
+			foundValue = true
+		}
+	}
+	if !foundValue {
+		return nil, fmt.Errorf("Alert <ComparisonOperator> must be one of the following comparison operators: %s", strings.Join(comparisonValues, ", "))
+	}
+	alertSpec.Condition = tokens[2]
+	// Threshold must be one of NaN, numeric OR booting, decommission, operational, pending, stranded, terminated
+	alertSpec.Threshold = tokens[3]
+	if strings.ToLower(tokens[4]) != "for" {
+		return nil, fmt.Errorf("Alert clause misformatted, missing 'for'. Must be of format: '%s'", alertFmt)
+	}
+	duration, err := strconv.Atoi(tokens[5])
+	if err != nil || duration < 1 {
+		return nil, fmt.Errorf("Alert <Duration> must be a positive integer > 0")
+	}
+	alertSpec.Duration = duration
+
+	if strings.Trim(strings.ToLower(tokens[6]), ",") != "minutes" {
+		return nil, fmt.Errorf("Alert clause misformatted: missing 'minutes'. Must be of format: '%s'", alertFmt)
+	}
+	if strings.ToLower(tokens[7]) != "then" {
+		return nil, fmt.Errorf("Alert clause misformatted: missing 'Then'. Must be of format: '%s'", alertFmt)
+	}
+	token8 := strings.ToLower(tokens[8])
+	if token8 != "escalate" && token8 != "grow" && token8 != "shrink" {
+		return nil, fmt.Errorf("Alert <Action> must be escalate, grow, or shrink")
+	}
+	if token8 == "escalate" {
+		alertSpec.EscalationName = tokens[9]
+	} else {
+		alertSpec.VoteType = token8
+		alertSpec.VoteTag = tokens[9]
+	}
+	return alertSpec, nil
+}
+
+// Complement to parseAlertClause
+// If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Escalate|Grow|Shrink> <ActionValue>
+// 0  1                       2                    3           4   5          6       7    8											9
+func printAlertClause(as cm15.AlertSpec) string {
+	var asAction, asActionValue string
+	if as.EscalationName != "" {
+		asAction = "escalate"
+		asActionValue = as.EscalationName
+	} else {
+		asAction = as.VoteType
+		asActionValue = as.VoteTag
+	}
+	alertStr := fmt.Sprintf("If %s.%s %s %s for %d minutes Then %s %s",
+		as.File, as.Variable, as.Condition, as.Threshold, as.Duration, asAction, asActionValue)
+	return alertStr
 }
