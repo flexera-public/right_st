@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/alecthomas/kingpin"
 	"github.com/mattn/go-colorable"
@@ -63,6 +64,14 @@ var (
 
 	rightScriptValidateCmd   = rightScript.Command("validate", "Validate RightScript YAML metadata comments in a file or files")
 	rightScriptValidatePaths = rightScriptValidateCmd.Arg("path", "Path to script file or directory containing script files").Required().ExistingFilesOrDirs()
+
+	// ----- Update right_st -----
+	update = app.Command("update", "Update "+app.Name+" executable")
+
+	updateListCmd = update.Command("list", "List any available updates for the "+app.Name+" executable")
+
+	updateApplyCmd          = update.Command("apply", "Apply the latest update for the current major version or a specified major version")
+	updateApplyMajorVersion = updateApplyCmd.Flag("major-version", "Major version to update to").Short('m').Uint()
 )
 
 func main() {
@@ -90,6 +99,10 @@ func main() {
 	}
 	handler := log15.LvlFilterHandler(logLevel, log15.StreamHandler(colorable.NewColorableStdout(), log15.TerminalFormat()))
 	log15.Root().SetHandler(handler)
+
+	if config.GetBool("update.check") && !strings.HasPrefix(command, "update") {
+		defer UpdateCheck(VV, os.Stderr)
+	}
 
 	switch command {
 	case stShowCmd.FullCommand():
@@ -142,6 +155,16 @@ func main() {
 			fatalError("%s\n", err.Error())
 		}
 		rightScriptValidate(files)
+	case updateListCmd.FullCommand():
+		err := UpdateList(VV, os.Stdout)
+		if err != nil {
+			fatalError("%s\n", err.Error())
+		}
+	case updateApplyCmd.FullCommand():
+		err := UpdateApply(VV, os.Stdout, *updateApplyMajorVersion)
+		if err != nil {
+			fatalError("%s\n", err.Error())
+		}
 	}
 }
 

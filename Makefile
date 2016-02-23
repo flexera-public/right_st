@@ -60,6 +60,11 @@ TRAVIS_COMMIT?=$(shell git rev-parse HEAD)
 GIT_BRANCH:=$(shell git symbolic-ref --short -q HEAD || echo "master")
 SHELL:=/bin/bash
 
+# if we are building a tag overwrite TRAVIS_BRANCH with TRAVIS_TAG
+ifneq ($(TRAVIS_TAG),)
+TRAVIS_BRANCH:=$(TRAVIS_TAG)
+endif
+
 ifeq ($(OS),Windows_NT)
 export CC:=x86_64-w64-mingw32-gcc
 export CXX:=x86_64-w64-mingw32-g++
@@ -98,15 +103,17 @@ build/$(NAME)-%.zip: *.go version
 # upload assumes you have AWS_ACCESS_KEY_ID and AWS_SECRET_KEY env variables set,
 # which happens in the .travis.yml for CI
 upload:
-	@which gof3r >/dev/null || (echo 'Please "go get github.com/rlmcpherson/s3gof3r/gof3r"'; false)
+	@which gof3r >/dev/null || (echo 'Please "make depend"'; false)
 	(cd build; set -ex; \
 	  for f in *.tgz *.zip; do \
 	    gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/$(TRAVIS_COMMIT)/$$f <$$f; \
 	    if [ "$(TRAVIS_PULL_REQUEST)" = "false" ]; then \
 	      gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/$(TRAVIS_BRANCH)/$$f <$$f; \
 	      re='^(v[0-9]+)\.[0-9]+\.[0-9]+$$' ;\
-	      if [[ "$(TRAVIS_BRANCH)" =~ $$re ]]; then \
+	      if [[ "$(TRAVIS_TAG)" =~ $$re ]]; then \
 	        gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/$${BASH_REMATCH[1]}/$$f <$$f; \
+		./version.sh > version.yml; \
+		gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/version.yml <version.yml; \
 	      fi; \
 	    fi; \
 	  done)

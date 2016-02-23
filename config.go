@@ -36,8 +36,12 @@ type Config struct {
 
 var config Config
 
-func readConfig(configFile, environment string) error {
+func init() {
 	config.Viper = viper.New()
+	config.SetDefault("update.check", true)
+}
+
+func readConfig(configFile, environment string) error {
 	config.SetConfigFile(configFile)
 	err := config.ReadInConfig()
 	if err != nil {
