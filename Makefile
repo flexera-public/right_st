@@ -105,18 +105,20 @@ build/$(NAME)-%.zip: *.go version
 upload:
 	@which gof3r >/dev/null || (echo 'Please "make depend"'; false)
 	(cd build; set -ex; \
+	  re='^(v[0-9]+)\.[0-9]+\.[0-9]+$$' ;\
 	  for f in *.tgz *.zip; do \
 	    gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/$(TRAVIS_COMMIT)/$$f <$$f; \
 	    if [ "$(TRAVIS_PULL_REQUEST)" = "false" ]; then \
 	      gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/$(TRAVIS_BRANCH)/$$f <$$f; \
-	      re='^(v[0-9]+)\.[0-9]+\.[0-9]+$$' ;\
 	      if [[ "$(TRAVIS_TAG)" =~ $$re ]]; then \
 	        gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/$${BASH_REMATCH[1]}/$$f <$$f; \
-		./version.sh > version.yml; \
-		gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/version.yml <version.yml; \
 	      fi; \
 	    fi; \
-	  done)
+	  done \
+	  if [[ "$(TRAVIS_TAG)" =~ $$re ]]; then \
+	    ../version.sh > version.yml; \
+	    gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/version.yml <version.yml; \
+	  fi)
 
 # produce a version string that is embedded into the binary that captures the branch, the date
 # and the commit we're building
