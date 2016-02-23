@@ -114,7 +114,7 @@ upload:
 	        gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/$${BASH_REMATCH[1]}/$$f <$$f; \
 	      fi; \
 	    fi; \
-	  done \
+	  done; \
 	  if [[ "$(TRAVIS_TAG)" =~ $$re ]]; then \
 	    ../version.sh > version.yml; \
 	    gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/version.yml <version.yml; \
