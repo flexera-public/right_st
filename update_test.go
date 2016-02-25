@@ -26,11 +26,13 @@ var _ = Describe("Update", func() {
 
 	Context("With a update versions URL", func() {
 		var (
+			buffer              *gbytes.Buffer
 			server              *httptest.Server
 			oldUpdateVersionUrl string
 		)
 
 		BeforeEach(func() {
+			buffer = gbytes.NewBuffer()
 			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Write([]byte(`versions:
   1: v1.2.3
@@ -52,7 +54,7 @@ var _ = Describe("Update", func() {
 				latest, err := UpdateGetLatestVersions()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(latest).To(Equal(&LatestVersions{
-					Versions: map[uint]*Version{
+					Versions: map[int]*Version{
 						1: &Version{1, 2, 3},
 						2: &Version{2, 3, 4},
 						3: &Version{3, 4, 5},
@@ -62,12 +64,6 @@ var _ = Describe("Update", func() {
 		})
 
 		Describe("Update check", func() {
-			var buffer *gbytes.Buffer
-
-			BeforeEach(func() {
-				buffer = gbytes.NewBuffer()
-			})
-
 			It("Outputs nothing for a dev version", func() {
 				UpdateCheck("right_st dev - JUNK JUNK JUNK", buffer)
 				Expect(buffer.Contents()).To(BeEmpty())
@@ -82,6 +78,9 @@ var _ = Describe("Update", func() {
 				UpdateCheck("right_st v3.0.0 - JUNK JUNK JUNK", buffer)
 				Expect(buffer.Contents()).To(BeEquivalentTo(`There is a new v3 version of right_st (v3.4.5), to upgrade run:
     right_st update apply
+
+See https://github.com/rightscale/right_st/blob/master/ChangeLog.md or
+https://github.com/rightscale/right_st/releases for more information.
 `))
 			})
 
@@ -89,6 +88,9 @@ var _ = Describe("Update", func() {
 				UpdateCheck("right_st v2.3.4 - JUNK JUNK JUNK", buffer)
 				Expect(buffer.Contents()).To(BeEquivalentTo(`There is a new major version of right_st (v3.4.5), to upgrade run:
     right_st update apply -m 3
+
+See https://github.com/rightscale/right_st/blob/master/ChangeLog.md or
+https://github.com/rightscale/right_st/releases for more information.
 `))
 			})
 
@@ -98,6 +100,75 @@ var _ = Describe("Update", func() {
     right_st update apply
 There is a new major version of right_st (v3.4.5), to upgrade run:
     right_st update apply -m 3
+
+See https://github.com/rightscale/right_st/blob/master/ChangeLog.md or
+https://github.com/rightscale/right_st/releases for more information.
+`))
+			})
+		})
+
+		Describe("Update list", func() {
+			It("Outputs the available versions for a dev version", func() {
+				err := UpdateList("right_st dev - JUNK JUNK JUNK", buffer)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(buffer.Contents()).To(BeEquivalentTo(`The latest v1 version of right_st is v1.2.3.
+The latest v2 version of right_st is v2.3.4.
+The latest v3 version of right_st is v3.4.5.
+
+See https://github.com/rightscale/right_st/blob/master/ChangeLog.md or
+https://github.com/rightscale/right_st/releases for more information.
+`))
+			})
+
+			It("Outputs the available versions for an up to date version", func() {
+				err := UpdateList("right_st v3.4.5 - JUNK JUNK JUNK", buffer)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(buffer.Contents()).To(BeEquivalentTo(`The latest v1 version of right_st is v1.2.3.
+The latest v2 version of right_st is v2.3.4.
+The latest v3 version of right_st is v3.4.5; this is the version you are using!
+
+See https://github.com/rightscale/right_st/blob/master/ChangeLog.md or
+https://github.com/rightscale/right_st/releases for more information.
+`))
+			})
+
+			It("Outputs the available versions when there is a new version", func() {
+				err := UpdateList("right_st v3.0.0 - JUNK JUNK JUNK", buffer)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(buffer.Contents()).To(BeEquivalentTo(`The latest v1 version of right_st is v1.2.3.
+The latest v2 version of right_st is v2.3.4.
+The latest v3 version of right_st is v3.4.5; you are using v3.0.0, to upgrade run:
+    right_st update apply
+
+See https://github.com/rightscale/right_st/blob/master/ChangeLog.md or
+https://github.com/rightscale/right_st/releases for more information.
+`))
+			})
+
+			It("Outputs the available versions when there is a new major version", func() {
+				err := UpdateList("right_st v2.3.4 - JUNK JUNK JUNK", buffer)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(buffer.Contents()).To(BeEquivalentTo(`The latest v1 version of right_st is v1.2.3.
+The latest v2 version of right_st is v2.3.4; this is the version you are using!
+The latest v3 version of right_st is v3.4.5; you are using v2.3.4, to upgrade run:
+    right_st update apply -m 3
+
+See https://github.com/rightscale/right_st/blob/master/ChangeLog.md or
+https://github.com/rightscale/right_st/releases for more information.
+`))
+			})
+
+			It("Outputs the available versions when there is a new version and new major version", func() {
+				err := UpdateList("right_st v2.0.0 - JUNK JUNK JUNK", buffer)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(buffer.Contents()).To(BeEquivalentTo(`The latest v1 version of right_st is v1.2.3.
+The latest v2 version of right_st is v2.3.4; you are using v2.0.0, to upgrade run:
+    right_st update apply
+The latest v3 version of right_st is v3.4.5; you are using v2.0.0, to upgrade run:
+    right_st update apply -m 3
+
+See https://github.com/rightscale/right_st/blob/master/ChangeLog.md or
+https://github.com/rightscale/right_st/releases for more information.
 `))
 			})
 		})
