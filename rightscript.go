@@ -49,6 +49,27 @@ func rightScriptShow(href string) {
 	fmt.Printf("Name: %s\n", rightscript.Name)
 	fmt.Printf("HREF: /api/right_scripts/%s\n", rightscript.Id)
 	fmt.Printf("Revision: %5s\n", rev)
+	fmt.Printf("Inputs:\n")
+	for _, input := range rightscript.Inputs {
+		i := jsonMapToInput(input)
+		fmt.Printf("  %s\n", input["name"].(string))
+		fmt.Printf("    Category: %s\n", i.Category)
+		fmt.Printf("    Description: %s\n", i.Description)
+		fmt.Printf("    Input Type: %s\n", i.InputType.String())
+		fmt.Printf("    Required: %t\n", i.Required)
+		fmt.Printf("    Advanced: %t\n", i.Advanced)
+		if i.Default != nil {
+			fmt.Printf("    Default: %s\n", i.Default.String())
+		}
+		if len(i.PossibleValues) > 0 {
+			vals := []string{}
+			for _, pv := range i.PossibleValues {
+				vals = append(vals, pv.String())
+			}
+			fmt.Printf("    Possible Values: %s\n", strings.Join(vals, ", "))
+		}
+
+	}
 	fmt.Printf("Attachments (id, md5, name):\n")
 	for _, a := range attachments {
 		fmt.Printf("  %s %s %s\n", a.Id, a.Digest, a.Filename)
@@ -120,7 +141,9 @@ func rightScriptDownload(href, downloadTo string) {
 	}
 
 	inputs := make(InputMap)
-
+	for _, input := range rightscript.Inputs {
+		inputs[input["name"].(string)] = jsonMapToInput(input)
+	}
 	metadata := RightScriptMetadata{
 		Name:        rightscript.Name,
 		Description: rightscript.Description,
@@ -161,6 +184,33 @@ func rightScriptDownload(href, downloadTo string) {
 		}
 	}
 
+}
+
+// Convert a JSON response to InputMetadata struct
+func jsonMapToInput(input map[string]interface{}) *InputMetadata {
+	var defaultValue *InputValue
+	if rawValue, ok := input["default_value"].(string); ok {
+		defaultValue, _ = parseInputValue(rawValue)
+	}
+	possibleValues := []*InputValue{}
+	if rawPossibleValues, ok := input["possible_values"].([]interface{}); ok {
+		for _, rawValue := range rawPossibleValues {
+			possibleValue, _ := parseInputValue(rawValue.(string))
+			possibleValues = append(possibleValues, possibleValue)
+		}
+	}
+
+	inputType, _ := parseInputType(input["kind"].(string))
+
+	return &InputMetadata{
+		Category:       input["category_name"].(string),
+		Description:    input["description"].(string),
+		InputType:      inputType,
+		Required:       input["required"].(bool),
+		Advanced:       input["advanced"].(bool),
+		Default:        defaultValue,
+		PossibleValues: possibleValues,
+	}
 }
 
 func rightScriptScaffold(files []string, backup bool) {

@@ -177,15 +177,23 @@ func (i *InputType) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err != nil {
 		return err
 	}
-	switch value {
-	case "single":
-		*i = Single
-	case "array":
-		*i = Array
-	default:
+	inputType, err := parseInputType(value)
+	if err != nil {
 		return fmt.Errorf("Invalid input type value: %s", value)
 	}
+	*i = inputType
 	return nil
+}
+
+func parseInputType(value string) (InputType, error) {
+	switch value {
+	case "single":
+		return Single, nil
+	case "array":
+		return Array, nil
+	default:
+		return Single, fmt.Errorf("Invalid input type value: %s", value)
+	}
 }
 
 func (i InputValue) String() string {
