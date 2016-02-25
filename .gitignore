@@ -34,6 +34,7 @@ hello.sh
 bin/glide-*
 version.yml
 *.bak
+*.old
 
 # vim
 .*.sw[nmop]

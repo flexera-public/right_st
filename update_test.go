@@ -3,6 +3,7 @@ package main_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 
 	. "github.com/rightscale/right_st"
 
@@ -26,26 +27,31 @@ var _ = Describe("Update", func() {
 
 	Context("With a update versions URL", func() {
 		var (
-			buffer              *gbytes.Buffer
-			server              *httptest.Server
-			oldUpdateVersionUrl string
+			buffer           *gbytes.Buffer
+			server           *httptest.Server
+			oldUpdateBaseUrl string
 		)
 
 		BeforeEach(func() {
 			buffer = gbytes.NewBuffer()
 			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte(`versions:
+				switch {
+				case r.URL.Path == "/version.yml":
+					w.Write([]byte(`# Latest right_st versions by major version (this file is used by right_st's update check mechanism)
+---
+versions:
   1: v1.2.3
   2: v2.3.4
   3: v3.4.5
 `))
+				}
 			}))
-			oldUpdateVersionUrl = UpdateVersionUrl
-			UpdateVersionUrl = server.URL
+			oldUpdateBaseUrl = UpdateBaseUrl
+			UpdateBaseUrl = server.URL
 		})
 
 		AfterEach(func() {
-			UpdateVersionUrl = oldUpdateVersionUrl
+			UpdateBaseUrl = oldUpdateBaseUrl
 			server.Close()
 		})
 
@@ -60,6 +66,29 @@ var _ = Describe("Update", func() {
 						3: &Version{3, 4, 5},
 					},
 				}))
+			})
+		})
+
+		Describe("Get download URL", func() {
+			var ext string
+			if runtime.GOOS == "windows" {
+				ext = "zip"
+			} else {
+				ext = "tgz"
+			}
+
+			It("Gets the download URL for a major version", func() {
+				url, version, err := UpdateGetDownloadUrl(1)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(url).To(Equal(server.URL + "/v1.2.3/right_st-" + runtime.GOOS + "-" + runtime.GOARCH + "." + ext))
+				Expect(version).To(Equal(&Version{1, 2, 3}))
+			})
+
+			It("Returns an error for a nonexistent major version", func() {
+				url, version, err := UpdateGetDownloadUrl(0)
+				Expect(err).To(MatchError("Major version not available: 0"))
+				Expect(url).To(BeEmpty())
+				Expect(version).To(BeNil())
 			})
 		})
 

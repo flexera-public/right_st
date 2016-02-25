@@ -1,16 +1,22 @@
 package main
 
 import (
+	"archive/tar"
+	"archive/zip"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 
 	"github.com/go-yaml/yaml"
-	// "github.com/inconshreveable/go-update"
+	"github.com/inconshreveable/go-update"
 )
 
 type Version struct {
@@ -25,14 +31,13 @@ type LatestVersions struct {
 }
 
 const (
-	UpdateBaseUrl            = "https://binaries.rightscale.com/rsbin/right_st"
 	UpdateGithubBaseUrl      = "https://github.com/rightscale/right_st"
 	UpdateGithubReleasesUrl  = UpdateGithubBaseUrl + "/releases"
 	UpdateGithubChangeLogUrl = UpdateGithubBaseUrl + "/blob/master/ChangeLog.md"
 )
 
 var (
-	UpdateVersionUrl = UpdateBaseUrl + "/version.yml"
+	UpdateBaseUrl = "https://binaries.rightscale.com/rsbin/right_st"
 
 	vvString      = regexp.MustCompile(`^` + regexp.QuoteMeta(app.Name) + ` (v[0-9]+\.[0-9]+\.[0-9]+) -`)
 	versionString = regexp.MustCompile(`^v([0-9]+)\.([0-9]+)\.([0-9]+)$`)
@@ -50,23 +55,52 @@ func UpdateGetCurrentVersion(vv string) *Version {
 	return version
 }
 
+// UpdateGetVersionUrl gets the URL for the version.yml file for right_st from the rsbin bucket.
+func UpdateGetVersionUrl() string {
+	return UpdateBaseUrl + "/version.yml"
+}
+
 // UpdateGetLatestVersions gets the latest versions struct by downloading and parsing the version.yml file for right_st
 // from the rsbin bucket. See version.sh and the Makefile upload target for how this file is created.
 func UpdateGetLatestVersions() (*LatestVersions, error) {
 	// get the version.yml file over HTTP(S)
-	res, err := http.Get(UpdateVersionUrl)
+	res, err := http.Get(UpdateGetVersionUrl())
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
+
 	versions, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
 	if err != nil {
 		return nil, err
 	}
+
 	// parse the version.yml file into a LatestVersions struct and return the result and any errors
 	var latest LatestVersions
 	err = yaml.Unmarshal(versions, &latest)
 	return &latest, err
+}
+
+// UpdateGetDownloadUrl gets the download URL of the latest version for a major version on the current operating system
+// and architecture.
+func UpdateGetDownloadUrl(majorVersion int) (string, *Version, error) {
+	latest, err := UpdateGetLatestVersions()
+	if err != nil {
+		return "", nil, err
+	}
+
+	version, ok := latest.Versions[majorVersion]
+	if !ok {
+		return "", nil, fmt.Errorf("Major version not available: %d", majorVersion)
+	}
+
+	ext := "tgz"
+	if runtime.GOOS == "windows" {
+		ext = "zip"
+	}
+
+	return fmt.Sprintf("%s/%s/%s-%s-%s.%s", UpdateBaseUrl, version, app.Name, runtime.GOOS, runtime.GOARCH, ext),
+		version, nil
 }
 
 // UpdateCheck checks if there is there are any updates available for the running current version of right_st and prints
@@ -161,8 +195,107 @@ func UpdateList(vv string, output io.Writer) error {
 
 // UpdateApply applies an update by downloading the tgz or zip file for the current platform, extracting it, and
 // replacing the current executable with the new executable contained within. If majorVersion is 0, the tgz or zip for
-// the latest update of the current major version will be used, otherwise the specified major version will be used.
-func UpdateApply(vv string, output io.Writer, majorVersion uint) error {
+// the latest update of the current major version will be used, otherwise the specified major version will be used. If
+// path is the empty string, the current executable will be replaced, otherwise it specifies the targetPath of the file
+// to replace (this is only really used for testing).
+func UpdateApply(vv string, output io.Writer, majorVersion int, targetPath string) error {
+	// get the current version from the version string, it will be nil if this is a dev version
+	currentVersion := UpdateGetCurrentVersion(vv)
+	if majorVersion == 0 && currentVersion != nil {
+		majorVersion = currentVersion.Major
+	}
+
+	// get the URL of the archive for the latest version for the major version
+	url, version, err := UpdateGetDownloadUrl(majorVersion)
+	if err != nil {
+		return err
+	}
+
+	// download the archive file from the URL
+	res, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	var exe io.Reader
+	exeName := app.Name
+	if runtime.GOOS == "windows" {
+		exeName += ".exe"
+	}
+
+	switch path.Ext(url) {
+	case ".tgz":
+		gzipReader, err := gzip.NewReader(res.Body)
+		if err != nil {
+			return err
+		}
+		defer gzipReader.Close()
+
+		tarReader := tar.NewReader(gzipReader)
+		for {
+			header, err := tarReader.Next()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				return err
+			}
+
+			info := header.FileInfo()
+			if !info.IsDir() && info.Name() == exeName {
+				exe = tarReader
+				break
+			}
+		}
+	case ".zip":
+		archive, err := ioutil.TempFile("", path.Base(url)+".")
+		if err != nil {
+			return err
+		}
+		defer func() {
+			archive.Close()
+			os.Remove(archive.Name())
+		}()
+
+		if _, err := io.Copy(archive, res.Body); err != nil {
+			return err
+		}
+		archive.Close()
+
+		zipReader, err := zip.OpenReader(archive.Name())
+		if err != nil {
+			return err
+		}
+		defer zipReader.Close()
+
+		for _, file := range zipReader.File {
+			info := file.FileInfo()
+			if !info.IsDir() && info.Name() == exeName {
+				contents, err := file.Open()
+				if err != nil {
+					return err
+				}
+				defer contents.Close()
+
+				exe = contents
+				break
+			}
+		}
+	}
+
+	if exe == nil {
+		return fmt.Errorf("Could not find %s in archive: %s", exeName, url)
+	}
+
+	if err := update.Apply(exe, update.Options{TargetPath: targetPath}); err != nil {
+		if rollbackErr := update.RollbackError(err); rollbackErr != nil {
+			return rollbackErr
+		}
+		return err
+	}
+
+	fmt.Fprintf(output, "Successfully updated %s to %s!\n", app.Name, version)
+
 	return nil
 }
 

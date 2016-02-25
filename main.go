@@ -29,49 +29,49 @@ var (
 	environment = app.Flag("environment", "Set the RightScale login environment.").Short('e').String()
 
 	// ----- ServerTemplates -----
-	st = app.Command("st", "ServerTemplate")
+	stCmd = app.Command("st", "ServerTemplate")
 
-	stShowCmd        = st.Command("show", "Show a single ServerTemplate")
+	stShowCmd        = stCmd.Command("show", "Show a single ServerTemplate")
 	stShowNameOrHref = stShowCmd.Arg("name|href|id", "ServerTemplate Name or HREF or Id").Required().String()
 
-	stUploadCmd   = st.Command("upload", "Upload a ServerTemplate specified by a YAML document")
+	stUploadCmd   = stCmd.Command("upload", "Upload a ServerTemplate specified by a YAML document")
 	stUploadPaths = stUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
 
-	stDownloadCmd        = st.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
+	stDownloadCmd        = stCmd.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
 	stDownloadNameOrHref = stDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
 	stDownloadTo         = stDownloadCmd.Arg("path", "Download location").String()
 
-	stValidateCmd   = st.Command("validate", "Validate a ServerTemplate YAML document")
+	stValidateCmd   = stCmd.Command("validate", "Validate a ServerTemplate YAML document")
 	stValidatePaths = stValidateCmd.Arg("path", "Path to script file(s)").Required().ExistingFiles()
 
 	// ----- RightScripts -----
-	rightScript = app.Command("rightscript", "RightScript")
+	rightScriptCmd = app.Command("rightscript", "RightScript")
 
-	rightScriptShowCmd        = rightScript.Command("show", "Show a single RightScript and its attachments")
+	rightScriptShowCmd        = rightScriptCmd.Command("show", "Show a single RightScript and its attachments")
 	rightScriptShowNameOrHref = rightScriptShowCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
 
-	rightScriptUploadCmd   = rightScript.Command("upload", "Upload a RightScript")
+	rightScriptUploadCmd   = rightScriptCmd.Command("upload", "Upload a RightScript")
 	rightScriptUploadPaths = rightScriptUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
 	rightScriptUploadForce = rightScriptUploadCmd.Flag("force", "Force upload of file if metadata is not present").Short('f').Bool()
 
-	rightScriptDownloadCmd        = rightScript.Command("download", "Download a RightScript to a file or files")
+	rightScriptDownloadCmd        = rightScriptCmd.Command("download", "Download a RightScript to a file or files")
 	rightScriptDownloadNameOrHref = rightScriptDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
 	rightScriptDownloadTo         = rightScriptDownloadCmd.Arg("path", "Download location").String()
 
-	rightScriptScaffoldCmd      = rightScript.Command("scaffold", "Add RightScript YAML metadata comments to a file or files")
+	rightScriptScaffoldCmd      = rightScriptCmd.Command("scaffold", "Add RightScript YAML metadata comments to a file or files")
 	rightScriptScaffoldPaths    = rightScriptScaffoldCmd.Arg("path", "File or directory to set metadata for").Required().ExistingFilesOrDirs()
 	rightScriptScaffoldNoBackup = rightScriptScaffoldCmd.Flag("no-backup", "Do not create backup files before scaffolding").Short('n').Bool()
 
-	rightScriptValidateCmd   = rightScript.Command("validate", "Validate RightScript YAML metadata comments in a file or files")
+	rightScriptValidateCmd   = rightScriptCmd.Command("validate", "Validate RightScript YAML metadata comments in a file or files")
 	rightScriptValidatePaths = rightScriptValidateCmd.Arg("path", "Path to script file or directory containing script files").Required().ExistingFilesOrDirs()
 
 	// ----- Update right_st -----
-	update = app.Command("update", "Update "+app.Name+" executable")
+	updateCmd = app.Command("update", "Update "+app.Name+" executable")
 
-	updateListCmd = update.Command("list", "List any available updates for the "+app.Name+" executable")
+	updateListCmd = updateCmd.Command("list", "List any available updates for the "+app.Name+" executable")
 
-	updateApplyCmd          = update.Command("apply", "Apply the latest update for the current major version or a specified major version")
-	updateApplyMajorVersion = updateApplyCmd.Flag("major-version", "Major version to update to").Short('m').Uint()
+	updateApplyCmd          = updateCmd.Command("apply", "Apply the latest update for the current major version or a specified major version")
+	updateApplyMajorVersion = updateApplyCmd.Flag("major-version", "Major version to update to").Short('m').Int()
 )
 
 func main() {
@@ -161,7 +161,7 @@ func main() {
 			fatalError("%s\n", err.Error())
 		}
 	case updateApplyCmd.FullCommand():
-		err := UpdateApply(VV, os.Stdout, *updateApplyMajorVersion)
+		err := UpdateApply(VV, os.Stdout, *updateApplyMajorVersion, "")
 		if err != nil {
 			fatalError("%s\n", err.Error())
 		}
