@@ -34,7 +34,7 @@ func rightScriptShow(href string) {
 	rightscriptLocator := client.RightScriptLocator(href)
 	attachmentsLocator := client.RightScriptAttachmentLocator(attachmentsHref)
 
-	rightscript, err := rightscriptLocator.Show()
+	rightscript, err := rightscriptLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
 	if err != nil {
 		fatalError("Could not find rightscript with href %s: %s", href, err.Error())
 	}
@@ -95,7 +95,7 @@ func rightScriptDownload(href, downloadTo string) {
 	rightscriptLocator := client.RightScriptLocator(href)
 	attachmentsLocator := client.RightScriptAttachmentLocator(attachmentsHref)
 
-	rightscript, err := rightscriptLocator.Show()
+	rightscript, err := rightscriptLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
 	if err != nil {
 		fatalError("Could not find RightScript with href %s: %s", href, err.Error())
 	}
@@ -118,7 +118,9 @@ func rightScriptDownload(href, downloadTo string) {
 	for i, attachment := range attachments {
 		attachmentNames[i] = attachment.Filename
 	}
-	inputs := make(InputMap) // TBD get these definitions from the API somehow!
+
+	inputs := make(InputMap)
+
 	metadata := RightScriptMetadata{
 		Name:        rightscript.Name,
 		Description: rightscript.Description,

@@ -40,6 +40,5 @@ import:
 - package: github.com/mattn/go-colorable
 - package: github.com/rightscale/rsc
   version: right_scripts_update_source2
-  repo: https://github.com/lopaka/rsc
   vcs: git
 - package: github.com/rlmcpherson/s3gof3r/gof3r
