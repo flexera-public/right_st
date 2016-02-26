@@ -30,40 +30,40 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Config struct {
+type ConfigViper struct {
 	*viper.Viper
-	environment  *Environment
-	environments map[string]*Environment
+	Environment  *Environment
+	Environments map[string]*Environment
 }
 
-var config Config
+var Config ConfigViper
 
 func init() {
-	config.Viper = viper.New()
-	config.SetDefault("update.check", true)
+	Config.Viper = viper.New()
+	Config.SetDefault("update.check", true)
 }
 
-func readConfig(configFile, environment string) error {
-	config.SetConfigFile(configFile)
-	err := config.ReadInConfig()
+func ReadConfig(configFile, environment string) error {
+	Config.SetConfigFile(configFile)
+	err := Config.ReadInConfig()
 	if err != nil {
 		return err
 	}
 
-	err = config.UnmarshalKey("login.environments", &config.environments)
+	err = Config.UnmarshalKey("login.environments", &Config.Environments)
 	if err != nil {
 		return fmt.Errorf("%s: %s", configFile, err)
 	}
 
 	var ok bool
 	if environment == "" {
-		defaultEnvironment := config.GetString("login.default_environment")
-		config.environment, ok = config.environments[defaultEnvironment]
+		defaultEnvironment := Config.GetString("login.default_environment")
+		Config.Environment, ok = Config.Environments[defaultEnvironment]
 		if !ok {
 			return fmt.Errorf("%s: could not find default environment: %s", configFile, defaultEnvironment)
 		}
 	} else {
-		config.environment, ok = config.environments[environment]
+		Config.Environment, ok = Config.Environments[environment]
 		if !ok {
 			return fmt.Errorf("%s: could not find environment: %s", configFile, environment)
 		}
@@ -72,8 +72,8 @@ func readConfig(configFile, environment string) error {
 	return nil
 }
 
-func (config *Config) getEnvironment(account int, host string) (*Environment, error) {
-	for _, environment := range config.environments {
+func (config *ConfigViper) getEnvironment(account int, host string) (*Environment, error) {
+	for _, environment := range config.Environments {
 		if environment.Account == account && environment.Host == host {
 			return environment, nil
 		}

@@ -26,7 +26,7 @@ import (
 var (
 	app         = kingpin.New("right_st", "A command-line application for managing RightScripts")
 	debug       = app.Flag("debug", "Debug mode").Short('d').Bool()
-	configFile  = app.Flag("config", "Set the config file path.").Short('c').Default(defaultConfigFile()).String()
+	configFile  = app.Flag("config", "Set the config file path.").Short('c').Default(DefaultConfigFile()).String()
 	environment = app.Flag("environment", "Set the RightScale login environment.").Short('e').String()
 
 	// ----- ServerTemplates -----
@@ -90,7 +90,7 @@ func main() {
 	app.VersionFlag.Short('v')
 	command := kingpin.MustParse(app.Parse(os.Args[1:]))
 
-	err := readConfig(*configFile, *environment)
+	err := ReadConfig(*configFile, *environment)
 	if err != nil && !strings.HasPrefix(command, "config") {
 		fatalError("%s: Error reading config file: %s\n", filepath.Base(os.Args[0]), err.Error())
 	}
@@ -109,7 +109,7 @@ func main() {
 	handler := log15.LvlFilterHandler(logLevel, log15.StreamHandler(colorable.NewColorableStdout(), log15.TerminalFormat()))
 	log15.Root().SetHandler(handler)
 
-	if config.GetBool("update.check") && !strings.HasPrefix(command, "update") {
+	if Config.GetBool("update.check") && !strings.HasPrefix(command, "update") {
 		defer UpdateCheck(VV, os.Stderr)
 	}
 
@@ -182,7 +182,7 @@ func main() {
 }
 
 func paramToHref(resourceType, param string, revision int) (string, error) {
-	client := config.environment.Client15()
+	client := Config.Environment.Client15()
 
 	idMatch := regexp.MustCompile(`^\d+$`)
 	hrefMatch := regexp.MustCompile(fmt.Sprintf("^/api/%s/\\d+$", resourceType))

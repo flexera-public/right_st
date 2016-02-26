@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-func defaultConfigFile() string {
+func DefaultConfigFile() string {
 	currentUser, err := user.Current()
 	if err != nil {
 		panic(err)
