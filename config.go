@@ -72,14 +72,14 @@ func ReadConfig(configFile, environment string) error {
 	return nil
 }
 
-func (config *ConfigViper) getEnvironment(account int, host string) (*Environment, error) {
+func (config *ConfigViper) GetEnvironment(account int, host string) (*Environment, error) {
 	for _, environment := range config.Environments {
 		if environment.Account == account && environment.Host == host {
 			return environment, nil
 		}
 	}
 
-	return nil, fmt.Errorf("Error finding environment for account/host: %d %s", account, host)
+	return nil, fmt.Errorf("Could not find environment for account/host: %d %s", account, host)
 }
 
 // Obtain input via STDIN then print out to config file

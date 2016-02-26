@@ -197,6 +197,25 @@ login:
 				err := ReadConfig(configFile, "development")
 				Expect(err).To(MatchError(configFile + ": could not find environment: development"))
 			})
+
+			Describe("Get environment", func() {
+				It("Gets an environment with a specified account and host", func() {
+					Expect(ReadConfig(configFile, "")).To(Succeed())
+					environment, err := Config.GetEnvironment(67890, "us-4.rightscale.com")
+					Expect(err).NotTo(HaveOccurred())
+					Expect(environment).To(Equal(&Environment{
+						Account:      67890,
+						Host:         "us-4.rightscale.com",
+						RefreshToken: "fedcba0987654321febcba0987654321fedcba09",
+					}))
+				})
+
+				It("Returns an error if the specified account and host are not in the configuration", func() {
+					Expect(ReadConfig(configFile, "")).To(Succeed())
+					environment, err = Config.GetEnvironment(12345, "us-4.rightscale.com")
+					Expect(err).To(MatchError("Could not find environment for account/host: 12345 us-4.rightscale.com"))
+				})
+			})
 		})
 	})
 })
