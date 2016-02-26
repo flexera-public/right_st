@@ -39,7 +39,7 @@ import:
 - package: github.com/spf13/jwalterweatherman
 - package: github.com/mattn/go-colorable
 - package: github.com/rightscale/rsc
-  version: right_scripts_update_source2
+  version: CM-2063_add_right_script_attachment_crud
   vcs: git
 - package: github.com/rlmcpherson/s3gof3r/gof3r
 - package: github.com/inconshreveable/go-update

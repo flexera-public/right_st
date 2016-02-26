@@ -125,7 +125,7 @@ func rightScriptDownload(href, downloadTo string) {
 		fatalError("Could get source for RightScript with href %s: %s", href, err.Error())
 	}
 
-	attachments, err := attachmentsLocator.Index(rsapi.APIParams{"view": "full"})
+	attachments, err := attachmentsLocator.Index(rsapi.APIParams{})
 	if err != nil {
 		fatalError("Could get attachments for RightScript from href %s: %s", attachmentsHref, err.Error())
 	}
