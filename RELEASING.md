@@ -16,7 +16,10 @@ This is how to release a new version of `right_st`:
   git push --tags
   ```
 4. Create a [GitHub release](https://github.com/rightscale/right_st/releases) from the tag with the ChangeLog contents
-  as the description.
+  as the description. Also include links to the binaries for Linux, Mac OS X, and Windows in the description:
+  * Linux: `https://binaries.rightscale.com/rsbin/right_st/vX.Y.Z/right_st-linux-amd64.tgz`
+  * Mac OS X: `https://binaries.rightscale.com/rsbin/right_st/vX.Y.Z/right_st-darwin-amd64.tgz`
+  * Windows: `https://binaries.rightscale.com/rsbin/right_st/vX.Y.Z/right_st-windows-amd64.zip`
 
 ## Testing the release
 

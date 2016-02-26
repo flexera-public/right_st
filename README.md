@@ -5,6 +5,12 @@ right_st is a tool for managing RightScale ServerTemplate and RightScripts. The 
 [![Travis CI Build Status](https://travis-ci.org/rightscale/right_st.svg?branch=master)](https://travis-ci.org/rightscale/right_st?branch=master)
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/rightscale/right_st?branch=master&svg=true)](https://ci.appveyor.com/project/RightScale/right-st?branch=master)
 
+## Installation
+
+* Linux: [v0/right_st-linux-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-linux-amd64.zip)
+* Mac OS X: [v0/right_st-darwin-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-darwin-amd64.zip)
+* Windows: [v0/right_st-windows-amd64.zip](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-windows-amd64.zip)
+
 ## Managing RightScripts
 
 RightScripts consist of a script body, attachments, and metadata. Metadata is the list of inputs, description, and name of the RightScript. Metadata is expected to be embedded as a YAML formatted comment at the top of the RightScript. Metadata format is as follows:
