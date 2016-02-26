@@ -30,8 +30,9 @@ Input definition format is as follows:
 | Category | String | Category to group Input under |
 | Description | String | Description field for the Input |
 | Default | String | Default value. Value must be in [Inputs 2.0 format](http://reference.rightscale.com/api1.5/resources/ResourceInputs.html) from RightScale API which consists of a type followed by a colon then the value. I.e. "text:Foo", "ignore", "env:ENV_VAR" |
-| Required | Boolean | "true" or "false". Whether or not the Input is required |
-| Advanced | Boolean | "true" or "false". Whether or not the Input is advanced (hidden by default) |
+| Required | Boolean | true or false. Whether or not the Input is required |
+| Advanced | Boolean | true or false. Whether or not the Input is advanced (hidden by default) |
+| Possible Values | Array of Inputs | If supplied, a drop down list of values will be supplied in the UI for this input. |
 
 
 Example RightScript is as follows. This RightScript has one attachment, which must be located at "attachments/foo" relative
@@ -47,9 +48,10 @@ to the script.
 #     Input Type: single
 #     Category: RightScale
 #     Description: A parameter to the foo tool
-#     Default: "text:bar"
+#     Default: "text:foo1"
 #     Required: false
 #     Advanced: true
+#     Possible Values: ["text:foo1", "text:foo2"]
 # Attachments:
 # - foo
 # ...
@@ -91,7 +93,7 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | Description | String | Description field for the ServerTemplate. |
 | RightScripts | Hash | The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of strings, where each string is a relative pathname to a RightScript on disk. |
 | Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overriden in a ServerTemplate. |
-| MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash specifying a MCI. Currently the only MultiCloudImage definition format is by Href. See example below |
+| MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash specifying a MCI. MCIs can be specified two different ways depending on Hash keys supplied: 1. 'Href' 2. 'Name' and 'Revision'. See example below. |
 | Alerts | Array of Alerts | An array of Alert definitions, defined below. |
 
 An Alert definition consists of three fields: a Name, Definition, and Clause (all strings). The Clause is a text description of the Alert with this exact format: `If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Action> <ActionValue>`.
@@ -118,6 +120,8 @@ RightScripts:
   Decommission:
   - path/to/decom_script1.sh
 MultiCloudImages:
+- Name: Ubuntu_14.04_x64
+  Revision: 20
 - Href: /api/multi_cloud_images/403042003
 Alerts:
 - Name: CPU Scale Down

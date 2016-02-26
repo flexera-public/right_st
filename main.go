@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/alecthomas/kingpin"
@@ -106,7 +107,7 @@ func main() {
 
 	switch command {
 	case stShowCmd.FullCommand():
-		href, err := paramToHref("server_templates", *stShowNameOrHref)
+		href, err := paramToHref("server_templates", *stShowNameOrHref, 0)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
@@ -118,7 +119,7 @@ func main() {
 		}
 		stUpload(files)
 	case stDownloadCmd.FullCommand():
-		href, err := paramToHref("server_templates", *stDownloadNameOrHref)
+		href, err := paramToHref("server_templates", *stDownloadNameOrHref, 0)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
@@ -130,7 +131,7 @@ func main() {
 		}
 		stValidate(files)
 	case rightScriptShowCmd.FullCommand():
-		href, err := paramToHref("right_scripts", *rightScriptShowNameOrHref)
+		href, err := paramToHref("right_scripts", *rightScriptShowNameOrHref, 0)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
@@ -138,7 +139,7 @@ func main() {
 	case rightScriptUploadCmd.FullCommand():
 		rightScriptUpload(*rightScriptUploadPaths, *rightScriptUploadForce)
 	case rightScriptDownloadCmd.FullCommand():
-		href, err := paramToHref("right_scripts", *rightScriptDownloadNameOrHref)
+		href, err := paramToHref("right_scripts", *rightScriptDownloadNameOrHref, 0)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
@@ -168,7 +169,7 @@ func main() {
 	}
 }
 
-func paramToHref(resourceType, param string) (string, error) {
+func paramToHref(resourceType, param string, revision int) (string, error) {
 	client := config.environment.Client15()
 
 	idMatch := regexp.MustCompile(`^\d+$`)
@@ -204,7 +205,7 @@ func paramToHref(resourceType, param string) (string, error) {
 		}
 		count := 0
 		for _, item := range items {
-			if item.Name == param && item.Revision == 0 {
+			if item.Name == param && item.Revision == revision {
 				href = getLink(item.Links, "self")
 				count = count + 1
 			}
@@ -212,8 +213,12 @@ func paramToHref(resourceType, param string) (string, error) {
 		if count == 0 {
 			return "", fmt.Errorf("Found no %s matching '%s'", resourceType, param)
 		} else if count > 1 {
-			return "", fmt.Errorf("Matched multiple %s with the name %s. "+
-				"Don't know which one to download. Please delete one or specify an HREF to download such as %s", resourceType, param, href)
+			revMessage := " and HEAD revision. "
+			if revision != 0 {
+				revMessage = " and revision " + strconv.Itoa(revision) + ". "
+			}
+			return "", fmt.Errorf("Matched multiple %s with the name %s"+revMessage+
+				"Don't know which one to use. Please delete one or specify an HREF to use such as %s", resourceType, param, href)
 		}
 	}
 	return href, nil

@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -15,10 +14,8 @@ import (
 	"github.com/rightscale/rsc/rsapi"
 )
 
-type Image struct {
+type MultiCloudImage struct {
 	Href     string `yaml:"Href,omitempty"`
-	Cloud    string `yaml:"Cloud,omitempty"`
-	Image    string `yaml:"Image,omitempty"`
 	Name     string `yaml:"Name,omitempty"`
 	Revision int    `yaml:"Revision,omitempty"`
 }
@@ -28,9 +25,8 @@ type ServerTemplate struct {
 	Description      string                 `yaml:"Description"`
 	Inputs           map[string]*InputValue `yaml:"Inputs"`
 	RightScripts     map[string][]string    `yaml:"RightScripts"`
-	MultiCloudImages []*Image               `yaml:"MultiCloudImages"`
+	MultiCloudImages []*MultiCloudImage     `yaml:"MultiCloudImages"`
 	Alerts           []*Alert               `yaml:"Alerts"`
-	mciHrefs         []string
 }
 
 type Alert struct {
@@ -116,8 +112,8 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript) e
 	for _, mci := range existingMcis {
 		mciHref := getLink(mci.Links, "multi_cloud_image")
 		foundMci := false // found on ST definition
-		for _, stDefHref := range stDef.mciHrefs {
-			if stDefHref == mciHref {
+		for _, mciDef := range stDef.MultiCloudImages {
+			if mciDef.Href == mciHref {
 				foundMci = true
 			}
 		}
@@ -131,23 +127,23 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript) e
 	}
 
 	// Add all MCIs. If the MCI has not changed (HREF is the same, or combination of values is the same) don't update?
-	for i, stDefMciHref := range stDef.mciHrefs {
+	for i, mciDef := range stDef.MultiCloudImages {
 		foundMci := false // found on ST
 		for _, mci := range existingMcis {
 			mciHref := getLink(mci.Links, "multi_cloud_image")
-			if stDefMciHref == mciHref {
+			if mciDef.Href == mciHref {
 				foundMci = true
 			}
 		}
 		if !foundMci {
 			params := cm15.ServerTemplateMultiCloudImageParam{
-				MultiCloudImageHref: stDefMciHref,
+				MultiCloudImageHref: mciDef.Href,
 				ServerTemplateHref:  stHref,
 			}
-			fmt.Printf("  Adding MCI %s\n", stDefMciHref)
+			fmt.Printf("  Adding MCI '%s' revision '%d' (%s)\n", mciDef.Name, mciDef.Revision, mciDef.Href)
 			loc, err := mciLocator.Create(&params)
 			if err != nil {
-				fatalError("  Failed to associate MCI '%s' with ServerTemplate '%s': %s", stDefMciHref, stHref, err.Error())
+				fatalError("  Failed to associate MCI '%s' with ServerTemplate '%s': %s", mciDef.Href, stHref, err.Error())
 			}
 			if i == 0 {
 				_ = loc.MakeDefault()
@@ -445,9 +441,9 @@ func stDownload(href, downloadTo string) {
 	if err != nil {
 		fatalError("Could not find MCIs with href %s: %s", mciLocator.Href, err.Error())
 	}
-	mciImages := make([]*Image, len(mcis))
+	mciImages := make([]*MultiCloudImage, len(mcis))
 	for i, mci := range mcis {
-		mciImages[i] = &Image{Href: getLink(mci.Links, "self")}
+		mciImages[i] = &MultiCloudImage{Name: mci.Name, Revision: mci.Revision}
 	}
 
 	rbLocator := client.RunnableBindingLocator(getLink(st.Links, "runnable_bindings"))
@@ -561,32 +557,30 @@ func validateServerTemplate(file string) (*ServerTemplate, *map[string][]*RightS
 	client := config.environment.Client15()
 
 	//idMatch := regexp.MustCompile(`^\d+$`)
-	hrefMatch := regexp.MustCompile(`^/api/multi_cloud_images/\d+$`)
-	st.mciHrefs = make([]string, len(st.MultiCloudImages))
-	// Let people specify MCIs multiple ways:
+	// TBD: Let people specify MCIs multiple ways:
 	//   1. Href
-	//   2. Name/revision pair (TBD)
-	//   3. Name/Cloud/Image combination (TBD)
-	for i, image := range st.MultiCloudImages {
-		var href string
-		if hrefMatch.Match([]byte(image.Href)) {
-			href = image.Href
-		} else if image.Name != "" && image.Revision != 0 {
-			errors = append(errors, fmt.Errorf("Cannot parse MCIs by name/revision yet"))
-			continue
-		} else if image.Name != "" && image.Cloud != "" && image.Image != "" {
-			errors = append(errors, fmt.Errorf("Cannot parse MCIs by cloud/image yet"))
-			continue
+	//   2. Name/revision pair (preferred - at least somewhat portable)
+	//   3. Set of Images + Tags to support autocreation/management of MCIs (TBD)
+	for _, mciDef := range st.MultiCloudImages {
+		if mciDef.Href != "" {
+			loc := client.MultiCloudImageLocator(mciDef.Href)
+			mci, err := loc.Show()
+			if err != nil {
+				errors = append(errors, fmt.Errorf("Could not find MCI HREF %s in account", mciDef.Href))
+			}
+			mciDef.Name = mci.Name
+			mciDef.Revision = mci.Revision
+		} else if mciDef.Name != "" {
+			href, err := paramToHref("multi_cloud_images", mciDef.Name, mciDef.Revision)
+			if err != nil {
+				// TBD fallback: If revision != 0, look for this combo in publications and try that!
+				errors = append(errors, fmt.Errorf("Could not find MCI named '%s' with revision %d in account", mciDef.Name, mciDef.Revision))
+			}
+			mciDef.Href = href
 		} else {
-			errors = append(errors, fmt.Errorf("MultiCloudImage item must be a hash with 'Href' key set to a valid value"))
+			errors = append(errors, fmt.Errorf("MultiCloudImage item must be a hash with 'Name' and 'Revision' keys set to a valid values."))
 			continue
 		}
-		loc := client.MultiCloudImageLocator(href)
-		_, err := loc.Show()
-		if err != nil {
-			errors = append(errors, fmt.Errorf("Could not find MCI HREF %s in account", href))
-		}
-		st.mciHrefs[i] = href
 	}
 
 	rightscripts := make(map[string][]*RightScript)
