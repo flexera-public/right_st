@@ -80,6 +80,12 @@ right_st rightscript scaffold [<flags>] <path>...
 
 right_st rightscript validate <path>...
   Validate RightScript YAML metadata comments in a file or files
+
+right_st config update <environment>
+  Update or create config file with the environment name passed in
+
+right_st config list
+  List environment configurations
 ~~~
 
 
