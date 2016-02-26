@@ -69,7 +69,9 @@ func UpdateGetLatestVersions() (*LatestVersions, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
-
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("Unexpected HTTP response getting %s: %s", UpdateGetVersionUrl(), res.Status)
+	}
 	versions, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
@@ -210,6 +212,7 @@ func UpdateApply(vv string, output io.Writer, majorVersion int, targetPath strin
 	if err != nil {
 		return err
 	}
+	fmt.Fprintf(output, "Downloading %s %s from %s...\n", app.Name, version, url)
 
 	// download the archive file from the URL
 	res, err := http.Get(url)
@@ -217,83 +220,107 @@ func UpdateApply(vv string, output io.Writer, majorVersion int, targetPath strin
 		return err
 	}
 	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return fmt.Errorf("Unexpected HTTP response getting %s: %s", url, res.Status)
+	}
 
+	// the new executable will need to be read from this reader which will come from somewhere inside the downloaded
+	// archive
 	var exe io.Reader
 	exeName := app.Name
 	if runtime.GOOS == "windows" {
 		exeName += ".exe"
 	}
 
+	// get a reader for the new executable from the archive file which can be either a tgz (gzipped tar file) or a zip
 	switch path.Ext(url) {
 	case ".tgz":
+		// create a gzip reader from the archive file stream in the HTTP response
 		gzipReader, err := gzip.NewReader(res.Body)
 		if err != nil {
 			return err
 		}
 		defer gzipReader.Close()
 
+		// create a tar reader from the gzip reader and iterate through its entries
 		tarReader := tar.NewReader(gzipReader)
 		for {
+			// try to get the next header from the tar file
 			header, err := tarReader.Next()
 			if err == io.EOF {
+				// if there was an EOF we've reached the end of the tar file
 				break
 			} else if err != nil {
 				return err
 			}
 
+			// check if the current entry is for the new executable
 			info := header.FileInfo()
 			if !info.IsDir() && info.Name() == exeName {
+				// assign the current entry's reader to be the new executable and stop iterating through the tar file
 				exe = tarReader
 				break
 			}
 		}
 	case ".zip":
+		// create a temporary file to store the zip archive file
 		archive, err := ioutil.TempFile("", path.Base(url)+".")
 		if err != nil {
 			return err
 		}
 		defer func() {
+			// on Windows you cannot delete a file that has open handles
 			archive.Close()
 			os.Remove(archive.Name())
 		}()
 
+		// write out the zip file to the temporary file from the HTTP response
 		if _, err := io.Copy(archive, res.Body); err != nil {
 			return err
 		}
-		archive.Close()
+		if err := archive.Close(); err != nil {
+			return err
+		}
 
+		// create a zip reader from the temporary file
 		zipReader, err := zip.OpenReader(archive.Name())
 		if err != nil {
 			return err
 		}
 		defer zipReader.Close()
 
+		// iterate through the files in the zip file
 		for _, file := range zipReader.File {
+			// check if the current file is for the new executable
 			info := file.FileInfo()
 			if !info.IsDir() && info.Name() == exeName {
+				// open a reader for the current file in the zip file
 				contents, err := file.Open()
 				if err != nil {
 					return err
 				}
 				defer contents.Close()
 
+				// assign the current entry's reader to be the new executable and stop iterating through the zip file
 				exe = contents
 				break
 			}
 		}
 	}
 
+	// make sure we actually found the executable file in the archive
 	if exe == nil {
 		return fmt.Errorf("Could not find %s in archive: %s", exeName, url)
 	}
 
+	// attempt to apply the new executable so it replaces the old one
 	if err := update.Apply(exe, update.Options{TargetPath: targetPath}); err != nil {
+		// attempt to roll back if the apply failed
 		if rollbackErr := update.RollbackError(err); rollbackErr != nil {
 			return rollbackErr
 		}
 		return err
 	}
-
 	fmt.Fprintf(output, "Successfully updated %s to %s!\n", app.Name, version)
 
 	return nil
