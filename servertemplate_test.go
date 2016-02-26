@@ -30,6 +30,8 @@ Inputs:
   SERVER_HOSTNAME: text:test.local
 MultiCloudImages:
   - Href: /api/multi_cloud_images/403042003
+  - Name: FooImage
+    Revision: 100
 `)
 			It("should parse correctly", func() {
 				st, err := ParseServerTemplate(script)
@@ -41,8 +43,9 @@ MultiCloudImages:
 				Expect(st.RightScripts["Boot"]).To(Equal([]string{"Dummy.sh"}))
 				Expect(st.RightScripts["Operational"]).To(Equal([]string{"Dummy2.sh"}))
 				Expect(st.RightScripts["Decommission"]).To(Equal([]string{"Dummy3.sh"}))
-				Expect(st.MultiCloudImages).To(Equal([]*Image{
-					&Image{Href: "/api/multi_cloud_images/403042003"},
+				Expect(st.MultiCloudImages).To(Equal([]*MultiCloudImage{
+					&MultiCloudImage{Href: "/api/multi_cloud_images/403042003"},
+					&MultiCloudImage{Name: "FooImage", Revision: 100},
 				}))
 			})
 		})
