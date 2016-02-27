@@ -7,8 +7,8 @@ right_st is a tool for managing RightScale ServerTemplate and RightScripts. The 
 
 ## Installation
 
-* Linux: [v0/right_st-linux-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-linux-amd64.zip)
-* Mac OS X: [v0/right_st-darwin-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-darwin-amd64.zip)
+* Linux: [v0/right_st-linux-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-linux-amd64.tgz)
+* Mac OS X: [v0/right_st-darwin-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-darwin-amd64.tgz)
 * Windows: [v0/right_st-windows-amd64.zip](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-windows-amd64.zip)
 
 Configuration is required to inform right_st what RightScale accounts to connect to. Running `right_st config update default` will ask for the following items to create the 'default' environment configuration:
