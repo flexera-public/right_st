@@ -212,8 +212,9 @@ login:
 
 				It("Returns an error if the specified account and host are not in the configuration", func() {
 					Expect(ReadConfig(configFile, "")).To(Succeed())
-					environment, err = Config.GetEnvironment(12345, "us-4.rightscale.com")
+					environment, err := Config.GetEnvironment(12345, "us-4.rightscale.com")
 					Expect(err).To(MatchError("Could not find environment for account/host: 12345 us-4.rightscale.com"))
+					Expect(environment).To(BeNil())
 				})
 			})
 		})
