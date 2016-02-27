@@ -20,34 +20,35 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package main
+package main_test
 
 import (
-	"github.com/rightscale/rsc/cm15"
-	"github.com/rightscale/rsc/cm16"
-	"github.com/rightscale/rsc/rsapi"
+	. "github.com/rightscale/right_st"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-type Environment struct {
-	Account      int
-	Host         string
-	RefreshToken string `mapstructure:"refresh_token" yaml:"refresh_token"`
-	client15     *cm15.API
-	client16     *cm16.API
-}
-
-func (environment *Environment) Client15() *cm15.API {
-	if environment.client15 == nil {
-		auth := rsapi.NewOAuthAuthenticator(environment.RefreshToken, environment.Account)
-		environment.client15 = cm15.New(environment.Host, auth)
+var _ = Describe("Environment", func() {
+	var environment = Environment{
+		Account:      54321,
+		Host:         "localhost",
+		RefreshToken: "def1234567890abcdef1234567890abcdef12345",
 	}
-	return environment.client15
-}
 
-func (environment *Environment) Client16() *cm16.API {
-	if environment.client16 == nil {
-		auth := rsapi.NewOAuthAuthenticator(environment.RefreshToken, environment.Account)
-		environment.client16 = cm16.New(environment.Host, auth)
-	}
-	return environment.client16
-}
+	It("Gets an API 1.5 client singleton", func() {
+		firstClient := environment.Client15()
+		Expect(firstClient).NotTo(BeNil())
+
+		secondClient := environment.Client15()
+		Expect(secondClient).To(BeIdenticalTo(firstClient))
+	})
+
+	It("Gets an API 1.6 client singleton", func() {
+		firstClient := environment.Client16()
+		Expect(firstClient).NotTo(BeNil())
+
+		secondClient := environment.Client16()
+		Expect(secondClient).To(BeIdenticalTo(firstClient))
+	})
+})

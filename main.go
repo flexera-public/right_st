@@ -26,7 +26,7 @@ import (
 var (
 	app         = kingpin.New("right_st", "A command-line application for managing RightScripts")
 	debug       = app.Flag("debug", "Debug mode").Short('d').Bool()
-	configFile  = app.Flag("config", "Set the config file path.").Short('c').Default(defaultConfigFile()).String()
+	configFile  = app.Flag("config", "Set the config file path.").Short('c').Default(DefaultConfigFile()).String()
 	environment = app.Flag("environment", "Set the RightScale login environment.").Short('e').String()
 
 	// ----- ServerTemplates -----
@@ -66,6 +66,17 @@ var (
 	rightScriptValidateCmd   = rightScriptCmd.Command("validate", "Validate RightScript YAML metadata comments in a file or files")
 	rightScriptValidatePaths = rightScriptValidateCmd.Arg("path", "Path to script file or directory containing script files").Required().ExistingFilesOrDirs()
 
+	// ----- Configuration -----
+	configCmd = app.Command("config", "Manage Configuration")
+
+	configSetCmd = configCmd.Command("set", "Add or change configuration values")
+
+	configSetEnvironmentCmd     = configSetCmd.Command("environment", "Add or edit a RightScale API environment configuration")
+	configSetEnvironmentDefault = configSetEnvironmentCmd.Flag("default", "Set the named RightScale API environment as the default").Short('D').Bool()
+	configSetEnvironmentName    = configSetEnvironmentCmd.Arg("name", "Name of RightScale API environment to add or edit").Required().String()
+
+	configListCmd = configCmd.Command("list", "List environments")
+
 	// ----- Update right_st -----
 	updateCmd = app.Command("update", "Update "+app.Name+" executable")
 
@@ -82,8 +93,8 @@ func main() {
 	app.VersionFlag.Short('v')
 	command := kingpin.MustParse(app.Parse(os.Args[1:]))
 
-	err := readConfig(*configFile, *environment)
-	if err != nil {
+	err := ReadConfig(*configFile, *environment)
+	if err != nil && !strings.HasPrefix(command, "config") {
 		fatalError("%s: Error reading config file: %s\n", filepath.Base(os.Args[0]), err.Error())
 	}
 
@@ -101,7 +112,7 @@ func main() {
 	handler := log15.LvlFilterHandler(logLevel, log15.StreamHandler(colorable.NewColorableStdout(), log15.TerminalFormat()))
 	log15.Root().SetHandler(handler)
 
-	if config.GetBool("update.check") && !strings.HasPrefix(command, "update") {
+	if Config.GetBool("update.check") && !strings.HasPrefix(command, "update") {
 		defer UpdateCheck(VV, os.Stderr)
 	}
 
@@ -156,6 +167,16 @@ func main() {
 			fatalError("%s\n", err.Error())
 		}
 		rightScriptValidate(files)
+	case configSetEnvironmentCmd.FullCommand():
+		err := Config.SetEnvironment(*configSetEnvironmentName, *configSetEnvironmentDefault, os.Stdin, os.Stdout)
+		if err != nil {
+			fatalError("%s\n", err.Error())
+		}
+	case configListCmd.FullCommand():
+		err := Config.ListConfiguration(os.Stdout)
+		if err != nil {
+			fatalError("%s\n", err.Error())
+		}
 	case updateListCmd.FullCommand():
 		err := UpdateList(VV, os.Stdout)
 		if err != nil {
@@ -170,7 +191,7 @@ func main() {
 }
 
 func paramToHref(resourceType, param string, revision int) (string, error) {
-	client := config.environment.Client15()
+	client := Config.Environment.Client15()
 
 	idMatch := regexp.MustCompile(`^\d+$`)
 	hrefMatch := regexp.MustCompile(fmt.Sprintf("^/api/%s/\\d+$", resourceType))
