@@ -11,6 +11,11 @@ right_st is a tool for managing RightScale ServerTemplate and RightScripts. The 
 * Mac OS X: [v0/right_st-darwin-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-darwin-amd64.zip)
 * Windows: [v0/right_st-windows-amd64.zip](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-windows-amd64.zip)
 
+Configuration is required to inform right_st what RightScale accounts to connect to. Running `right_st config update default` will ask for the following items to create the 'default' environment configuration:
+* Account Number
+* Host End Point
+* Refresh Token
+
 ## Managing RightScripts
 
 RightScripts consist of a script body, attachments, and metadata. Metadata is the list of inputs, description, and name of the RightScript. Metadata is expected to be embedded as a YAML formatted comment at the top of the RightScript. Metadata format is as follows:
@@ -98,7 +103,7 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | Name | String | Name of the ServerTemplate. Name must be unique for your account. |
 | Description | String | Description field for the ServerTemplate. |
 | RightScripts | Hash | The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of strings, where each string is a relative pathname to a RightScript on disk. |
-| Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overriden in a ServerTemplate. |
+| Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overridden in a ServerTemplate. |
 | MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash specifying a MCI. MCIs can be specified two different ways depending on Hash keys supplied: 1. 'Href' 2. 'Name' and 'Revision'. See example below. |
 | Alerts | Array of Alerts | An array of Alert definitions, defined below. |
 
