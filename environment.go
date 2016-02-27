@@ -31,7 +31,7 @@ import (
 type Environment struct {
 	Account      int
 	Host         string
-	RefreshToken string `mapstructure:"refresh_token"`
+	RefreshToken string `mapstructure:"refresh_token" yaml:"refresh_token"`
 	client15     *cm15.API
 	client16     *cm16.API
 }

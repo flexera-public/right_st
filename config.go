@@ -24,9 +24,10 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 
+	"github.com/go-yaml/yaml"
 	"github.com/spf13/viper"
 )
 
@@ -40,7 +41,8 @@ var Config ConfigViper
 
 func init() {
 	Config.Viper = viper.New()
-	Config.SetDefault("update.check", true)
+	Config.SetDefault("login", map[interface{}]interface{}{"environments": make(map[interface{}]interface{})})
+	Config.SetDefault("update", map[string]interface{}{"check": true})
 }
 
 func ReadConfig(configFile, environment string) error {
@@ -95,107 +97,101 @@ func (config *ConfigViper) GetEnvironment(account int, host string) (*Environmen
 //       account: 60073
 //       host: us-4.rightscale.com
 //       refresh_token: zxy987zxy987zxy987zxy987xzy987zxy987xzy9
-func generateConfig(configFile, EnvironmentName string) error {
-
-	// Create basic config file shell if it does not exist
-	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		fmt.Printf("file %s does not exist - creating new file\n", configFile)
-		NewConfig := []byte("login:\n")
-		NewConfig = append(NewConfig, "  default_environment: "+EnvironmentName+"\n"...)
-		NewConfig = append(NewConfig, "  environments:\n"...)
-		NewConfig = append(NewConfig, "    "+EnvironmentName+":\n"...)
-		NewConfig = append(NewConfig, "      account: \"\"\n"...)
-		NewConfig = append(NewConfig, "      host: \"\"\n"...)
-		NewConfig = append(NewConfig, "      refresh_token: \"\"\n"...)
-
-		// Write config file
-		err := ioutil.WriteFile(configFile, NewConfig, 0600)
-		if err != nil {
-			return err
-		}
+func (config *ConfigViper) SetEnvironment(name string, setDefault bool, input io.Reader, output io.Writer) error {
+	// if the default environment isn't set we should set it to the environment we are setting
+	if !config.IsSet("login.default_environment") {
+		setDefault = true
 	}
 
-	genconfig := viper.New()
-	genconfig.SetConfigFile(configFile)
+	// get the settings and specifically the login settings into a map we can manipulate and marshal to YAML unhindered
+	// by the meddling of the Viper
+	settings := config.AllSettings()
+	loginSettings := settings["login"].(map[interface{}]interface{})
 
-	// Read config file if it exists and obtain info if environment exists
-	err := genconfig.ReadInConfig()
+	// set the default environment if we want or need to
+	if setDefault {
+		loginSettings["default_environment"] = name
+	}
+
+	// get the previous value for the named environment if it exists and construct a new environment to populate
+	oldEnvironment, ok := config.Environments[name]
+	newEnvironment := &Environment{}
+
+	// prompt for the account ID and use the old value if nothing is entered
+	fmt.Fprint(output, "Account ID")
+	if ok {
+		fmt.Fprintf(output, " (%d)", oldEnvironment.Account)
+	}
+	fmt.Fprint(output, ": ")
+	fmt.Fscanln(input, &newEnvironment.Account)
+	if ok && newEnvironment.Account == 0 {
+		newEnvironment.Account = oldEnvironment.Account
+	}
+
+	// prompt for the API endpoint host and use the old value if nothing is entered
+	fmt.Fprint(output, "API endpoint host")
+	if ok {
+		fmt.Fprintf(output, " (%s)", oldEnvironment.Host)
+	}
+	fmt.Fprint(output, ": ")
+	fmt.Fscanln(input, &newEnvironment.Host)
+	if ok && newEnvironment.Host == "" {
+		newEnvironment.Host = oldEnvironment.Host
+	}
+
+	// prompt for the refresh token and use the old value if nothing is entered
+	fmt.Fprint(output, "Refresh token")
+	if ok {
+		fmt.Fprintf(output, " (%s)", oldEnvironment.RefreshToken)
+	}
+	fmt.Fprint(output, ": ")
+	fmt.Fscanln(input, &newEnvironment.RefreshToken)
+	if ok && newEnvironment.RefreshToken == "" {
+		newEnvironment.RefreshToken = oldEnvironment.RefreshToken
+	}
+
+	// add the new environment to the map of environments overwriting any old value
+	environments := loginSettings["environments"].(map[interface{}]interface{})
+	environments[name] = newEnvironment
+
+	// render the settings map as YAML
+	yml, err := yaml.Marshal(settings)
 	if err != nil {
 		return err
 	}
 
-	// Grab list of all environments currently in config file
-	EnvironmentList := genconfig.GetStringMapString("login.environments")
-	// If EnvironmentName not in list, add it. Viper does not create it
-	// even if populating items in the environment.
-	if !genconfig.IsSet("login.environments." + EnvironmentName) {
-		EnvironmentList[EnvironmentName] = ""
+	configPath := config.ConfigFileUsed()
+	// back up the current config file before writing a new one
+	if err := os.Rename(configPath, configPath+".bak"); err != nil {
+		return err
 	}
 
-	// Populate variables specific to the environment to be used as defaults
-	AccountNum := config.GetString("login.environments." + EnvironmentName + ".account")
-	HostEndPoint := config.GetString("login.environments." + EnvironmentName + ".host")
-	RefreshToken := config.GetString("login.environments." + EnvironmentName + ".refresh_token")
-
-	// Prompt for updated/new info and set it
-	fmt.Printf("Account Number (%s): ", AccountNum)
-	fmt.Scanln(&AccountNum)
-	genconfig.Set("login.environments."+EnvironmentName+".account", AccountNum)
-
-	fmt.Printf("Host End Point (%s): ", HostEndPoint)
-	fmt.Scanln(&HostEndPoint)
-	genconfig.Set("login.environments."+EnvironmentName+".host", HostEndPoint)
-
-	fmt.Printf("Refresh Token: (%s): ", RefreshToken)
-	fmt.Scanln(&RefreshToken)
-	genconfig.Set("login.environments."+EnvironmentName+".refresh_token", RefreshToken)
-
-	// Build config file
-	NewConfig := []byte("login:\n")
-	NewConfig = append(NewConfig, "  default_environment: "+genconfig.GetString("login.default_environment")+"\n"...)
-	NewConfig = append(NewConfig, "  environments:\n"...)
-	for EnvName := range EnvironmentList {
-		NewConfig = append(NewConfig, "    "+EnvName+":\n"...)
-		NewConfig = append(NewConfig, "      account: "+genconfig.GetString("login.environments."+EnvName+".account")+"\n"...)
-		NewConfig = append(NewConfig, "      host: "+genconfig.GetString("login.environments."+EnvName+".host")+"\n"...)
-		NewConfig = append(NewConfig, "      refresh_token: "+genconfig.GetString("login.environments."+EnvName+".refresh_token")+"\n"...)
-	}
-
-	// Write config file
-	err = ioutil.WriteFile(configFile, NewConfig, 0600)
+	// create a new config file which only the current user can read or write
+	configFile, err := os.OpenFile(configPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
+	defer configFile.Close()
+
+	// write the YAML into the config file
+	if _, err := configFile.Write(yml); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func listConfig(configFile string) error {
+func (config *ConfigViper) ListConfiguration(output io.Writer) error {
 	// Check if config file exists
-	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		fmt.Printf("config file %s does not exist\n", configFile)
-	} else {
-		config := viper.New()
-		config.SetConfigFile(configFile)
-
-		// Read config file for environments
-		err := config.ReadInConfig()
-		if err != nil {
-			return err
-		}
-
-		// Grab list of all environments currently in config file
-		EnvironmentList := config.GetStringMapString("login.environments")
-		fmt.Println("")
-		for EnvName := range EnvironmentList {
-			fmt.Println("----------")
-			fmt.Printf("Environment Name: %s\n", EnvName)
-			fmt.Printf("  Account Number: %s\n", config.GetString("login.environments."+EnvName+".account"))
-			fmt.Printf("  Host End Point: %s\n", config.GetString("login.environments."+EnvName+".host"))
-			fmt.Printf("   Refresh Token: %s\n", config.GetString("login.environments."+EnvName+".refresh_token"))
-		}
-		fmt.Println("----------")
-		fmt.Println("")
+	if _, err := os.Stat(config.ConfigFileUsed()); err != nil {
+		return err
 	}
+
+	yml, err := yaml.Marshal(config.AllSettings())
+	if err != nil {
+		return err
+	}
+	output.Write(yml)
 
 	return nil
 }

@@ -69,8 +69,11 @@ var (
 	// ----- Configuration -----
 	configCmd = app.Command("config", "Manage Configuration")
 
-	configUpdateCmd = configCmd.Command("update", "Add/Edit configuration environment")
-	configUpdateEnv = configUpdateCmd.Arg("environment", "Environment to manage in config file").Required().String()
+	configSetCmd = configCmd.Command("set", "Add or change configuration values")
+
+	configSetEnvironmentCmd     = configSetCmd.Command("environment", "Add or edit a RightScale API environment configuration")
+	configSetEnvironmentDefault = configSetEnvironmentCmd.Flag("default", "Set the named RightScale API environment as the default").Short('D').Bool()
+	configSetEnvironmentName    = configSetEnvironmentCmd.Arg("name", "Name of RightScale API environment to add or edit").Required().String()
 
 	configListCmd = configCmd.Command("list", "List environments")
 
@@ -164,10 +167,16 @@ func main() {
 			fatalError("%s\n", err.Error())
 		}
 		rightScriptValidate(files)
-	case configUpdateCmd.FullCommand():
-		generateConfig(*configFile, *configUpdateEnv)
+	case configSetEnvironmentCmd.FullCommand():
+		err := Config.SetEnvironment(*configSetEnvironmentName, *configSetEnvironmentDefault, os.Stdin, os.Stdout)
+		if err != nil {
+			fatalError("%s\n", err.Error())
+		}
 	case configListCmd.FullCommand():
-		listConfig(*configFile)
+		err := Config.ListConfiguration(os.Stdout)
+		if err != nil {
+			fatalError("%s\n", err.Error())
+		}
 	case updateListCmd.FullCommand():
 		err := UpdateList(VV, os.Stdout)
 		if err != nil {

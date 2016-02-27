@@ -31,6 +31,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gbytes"
 )
 
 var _ = Describe("Config", func() {
@@ -215,6 +216,35 @@ login:
 					environment, err := Config.GetEnvironment(12345, "us-4.rightscale.com")
 					Expect(err).To(MatchError("Could not find environment for account/host: 12345 us-4.rightscale.com"))
 					Expect(environment).To(BeNil())
+				})
+			})
+
+			Context("With output", func() {
+				var buffer *gbytes.Buffer
+
+				BeforeEach(func() {
+					buffer = gbytes.NewBuffer()
+				})
+
+				Describe("List configuration", func() {
+					It("Prints the configuration", func() {
+						Expect(ReadConfig(configFile, "")).To(Succeed())
+						Expect(Config.ListConfiguration(buffer)).To(Succeed())
+						Expect(buffer.Contents()).To(BeEquivalentTo(`login:
+  default_environment: production
+  environments:
+    production:
+      account: 12345
+      host: us-3.rightscale.com
+      refresh_token: abcdef1234567890abcdef1234567890abcdef12
+    staging:
+      account: 67890
+      host: us-4.rightscale.com
+      refresh_token: fedcba0987654321febcba0987654321fedcba09
+update:
+  check: true
+`))
+					})
 				})
 			})
 		})
