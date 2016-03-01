@@ -23,6 +23,8 @@
 package main_test
 
 import (
+	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -42,7 +44,10 @@ var _ = Describe("Config", func() {
 	})
 
 	Describe("Read config", func() {
-		var tempDir string
+		var (
+			tempDir string
+			buffer  *gbytes.Buffer
+		)
 
 		BeforeEach(func() {
 			var err error
@@ -50,6 +55,7 @@ var _ = Describe("Config", func() {
 			if err != nil {
 				panic(err)
 			}
+			buffer = gbytes.NewBuffer()
 		})
 
 		AfterEach(func() {
@@ -66,6 +72,73 @@ var _ = Describe("Config", func() {
 			It("Returns an error", func() {
 				err := ReadConfig(nonexistentConfigFile, "")
 				Expect(err).To(HaveOccurred())
+			})
+
+			Context("With OS environment variables set", func() {
+				BeforeEach(func() {
+					if err := os.Setenv("RIGHT_ST_LOGIN_ENVIRONMENT_ACCOUNT", "67890"); err != nil {
+						panic(err)
+					}
+					if err := os.Setenv("RIGHT_ST_LOGIN_ENVIRONMENT_HOST", "us-4.rightscale.com"); err != nil {
+						panic(err)
+					}
+					if err := os.Setenv("RIGHT_ST_LOGIN_ENVIRONMENT_REFRESH_TOKEN",
+						"fedcba0987654321febcba0987654321fedcba09"); err != nil {
+						panic(err)
+					}
+				})
+
+				AfterEach(func() {
+					if err := os.Unsetenv("RIGHT_ST_LOGIN_ENVIRONMENT_ACCOUNT"); err != nil {
+						panic(err)
+					}
+					if err := os.Unsetenv("RIGHT_ST_LOGIN_ENVIRONMENT_HOST"); err != nil {
+						panic(err)
+					}
+					if err := os.Unsetenv("RIGHT_ST_LOGIN_ENVIRONMENT_REFRESH_TOKEN"); err != nil {
+						panic(err)
+					}
+				})
+
+				It("Loads the default environment from the OS environment variables", func() {
+					Expect(ReadConfig(nonexistentConfigFile, "")).To(Succeed())
+					Expect(Config.Environments).To(BeEmpty())
+					Expect(Config.Environment).To(Equal(&Environment{
+						Account:      67890,
+						Host:         "us-4.rightscale.com",
+						RefreshToken: "fedcba0987654321febcba0987654321fedcba09",
+					}))
+				})
+			})
+
+			Context("With a nonexistent parent directory for the config file", func() {
+				BeforeEach(func() {
+					os.RemoveAll(tempDir)
+				})
+
+				Describe("Set environment", func() {
+					It("Creates a config file with the set environment", func() {
+						Expect(ReadConfig(nonexistentConfigFile, "")).NotTo(Succeed())
+						input := new(bytes.Buffer)
+						fmt.Fprintln(input, 12345)
+						fmt.Fprintln(input, "us-3.rightscale.com")
+						fmt.Fprintln(input, "abcdef1234567890abcdef1234567890abcdef12")
+						Expect(Config.SetEnvironment("production", false, input, buffer)).To(Succeed())
+						Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: API endpoint host: Refresh token: "))
+						config, err := ioutil.ReadFile(nonexistentConfigFile)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(config).To(BeEquivalentTo(`login:
+  default_environment: production
+  environments:
+    production:
+      account: 12345
+      host: us-3.rightscale.com
+      refresh_token: abcdef1234567890abcdef1234567890abcdef12
+update:
+  check: true
+`))
+					})
+				})
 			})
 		})
 
@@ -219,18 +292,116 @@ login:
 				})
 			})
 
-			Context("With output", func() {
-				var buffer *gbytes.Buffer
-
+			Context("With OS environment variables", func() {
 				BeforeEach(func() {
-					buffer = gbytes.NewBuffer()
+					if err := os.Setenv("RIGHT_ST_LOGIN_ENVIRONMENT_ACCOUNT", "67890"); err != nil {
+						panic(err)
+					}
+					if err := os.Setenv("RIGHT_ST_LOGIN_ENVIRONMENT_HOST", "us-4.rightscale.com"); err != nil {
+						panic(err)
+					}
+					if err := os.Setenv("RIGHT_ST_LOGIN_ENVIRONMENT_REFRESH_TOKEN",
+						"fedcba0987654321febcba0987654321fedcba09"); err != nil {
+						panic(err)
+					}
 				})
 
-				Describe("List configuration", func() {
-					It("Prints the configuration", func() {
-						Expect(ReadConfig(configFile, "")).To(Succeed())
-						Expect(Config.ListConfiguration(buffer)).To(Succeed())
-						Expect(buffer.Contents()).To(BeEquivalentTo(`login:
+				AfterEach(func() {
+					if err := os.Unsetenv("RIGHT_ST_LOGIN_ENVIRONMENT_ACCOUNT"); err != nil {
+						panic(err)
+					}
+					if err := os.Unsetenv("RIGHT_ST_LOGIN_ENVIRONMENT_HOST"); err != nil {
+						panic(err)
+					}
+					if err := os.Unsetenv("RIGHT_ST_LOGIN_ENVIRONMENT_REFRESH_TOKEN"); err != nil {
+						panic(err)
+					}
+				})
+
+				It("Loads the default environment from the OS environment variables", func() {
+					Expect(ReadConfig(configFile, "")).To(Succeed())
+					Expect(Config.Environments).To(Equal(map[string]*Environment{
+						"production": {
+							Account:      12345,
+							Host:         "us-3.rightscale.com",
+							RefreshToken: "abcdef1234567890abcdef1234567890abcdef12",
+						},
+						"staging": {
+							Account:      67890,
+							Host:         "us-4.rightscale.com",
+							RefreshToken: "fedcba0987654321febcba0987654321fedcba09",
+						},
+					}))
+					Expect(Config.Environment).To(Equal(&Environment{
+						Account:      67890,
+						Host:         "us-4.rightscale.com",
+						RefreshToken: "fedcba0987654321febcba0987654321fedcba09",
+					}))
+				})
+			})
+
+			Describe("Set environment", func() {
+				It("Updates the config file with the new environment", func() {
+					Expect(ReadConfig(configFile, "")).To(Succeed())
+					input := new(bytes.Buffer)
+					fmt.Fprintln(input, 54321)
+					fmt.Fprintln(input, "us-4.rightscale.com")
+					fmt.Fprintln(input, "21fedcba0987654321fedcba0987654321fedcba")
+					Expect(Config.SetEnvironment("testing", false, input, buffer)).To(Succeed())
+					Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: " + "API endpoint host: " +
+						"Refresh token: "))
+					config, err := ioutil.ReadFile(configFile)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(config).To(BeEquivalentTo(`login:
+  default_environment: production
+  environments:
+    production:
+      account: 12345
+      host: us-3.rightscale.com
+      refresh_token: abcdef1234567890abcdef1234567890abcdef12
+    staging:
+      account: 67890
+      host: us-4.rightscale.com
+      refresh_token: fedcba0987654321febcba0987654321fedcba09
+    testing:
+      account: 54321
+      host: us-4.rightscale.com
+      refresh_token: 21fedcba0987654321fedcba0987654321fedcba
+update:
+  check: true
+`))
+				})
+
+				It("Updates the default environment and uses defaults when modifying an existing environment", func() {
+					Expect(ReadConfig(configFile, "")).To(Succeed())
+					Expect(Config.SetEnvironment("staging", true, new(bytes.Buffer), buffer)).To(Succeed())
+					Expect(buffer.Contents()).To(BeEquivalentTo("Account ID (67890): " +
+						"API endpoint host (us-4.rightscale.com): " +
+						"Refresh token (fedcba0987654321febcba0987654321fedcba09): "))
+					config, err := ioutil.ReadFile(configFile)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(config).To(BeEquivalentTo(`login:
+  default_environment: staging
+  environments:
+    production:
+      account: 12345
+      host: us-3.rightscale.com
+      refresh_token: abcdef1234567890abcdef1234567890abcdef12
+    staging:
+      account: 67890
+      host: us-4.rightscale.com
+      refresh_token: fedcba0987654321febcba0987654321fedcba09
+update:
+  check: true
+`))
+				})
+			})
+
+			Describe("List configuration", func() {
+				It("Prints the configuration", func() {
+					Expect(ReadConfig(configFile, "")).To(Succeed())
+					Expect(Config.ListConfiguration(buffer)).To(Succeed())
+					Expect(buffer.Contents()).To(BeEquivalentTo(`login:
   default_environment: production
   environments:
     production:
@@ -244,7 +415,6 @@ login:
 update:
   check: true
 `))
-					})
 				})
 			})
 		})

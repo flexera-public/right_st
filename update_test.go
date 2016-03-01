@@ -251,7 +251,8 @@ https://github.com/rightscale/right_st/releases for more information.
 			)
 
 			BeforeEach(func() {
-				tempDir, err := ioutil.TempDir("", "update")
+				var err error
+				tempDir, err = ioutil.TempDir("", "update")
 				if err != nil {
 					panic(err)
 				}

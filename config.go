@@ -26,6 +26,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/go-yaml/yaml"
 	"github.com/spf13/viper"
@@ -43,13 +45,21 @@ func init() {
 	Config.Viper = viper.New()
 	Config.SetDefault("login", map[interface{}]interface{}{"environments": make(map[interface{}]interface{})})
 	Config.SetDefault("update", map[string]interface{}{"check": true})
+	Config.SetEnvPrefix(app.Name)
+	Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	Config.AutomaticEnv()
 }
 
 func ReadConfig(configFile, environment string) error {
 	Config.SetConfigFile(configFile)
 	err := Config.ReadInConfig()
 	if err != nil {
-		return err
+		if _, ok := err.(*os.PathError); !(ok &&
+			Config.IsSet("login.environment.account") &&
+			Config.IsSet("login.environment.host") &&
+			Config.IsSet("login.environment.refresh_token")) {
+			return err
+		}
 	}
 
 	err = Config.UnmarshalKey("login.environments", &Config.Environments)
@@ -57,17 +67,27 @@ func ReadConfig(configFile, environment string) error {
 		return fmt.Errorf("%s: %s", configFile, err)
 	}
 
-	var ok bool
-	if environment == "" {
-		defaultEnvironment := Config.GetString("login.default_environment")
-		Config.Environment, ok = Config.Environments[defaultEnvironment]
-		if !ok {
-			return fmt.Errorf("%s: could not find default environment: %s", configFile, defaultEnvironment)
+	if Config.IsSet("login.environment.account") &&
+		Config.IsSet("login.environment.host") &&
+		Config.IsSet("login.environment.refresh_token") {
+		Config.Environment = &Environment{
+			Account:      Config.GetInt("login.environment.account"),
+			Host:         Config.GetString("login.environment.host"),
+			RefreshToken: Config.GetString("login.environment.refresh_token"),
 		}
 	} else {
-		Config.Environment, ok = Config.Environments[environment]
-		if !ok {
-			return fmt.Errorf("%s: could not find environment: %s", configFile, environment)
+		var ok bool
+		if environment == "" {
+			defaultEnvironment := Config.GetString("login.default_environment")
+			Config.Environment, ok = Config.Environments[defaultEnvironment]
+			if !ok {
+				return fmt.Errorf("%s: could not find default environment: %s", configFile, defaultEnvironment)
+			}
+		} else {
+			Config.Environment, ok = Config.Environments[environment]
+			if !ok {
+				return fmt.Errorf("%s: could not find environment: %s", configFile, environment)
+			}
 		}
 	}
 
@@ -161,9 +181,15 @@ func (config *ConfigViper) SetEnvironment(name string, setDefault bool, input io
 	}
 
 	configPath := config.ConfigFileUsed()
-	// back up the current config file before writing a new one
+	// back up the current config file before writing a new one or if one does not exist, make sure the directory exists
 	if err := os.Rename(configPath, configPath+".bak"); err != nil {
-		return err
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(filepath.Dir(configPath), 0700); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
 	}
 
 	// create a new config file which only the current user can read or write
