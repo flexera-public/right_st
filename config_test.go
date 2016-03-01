@@ -130,8 +130,8 @@ var _ = Describe("Config", func() {
 						Expect(config).To(BeEquivalentTo(`login:
   accounts:
     production:
-      id: 12345
       host: us-3.rightscale.com
+      id: 12345
       refresh_token: abcdef1234567890abcdef1234567890abcdef12
   default_account: production
 update:
@@ -363,8 +363,8 @@ login:
       id: 67890
       refresh_token: fedcba0987654321febcba0987654321fedcba09
     testing:
-      id: 54321
       host: us-4.rightscale.com
+      id: 54321
       refresh_token: 21fedcba0987654321fedcba0987654321fedcba
   default_account: production
 update:
@@ -387,8 +387,8 @@ update:
       id: 12345
       refresh_token: abcdef1234567890abcdef1234567890abcdef12
     staging:
-      id: 67890
       host: us-4.rightscale.com
+      id: 67890
       refresh_token: fedcba0987654321febcba0987654321fedcba09
   default_account: staging
 update:

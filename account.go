@@ -29,8 +29,8 @@ import (
 )
 
 type Account struct {
-	Id           int
 	Host         string
+	Id           int
 	RefreshToken string `mapstructure:"refresh_token" yaml:"refresh_token"`
 	client15     *cm15.API
 	client16     *cm16.API
