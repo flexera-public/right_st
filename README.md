@@ -16,21 +16,22 @@ Since right_st is written in Go it is compiled to a single static binary. Untar 
 
 ### Configuration 
 
-Right ST interfaces with the [RightScale API]. Credentials for the API can be provided in two ways: 
-1. YAML-based configuration file -  Run `right_st config account default` to interactively write the configuration file into $HOME/.right_st.yml for the first time. You will be prompted for the equivalent fields to above which will prompt you for the following fields:
-  * Account ID - Numeric account number, such as 60073
-  * API endpoint host - Hostname, typically my.rightscale.com
-  * Refresh Token - Your personal OAuth token available from "Settings" -> "Account Settings" -> "Refresh Token"
+Right ST interfaces with the [RightScale API](http://reference.rightscale.com/api1.5). Credentials for the API can be provided in two ways:
+
+1. YAML-based configuration file -  Run `right_st config account <name>`, where name is a nickname for the account, to interactively write the configuration file into $HOME/.right_st.yml for the first time. You will be prompted for the following fields:
+    * Account ID - Numeric account number, such as 60073
+    * API endpoint host - Hostname, typically my.rightscale.com
+    * Refresh Token - Your personal OAuth token available from "Settings" -> "Account Settings" -> "Refresh Token"
 2. Environment variables - These are meant to be used by build systems such as Travis CI. The following vars must be set: RIGHT_ST_LOGIN_ACCOUNT_ID, RIGHT_ST_LOGIN_ACCOUNT_HOST, RIGHT_ST_LOGIN_ACCOUNT_REFRESH_TOKEN. These variables are equivalent to the ones described in the YAML section above.
 
 ## Managing RightScripts
 
-RightScripts consist of a script body, attachments, and metadata. Metadata is the list of inputs, description, and name of the RightScript. Metadata is expected to be embedded as a YAML formatted comment at the top of the RightScript. Metadata format is as follows:
+RightScripts consist of a script body, attachments, and metadata. Metadata is embedded in the script as a comment between the hashbang and script body in the [RightScript Metadata Comments](http://docs.rightscale.com/cm/dashboard/design/rightscripts/rightscripts_metadata_comments.html) format. This allows a single script file to be a fully self-contained respresentation of a RightScript. Metadata comment format is as follows:
 
 | Field | Format | Description |
 | ----- | ------ | ----------- |
 | RightScript Name | String | Name of RightScript. Name must be unique for your account. |
-| Description | String | Description field for the RightScript |
+| Description | String | Description field for the RightScript. Free form text which can be Markdown |
 | Inputs | Hash of String -> Input | The hash key is the input name. The hash value is an Input definition (defined below) |
 | Attachments | Array of Strings | Each string is a filename of an attachment file. Attachments must be placed in an "attachments/" subdirectory |
 
@@ -38,13 +39,13 @@ Input definition format is as follows:
 
 | Field | Format | Description |
 | ----- | ------ | ----------- |
-| Input Type | String | "single" or "array" |
 | Category | String | Category to group Input under |
 | Description | String | Description field for the Input |
+| Input Type | String | `single` or `array` |
 | Default | String | Default value. Value must be in [Inputs 2.0 format](http://reference.rightscale.com/api1.5/resources/ResourceInputs.html) from RightScale API which consists of a type followed by a colon then the value. I.e. "text:Foo", "ignore", "env:ENV_VAR" |
-| Required | Boolean | true or false. Whether or not the Input is required |
-| Advanced | Boolean | true or false. Whether or not the Input is advanced (hidden by default) |
-| Possible Values | Array of Inputs | If supplied, a drop down list of values will be supplied in the UI for this input. |
+| Required | Boolean | `true` or `false`. Whether or not the Input is required |
+| Advanced | Boolean | `true` or `false`. Whether or not the Input is advanced (hidden by default) |
+| Possible Values | Array of Strings | If supplied, a drop down list of values will be supplied in the UI for this input. Each string must be a text type in [Inputs 2.0 format](http://reference.rightscale.com/api1.5/resources/ResourceInputs.html). |
 
 
 Example RightScript is as follows. This RightScript has one attachment, which must be located at "attachments/foo" relative
@@ -75,24 +76,24 @@ foo $FOO_PARAM
 ```
  
 ### Usage
-RightScript related commands are as follows:
+The following RightScript related commands are supported:
 
-~~~bash
+```bash
 right_st rightscript show <name|href|id>
-  Show a single RightScript and its attachments
+  Show a single RightScript and its attachments. 
 
 right_st rightscript upload [<flags>] <path>...
   Upload a RightScript
 
 right_st rightscript download <name|href|id> [<path>]
-  Download a RightScript to a file or files
+  Download a RightScript to a file. RightScripts that don't have 
 
 right_st rightscript scaffold [<flags>] <path>...
   Add RightScript YAML metadata comments to a file or files
 
 right_st rightscript validate <path>...
   Validate RightScript YAML metadata comments in a file or files
-~~~
+```
 
 
 ## Managing ServerTemplates
@@ -108,7 +109,7 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash specifying a MCI. MCIs can be specified two different ways depending on Hash keys supplied: 1. 'Href' 2. 'Name' and 'Revision'. See example below. |
 | Alerts | Array of Alerts | An array of Alert definitions, defined below. |
 
-An Alert definition consists of three fields: a Name, Definition, and Clause (all strings). The Clause is a text description of the Alert with this exact format: `If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Action> <ActionValue>`.
+An Alert definition consists of three fields: a Name, Definition, and Clause (all strings). Clause is a text description of the Alert with this exact format: `If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Action> <ActionValue>`.
 * Metric is a collectd metric name such as `cpu-0/cpu-idle`. 
 * ValueType is the metric type (`value`, `count`, etc - allowable values differ for each metric so look in the dashboard!). 
 * ComparisonOperator is `>`, `>=`, `<`, `<=`, `==`, or `!=`
@@ -140,13 +141,27 @@ Alerts:
   Description: Votes to shrink ServerArray by setting tag rs_vote:my_app_name=shrink
   Clause: If cpu-0/cpu-idle.value > '50' for 3 minutes Then shrink my_app_name
 - Name: Low memory warning
-  Description: Runs escalation named "warning_email" if free memory drops to < 100MB
-  Clause: If memory/memory-free.value < 100000000 for 5 minutes Then escalate warning_email
+  Description: Runs escalation named "warning" if free memory drops to < 100MB
+  Clause: If memory/memory-free.value < 100000000 for 5 minutes Then escalate warning
 ```
 
 ### Usage
 
-TBD
+The following ServerTemplate related commands are supported:
+
+```bash
+  st show <name|href|id>
+    Show a single ServerTemplate
+
+  st upload <path>...
+    Upload a ServerTemplate specified by a YAML document
+
+  st download <name|href|id> [<path>]
+    Download a ServerTemplate and all associated RightScripts/Attachments to disk
+
+  st validate <path>...
+    Validate a ServerTemplate YAML document
+```
 
 ## Contributors
 
