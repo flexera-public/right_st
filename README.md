@@ -84,9 +84,12 @@ right_st rightscript show <name|href|id>
 
 right_st rightscript upload [<flags>] <path>...
   Upload a RightScript
+  Flags:
+    -f, --force: Force upload of RightScript despite lack of Metadata comments
+    -x, --prefix: Append a prefix to RightScript's name when uploading. For creating dev/test versions of scripts.
 
 right_st rightscript download <name|href|id> [<path>]
-  Download a RightScript to a file. RightScripts that don't have 
+  Download a RightScript to a file. Metadata comments will automatically be inserted into RightScripts that don't have it.
 
 right_st rightscript scaffold [<flags>] <path>...
   Add RightScript YAML metadata comments to a file or files
@@ -149,12 +152,14 @@ Alerts:
 
 The following ServerTemplate related commands are supported:
 
-```bash
+```
   st show <name|href|id>
     Show a single ServerTemplate
 
   st upload <path>...
     Upload a ServerTemplate specified by a YAML document
+    Flags:
+      -x, --prefix: Append a prefix to ServerTemplate and RightScript names when uploading. For creating dev/test versions of ServerTemplates.
 
   st download <name|href|id> [<path>]
     Download a ServerTemplate and all associated RightScripts/Attachments to disk
