@@ -29,26 +29,26 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Environment", func() {
-	var environment = Environment{
-		Account:      54321,
+var _ = Describe("Account", func() {
+	var account = Account{
+		Id:           54321,
 		Host:         "localhost",
 		RefreshToken: "def1234567890abcdef1234567890abcdef12345",
 	}
 
 	It("Gets an API 1.5 client singleton", func() {
-		firstClient := environment.Client15()
+		firstClient := account.Client15()
 		Expect(firstClient).NotTo(BeNil())
 
-		secondClient := environment.Client15()
+		secondClient := account.Client15()
 		Expect(secondClient).To(BeIdenticalTo(firstClient))
 	})
 
 	It("Gets an API 1.6 client singleton", func() {
-		firstClient := environment.Client16()
+		firstClient := account.Client16()
 		Expect(firstClient).NotTo(BeNil())
 
-		secondClient := environment.Client16()
+		secondClient := account.Client16()
 		Expect(secondClient).To(BeIdenticalTo(firstClient))
 	})
 })

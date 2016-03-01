@@ -24,10 +24,10 @@ import (
 )
 
 var (
-	app         = kingpin.New("right_st", "A command-line application for managing RightScripts")
-	debug       = app.Flag("debug", "Debug mode").Short('d').Bool()
-	configFile  = app.Flag("config", "Set the config file path.").Short('c').Default(DefaultConfigFile()).String()
-	environment = app.Flag("environment", "Set the RightScale login environment.").Short('e').String()
+	app        = kingpin.New("right_st", "A command-line application for managing RightScripts")
+	debug      = app.Flag("debug", "Debug mode").Short('d').Bool()
+	configFile = app.Flag("config", "Set the config file path.").Short('c').Default(DefaultConfigFile()).String()
+	account    = app.Flag("account", "RightScale account name to use").Short('a').String()
 
 	// ----- ServerTemplates -----
 	stCmd = app.Command("st", "ServerTemplate")
@@ -69,13 +69,11 @@ var (
 	// ----- Configuration -----
 	configCmd = app.Command("config", "Manage Configuration")
 
-	configSetCmd = configCmd.Command("set", "Add or change configuration values")
+	configAccountCmd     = configCmd.Command("account", "Add or edit configuration for a RightScale API account")
+	configAccountName    = configAccountCmd.Arg("name", "Name of RightScale API Account to add or edit").Required().String()
+	configAccountDefault = configAccountCmd.Flag("default", "Set the named RightScale API Account as the default").Short('D').Bool()
 
-	configSetEnvironmentCmd     = configSetCmd.Command("environment", "Add or edit a RightScale API environment configuration")
-	configSetEnvironmentDefault = configSetEnvironmentCmd.Flag("default", "Set the named RightScale API environment as the default").Short('D').Bool()
-	configSetEnvironmentName    = configSetEnvironmentCmd.Arg("name", "Name of RightScale API environment to add or edit").Required().String()
-
-	configListCmd = configCmd.Command("list", "List environments")
+	configShowCmd = configCmd.Command("show", "Show configuration")
 
 	// ----- Update right_st -----
 	updateCmd = app.Command("update", "Update "+app.Name+" executable")
@@ -93,7 +91,7 @@ func main() {
 	app.VersionFlag.Short('v')
 	command := kingpin.MustParse(app.Parse(os.Args[1:]))
 
-	err := ReadConfig(*configFile, *environment)
+	err := ReadConfig(*configFile, *account)
 	if err != nil && !strings.HasPrefix(command, "config") {
 		fatalError("%s: Error reading config file: %s\n", filepath.Base(os.Args[0]), err.Error())
 	}
@@ -167,13 +165,13 @@ func main() {
 			fatalError("%s\n", err.Error())
 		}
 		rightScriptValidate(files)
-	case configSetEnvironmentCmd.FullCommand():
-		err := Config.SetEnvironment(*configSetEnvironmentName, *configSetEnvironmentDefault, os.Stdin, os.Stdout)
+	case configAccountCmd.FullCommand():
+		err := Config.SetAccount(*configAccountName, *configAccountDefault, os.Stdin, os.Stdout)
 		if err != nil {
 			fatalError("%s\n", err.Error())
 		}
-	case configListCmd.FullCommand():
-		err := Config.ListConfiguration(os.Stdout)
+	case configShowCmd.FullCommand():
+		err := Config.ShowConfiguration(os.Stdout)
 		if err != nil {
 			fatalError("%s\n", err.Error())
 		}
@@ -191,7 +189,7 @@ func main() {
 }
 
 func paramToHref(resourceType, param string, revision int) (string, error) {
-	client := Config.Environment.Client15()
+	client := Config.Account.Client15()
 
 	idMatch := regexp.MustCompile(`^\d+$`)
 	hrefMatch := regexp.MustCompile(fmt.Sprintf("^/api/%s/\\d+$", resourceType))

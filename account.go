@@ -28,26 +28,26 @@ import (
 	"github.com/rightscale/rsc/rsapi"
 )
 
-type Environment struct {
-	Account      int
+type Account struct {
+	Id           int
 	Host         string
 	RefreshToken string `mapstructure:"refresh_token" yaml:"refresh_token"`
 	client15     *cm15.API
 	client16     *cm16.API
 }
 
-func (environment *Environment) Client15() *cm15.API {
-	if environment.client15 == nil {
-		auth := rsapi.NewOAuthAuthenticator(environment.RefreshToken, environment.Account)
-		environment.client15 = cm15.New(environment.Host, auth)
+func (account *Account) Client15() *cm15.API {
+	if account.client15 == nil {
+		auth := rsapi.NewOAuthAuthenticator(account.RefreshToken, account.Id)
+		account.client15 = cm15.New(account.Host, auth)
 	}
-	return environment.client15
+	return account.client15
 }
 
-func (environment *Environment) Client16() *cm16.API {
-	if environment.client16 == nil {
-		auth := rsapi.NewOAuthAuthenticator(environment.RefreshToken, environment.Account)
-		environment.client16 = cm16.New(environment.Host, auth)
+func (account *Account) Client16() *cm16.API {
+	if account.client16 == nil {
+		auth := rsapi.NewOAuthAuthenticator(account.RefreshToken, account.Id)
+		account.client16 = cm16.New(account.Host, auth)
 	}
-	return environment.client16
+	return account.client16
 }

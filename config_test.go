@@ -76,35 +76,35 @@ var _ = Describe("Config", func() {
 
 			Context("With OS environment variables set", func() {
 				BeforeEach(func() {
-					if err := os.Setenv("RIGHT_ST_LOGIN_ENVIRONMENT_ACCOUNT", "67890"); err != nil {
+					if err := os.Setenv("RIGHT_ST_LOGIN_ACCOUNT_ID", "67890"); err != nil {
 						panic(err)
 					}
-					if err := os.Setenv("RIGHT_ST_LOGIN_ENVIRONMENT_HOST", "us-4.rightscale.com"); err != nil {
+					if err := os.Setenv("RIGHT_ST_LOGIN_ACCOUNT_HOST", "us-4.rightscale.com"); err != nil {
 						panic(err)
 					}
-					if err := os.Setenv("RIGHT_ST_LOGIN_ENVIRONMENT_REFRESH_TOKEN",
+					if err := os.Setenv("RIGHT_ST_LOGIN_ACCOUNT_REFRESH_TOKEN",
 						"fedcba0987654321febcba0987654321fedcba09"); err != nil {
 						panic(err)
 					}
 				})
 
 				AfterEach(func() {
-					if err := os.Unsetenv("RIGHT_ST_LOGIN_ENVIRONMENT_ACCOUNT"); err != nil {
+					if err := os.Unsetenv("RIGHT_ST_LOGIN_ACCOUNT_ID"); err != nil {
 						panic(err)
 					}
-					if err := os.Unsetenv("RIGHT_ST_LOGIN_ENVIRONMENT_HOST"); err != nil {
+					if err := os.Unsetenv("RIGHT_ST_LOGIN_ACCOUNT_HOST"); err != nil {
 						panic(err)
 					}
-					if err := os.Unsetenv("RIGHT_ST_LOGIN_ENVIRONMENT_REFRESH_TOKEN"); err != nil {
+					if err := os.Unsetenv("RIGHT_ST_LOGIN_ACCOUNT_REFRESH_TOKEN"); err != nil {
 						panic(err)
 					}
 				})
 
-				It("Loads the default environment from the OS environment variables", func() {
+				It("Loads the default account from the OS environment variables", func() {
 					Expect(ReadConfig(nonexistentConfigFile, "")).To(Succeed())
-					Expect(Config.Environments).To(BeEmpty())
-					Expect(Config.Environment).To(Equal(&Environment{
-						Account:      67890,
+					Expect(Config.Accounts).To(BeEmpty())
+					Expect(Config.Account).To(Equal(&Account{
+						Id:           67890,
 						Host:         "us-4.rightscale.com",
 						RefreshToken: "fedcba0987654321febcba0987654321fedcba09",
 					}))
@@ -116,24 +116,24 @@ var _ = Describe("Config", func() {
 					os.RemoveAll(tempDir)
 				})
 
-				Describe("Set environment", func() {
-					It("Creates a config file with the set environment", func() {
+				Describe("Set account", func() {
+					It("Creates a config file with the set account", func() {
 						Expect(ReadConfig(nonexistentConfigFile, "")).NotTo(Succeed())
 						input := new(bytes.Buffer)
 						fmt.Fprintln(input, 12345)
 						fmt.Fprintln(input, "us-3.rightscale.com")
 						fmt.Fprintln(input, "abcdef1234567890abcdef1234567890abcdef12")
-						Expect(Config.SetEnvironment("production", false, input, buffer)).To(Succeed())
+						Expect(Config.SetAccount("production", false, input, buffer)).To(Succeed())
 						Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: API endpoint host: Refresh token: "))
 						config, err := ioutil.ReadFile(nonexistentConfigFile)
 						Expect(err).NotTo(HaveOccurred())
 						Expect(config).To(BeEquivalentTo(`login:
-  default_environment: production
-  environments:
+  accounts:
     production:
-      account: 12345
+      id: 12345
       host: us-3.rightscale.com
       refresh_token: abcdef1234567890abcdef1234567890abcdef12
+  default_account: production
 update:
   check: true
 `))
@@ -142,24 +142,24 @@ update:
 			})
 		})
 
-		Context("With a bad environment config file", func() {
-			var badEnvironmentConfigFile string
+		Context("With a bad account config file", func() {
+			var badAccountConfigFile string
 
 			BeforeEach(func() {
-				badEnvironmentConfigFile = filepath.Join(tempDir, ".right_st.yml")
-				err := ioutil.WriteFile(badEnvironmentConfigFile, []byte(`# Bad environment config with an array instead of a dictionary
+				badAccountConfigFile = filepath.Join(tempDir, ".right_st.yml")
+				err := ioutil.WriteFile(badAccountConfigFile, []byte(`# Bad account config with an array instead of a dictionary
 ---
 login:
-  default_environment: production
-  environments:
+  accounts:
     - production:
-      account: 12345
       host: us-3.rightscale.com
+      id: 12345
       refresh_token: abcdef1234567890abcdef1234567890abcdef12
     - staging:
-      account: 67890
       host: us-4.rightscale.com
+      id: 67890
       refresh_token: fedcba0987654321febcba0987654321fedcba09
+  default_account: production
 `), 0600)
 				if err != nil {
 					panic(err)
@@ -167,29 +167,29 @@ login:
 			})
 
 			It("Returns an error", func() {
-				err := ReadConfig(badEnvironmentConfigFile, "")
+				err := ReadConfig(badAccountConfigFile, "")
 				Expect(err).To(HaveOccurred())
 			})
 		})
 
-		Context("With a missing default environment in the config file", func() {
-			var missingDefaultEnvironmentConfigFile string
+		Context("With a missing default account in the config file", func() {
+			var missingDefaultAccountConfigFile string
 
 			BeforeEach(func() {
-				missingDefaultEnvironmentConfigFile = filepath.Join(tempDir, ".right_st.yml")
-				err := ioutil.WriteFile(missingDefaultEnvironmentConfigFile, []byte(`# Environment config with missing default environment
+				missingDefaultAccountConfigFile = filepath.Join(tempDir, ".right_st.yml")
+				err := ioutil.WriteFile(missingDefaultAccountConfigFile, []byte(`# Account config with missing default account
 ---
 login:
-  default_environment: development
-  environments:
+  accounts:
     production:
-      account: 12345
       host: us-3.rightscale.com
+      id: 12345
       refresh_token: abcdef1234567890abcdef1234567890abcdef12
     staging:
-      account: 67890
       host: us-4.rightscale.com
+      id: 67890
       refresh_token: fedcba0987654321febcba0987654321fedcba09
+  default_account: development
 `), 0600)
 				if err != nil {
 					panic(err)
@@ -197,8 +197,8 @@ login:
 			})
 
 			It("Returns an error", func() {
-				err := ReadConfig(missingDefaultEnvironmentConfigFile, "")
-				Expect(err).To(MatchError(missingDefaultEnvironmentConfigFile + ": could not find default environment: development"))
+				err := ReadConfig(missingDefaultAccountConfigFile, "")
+				Expect(err).To(MatchError(missingDefaultAccountConfigFile + ": could not find default account: development"))
 			})
 		})
 
@@ -209,15 +209,15 @@ login:
 				configFile = filepath.Join(tempDir, ".right_st.yml")
 				err := ioutil.WriteFile(configFile, []byte(`---
 login:
-  default_environment: production
-  environments:
+  default_account: production
+  accounts:
     production:
-      account: 12345
       host: us-3.rightscale.com
+      id: 12345
       refresh_token: abcdef1234567890abcdef1234567890abcdef12
     staging:
-      account: 67890
       host: us-4.rightscale.com
+      id: 67890
       refresh_token: fedcba0987654321febcba0987654321fedcba09
 `), 0600)
 				if err != nil {
@@ -225,60 +225,60 @@ login:
 				}
 			})
 
-			It("Loads the environments from the config file and sets the default environment", func() {
+			It("Loads the accounts from the config file and sets the default account", func() {
 				Expect(ReadConfig(configFile, "")).To(Succeed())
-				Expect(Config.Environments).To(Equal(map[string]*Environment{
+				Expect(Config.Accounts).To(Equal(map[string]*Account{
 					"production": {
-						Account:      12345,
+						Id:           12345,
 						Host:         "us-3.rightscale.com",
 						RefreshToken: "abcdef1234567890abcdef1234567890abcdef12",
 					},
 					"staging": {
-						Account:      67890,
+						Id:           67890,
 						Host:         "us-4.rightscale.com",
 						RefreshToken: "fedcba0987654321febcba0987654321fedcba09",
 					},
 				}))
-				Expect(Config.Environment).To(Equal(&Environment{
-					Account:      12345,
+				Expect(Config.Account).To(Equal(&Account{
+					Id:           12345,
 					Host:         "us-3.rightscale.com",
 					RefreshToken: "abcdef1234567890abcdef1234567890abcdef12",
 				}))
 			})
 
-			It("Loads the environments from the config file and set a specified environment", func() {
+			It("Loads the accounts from the config file and set a specified account", func() {
 				Expect(ReadConfig(configFile, "staging")).To(Succeed())
-				Expect(Config.Environments).To(Equal(map[string]*Environment{
+				Expect(Config.Accounts).To(Equal(map[string]*Account{
 					"production": {
-						Account:      12345,
+						Id:           12345,
 						Host:         "us-3.rightscale.com",
 						RefreshToken: "abcdef1234567890abcdef1234567890abcdef12",
 					},
 					"staging": {
-						Account:      67890,
+						Id:           67890,
 						Host:         "us-4.rightscale.com",
 						RefreshToken: "fedcba0987654321febcba0987654321fedcba09",
 					},
 				}))
-				Expect(Config.Environment).To(Equal(&Environment{
-					Account:      67890,
+				Expect(Config.Account).To(Equal(&Account{
+					Id:           67890,
 					Host:         "us-4.rightscale.com",
 					RefreshToken: "fedcba0987654321febcba0987654321fedcba09",
 				}))
 			})
 
-			It("Returns an error when the config file does not contain the specified environment", func() {
+			It("Returns an error when the config file does not contain the specified account", func() {
 				err := ReadConfig(configFile, "development")
-				Expect(err).To(MatchError(configFile + ": could not find environment: development"))
+				Expect(err).To(MatchError(configFile + ": could not find account: development"))
 			})
 
-			Describe("Get environment", func() {
-				It("Gets an environment with a specified account and host", func() {
+			Describe("Get account", func() {
+				It("Gets an account with a specified account and host", func() {
 					Expect(ReadConfig(configFile, "")).To(Succeed())
-					environment, err := Config.GetEnvironment(67890, "us-4.rightscale.com")
+					account, err := Config.GetAccount(67890, "us-4.rightscale.com")
 					Expect(err).NotTo(HaveOccurred())
-					Expect(environment).To(Equal(&Environment{
-						Account:      67890,
+					Expect(account).To(Equal(&Account{
+						Id:           67890,
 						Host:         "us-4.rightscale.com",
 						RefreshToken: "fedcba0987654321febcba0987654321fedcba09",
 					}))
@@ -286,132 +286,132 @@ login:
 
 				It("Returns an error if the specified account and host are not in the configuration", func() {
 					Expect(ReadConfig(configFile, "")).To(Succeed())
-					environment, err := Config.GetEnvironment(12345, "us-4.rightscale.com")
-					Expect(err).To(MatchError("Could not find environment for account/host: 12345 us-4.rightscale.com"))
-					Expect(environment).To(BeNil())
+					account, err := Config.GetAccount(12345, "us-4.rightscale.com")
+					Expect(err).To(MatchError("Could not find account for account/host: 12345 us-4.rightscale.com"))
+					Expect(account).To(BeNil())
 				})
 			})
 
 			Context("With OS environment variables", func() {
 				BeforeEach(func() {
-					if err := os.Setenv("RIGHT_ST_LOGIN_ENVIRONMENT_ACCOUNT", "67890"); err != nil {
+					if err := os.Setenv("RIGHT_ST_LOGIN_ACCOUNT_ID", "67890"); err != nil {
 						panic(err)
 					}
-					if err := os.Setenv("RIGHT_ST_LOGIN_ENVIRONMENT_HOST", "us-4.rightscale.com"); err != nil {
+					if err := os.Setenv("RIGHT_ST_LOGIN_ACCOUNT_HOST", "us-4.rightscale.com"); err != nil {
 						panic(err)
 					}
-					if err := os.Setenv("RIGHT_ST_LOGIN_ENVIRONMENT_REFRESH_TOKEN",
+					if err := os.Setenv("RIGHT_ST_LOGIN_ACCOUNT_REFRESH_TOKEN",
 						"fedcba0987654321febcba0987654321fedcba09"); err != nil {
 						panic(err)
 					}
 				})
 
 				AfterEach(func() {
-					if err := os.Unsetenv("RIGHT_ST_LOGIN_ENVIRONMENT_ACCOUNT"); err != nil {
+					if err := os.Unsetenv("RIGHT_ST_LOGIN_ACCOUNT_ID"); err != nil {
 						panic(err)
 					}
-					if err := os.Unsetenv("RIGHT_ST_LOGIN_ENVIRONMENT_HOST"); err != nil {
+					if err := os.Unsetenv("RIGHT_ST_LOGIN_ACCOUNT_HOST"); err != nil {
 						panic(err)
 					}
-					if err := os.Unsetenv("RIGHT_ST_LOGIN_ENVIRONMENT_REFRESH_TOKEN"); err != nil {
+					if err := os.Unsetenv("RIGHT_ST_LOGIN_ACCOUNT_REFRESH_TOKEN"); err != nil {
 						panic(err)
 					}
 				})
 
-				It("Loads the default environment from the OS environment variables", func() {
+				It("Loads the default account from the OS environment variables", func() {
 					Expect(ReadConfig(configFile, "")).To(Succeed())
-					Expect(Config.Environments).To(Equal(map[string]*Environment{
+					Expect(Config.Accounts).To(Equal(map[string]*Account{
 						"production": {
-							Account:      12345,
+							Id:           12345,
 							Host:         "us-3.rightscale.com",
 							RefreshToken: "abcdef1234567890abcdef1234567890abcdef12",
 						},
 						"staging": {
-							Account:      67890,
+							Id:           67890,
 							Host:         "us-4.rightscale.com",
 							RefreshToken: "fedcba0987654321febcba0987654321fedcba09",
 						},
 					}))
-					Expect(Config.Environment).To(Equal(&Environment{
-						Account:      67890,
+					Expect(Config.Account).To(Equal(&Account{
+						Id:           67890,
 						Host:         "us-4.rightscale.com",
 						RefreshToken: "fedcba0987654321febcba0987654321fedcba09",
 					}))
 				})
 			})
 
-			Describe("Set environment", func() {
-				It("Updates the config file with the new environment", func() {
+			Describe("Set account", func() {
+				It("Updates the config file with the new account", func() {
 					Expect(ReadConfig(configFile, "")).To(Succeed())
 					input := new(bytes.Buffer)
 					fmt.Fprintln(input, 54321)
 					fmt.Fprintln(input, "us-4.rightscale.com")
 					fmt.Fprintln(input, "21fedcba0987654321fedcba0987654321fedcba")
-					Expect(Config.SetEnvironment("testing", false, input, buffer)).To(Succeed())
+					Expect(Config.SetAccount("testing", false, input, buffer)).To(Succeed())
 					Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: " + "API endpoint host: " +
 						"Refresh token: "))
 					config, err := ioutil.ReadFile(configFile)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(config).To(BeEquivalentTo(`login:
-  default_environment: production
-  environments:
+  accounts:
     production:
-      account: 12345
       host: us-3.rightscale.com
+      id: 12345
       refresh_token: abcdef1234567890abcdef1234567890abcdef12
     staging:
-      account: 67890
       host: us-4.rightscale.com
+      id: 67890
       refresh_token: fedcba0987654321febcba0987654321fedcba09
     testing:
-      account: 54321
+      id: 54321
       host: us-4.rightscale.com
       refresh_token: 21fedcba0987654321fedcba0987654321fedcba
+  default_account: production
 update:
   check: true
 `))
 				})
 
-				It("Updates the default environment and uses defaults when modifying an existing environment", func() {
+				It("Updates the default account and uses defaults when modifying an existing account", func() {
 					Expect(ReadConfig(configFile, "")).To(Succeed())
-					Expect(Config.SetEnvironment("staging", true, new(bytes.Buffer), buffer)).To(Succeed())
+					Expect(Config.SetAccount("staging", true, new(bytes.Buffer), buffer)).To(Succeed())
 					Expect(buffer.Contents()).To(BeEquivalentTo("Account ID (67890): " +
 						"API endpoint host (us-4.rightscale.com): " +
 						"Refresh token (fedcba0987654321febcba0987654321fedcba09): "))
 					config, err := ioutil.ReadFile(configFile)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(config).To(BeEquivalentTo(`login:
-  default_environment: staging
-  environments:
+  accounts:
     production:
-      account: 12345
       host: us-3.rightscale.com
+      id: 12345
       refresh_token: abcdef1234567890abcdef1234567890abcdef12
     staging:
-      account: 67890
+      id: 67890
       host: us-4.rightscale.com
       refresh_token: fedcba0987654321febcba0987654321fedcba09
+  default_account: staging
 update:
   check: true
 `))
 				})
 			})
 
-			Describe("List configuration", func() {
+			Describe("Show configuration", func() {
 				It("Prints the configuration", func() {
 					Expect(ReadConfig(configFile, "")).To(Succeed())
-					Expect(Config.ListConfiguration(buffer)).To(Succeed())
+					Expect(Config.ShowConfiguration(buffer)).To(Succeed())
 					Expect(buffer.Contents()).To(BeEquivalentTo(`login:
-  default_environment: production
-  environments:
+  accounts:
     production:
-      account: 12345
       host: us-3.rightscale.com
+      id: 12345
       refresh_token: abcdef1234567890abcdef1234567890abcdef12
     staging:
-      account: 67890
       host: us-4.rightscale.com
+      id: 67890
       refresh_token: fedcba0987654321febcba0987654321fedcba09
+  default_account: production
 update:
   check: true
 `))

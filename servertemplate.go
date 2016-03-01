@@ -66,7 +66,7 @@ func stUpload(files []string) {
 //   -- commit
 func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript) error {
 	// Check if ST with same name (HEAD revisions only) exists. If it does, update the head
-	client := Config.Environment.Client15()
+	client := Config.Account.Client15()
 	st, err := getServerTemplateByName(stDef.Name)
 
 	if err != nil {
@@ -347,7 +347,7 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript) e
 //   Show a list of previous revisions?
 //   If we're not head, show a link to the head revision/lineage?
 func stShow(href string) {
-	client := Config.Environment.Client15()
+	client := Config.Account.Client15()
 
 	stLocator := client.ServerTemplateLocator(href)
 	st, err := stLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
@@ -426,7 +426,7 @@ func stShow(href string) {
 }
 
 func stDownload(href, downloadTo string) {
-	client := Config.Environment.Client15()
+	client := Config.Account.Client15()
 	fmt.Printf("Downloading '%s'\n", href)
 
 	stLocator := client.ServerTemplateLocator(href)
@@ -554,7 +554,7 @@ func validateServerTemplate(file string) (*ServerTemplate, *map[string][]*RightS
 		return nil, nil, errors
 	}
 
-	client := Config.Environment.Client15()
+	client := Config.Account.Client15()
 
 	//idMatch := regexp.MustCompile(`^\d+$`)
 	// TBD: Let people specify MCIs multiple ways:
@@ -630,7 +630,7 @@ func ParseServerTemplate(ymlData io.Reader) (*ServerTemplate, error) {
 }
 
 func getServerTemplateByName(name string) (*cm15.ServerTemplate, error) {
-	client := Config.Environment.Client15()
+	client := Config.Account.Client15()
 
 	stLocator := client.ServerTemplateLocator("/api/server_templates")
 	apiParams := rsapi.APIParams{"filter": []string{"name==" + name}}

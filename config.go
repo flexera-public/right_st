@@ -35,58 +35,58 @@ import (
 
 type ConfigViper struct {
 	*viper.Viper
-	Environment  *Environment
-	Environments map[string]*Environment
+	Account  *Account
+	Accounts map[string]*Account
 }
 
 var Config ConfigViper
 
 func init() {
 	Config.Viper = viper.New()
-	Config.SetDefault("login", map[interface{}]interface{}{"environments": make(map[interface{}]interface{})})
+	Config.SetDefault("login", map[interface{}]interface{}{"accounts": make(map[interface{}]interface{})})
 	Config.SetDefault("update", map[string]interface{}{"check": true})
 	Config.SetEnvPrefix(app.Name)
 	Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	Config.AutomaticEnv()
 }
 
-func ReadConfig(configFile, environment string) error {
+func ReadConfig(configFile, account string) error {
 	Config.SetConfigFile(configFile)
 	err := Config.ReadInConfig()
 	if err != nil {
 		if _, ok := err.(*os.PathError); !(ok &&
-			Config.IsSet("login.environment.account") &&
-			Config.IsSet("login.environment.host") &&
-			Config.IsSet("login.environment.refresh_token")) {
+			Config.IsSet("login.account.id") &&
+			Config.IsSet("login.account.host") &&
+			Config.IsSet("login.account.refresh_token")) {
 			return err
 		}
 	}
 
-	err = Config.UnmarshalKey("login.environments", &Config.Environments)
+	err = Config.UnmarshalKey("login.accounts", &Config.Accounts)
 	if err != nil {
 		return fmt.Errorf("%s: %s", configFile, err)
 	}
 
-	if Config.IsSet("login.environment.account") &&
-		Config.IsSet("login.environment.host") &&
-		Config.IsSet("login.environment.refresh_token") {
-		Config.Environment = &Environment{
-			Account:      Config.GetInt("login.environment.account"),
-			Host:         Config.GetString("login.environment.host"),
-			RefreshToken: Config.GetString("login.environment.refresh_token"),
+	if Config.IsSet("login.account.id") &&
+		Config.IsSet("login.account.host") &&
+		Config.IsSet("login.account.refresh_token") {
+		Config.Account = &Account{
+			Id:           Config.GetInt("login.account.id"),
+			Host:         Config.GetString("login.account.host"),
+			RefreshToken: Config.GetString("login.account.refresh_token"),
 		}
 	} else {
 		var ok bool
-		if environment == "" {
-			defaultEnvironment := Config.GetString("login.default_environment")
-			Config.Environment, ok = Config.Environments[defaultEnvironment]
+		if account == "" {
+			defaultAccount := Config.GetString("login.default_account")
+			Config.Account, ok = Config.Accounts[defaultAccount]
 			if !ok {
-				return fmt.Errorf("%s: could not find default environment: %s", configFile, defaultEnvironment)
+				return fmt.Errorf("%s: could not find default account: %s", configFile, defaultAccount)
 			}
 		} else {
-			Config.Environment, ok = Config.Environments[environment]
+			Config.Account, ok = Config.Accounts[account]
 			if !ok {
-				return fmt.Errorf("%s: could not find environment: %s", configFile, environment)
+				return fmt.Errorf("%s: could not find account: %s", configFile, account)
 			}
 		}
 	}
@@ -94,32 +94,32 @@ func ReadConfig(configFile, environment string) error {
 	return nil
 }
 
-func (config *ConfigViper) GetEnvironment(account int, host string) (*Environment, error) {
-	for _, environment := range config.Environments {
-		if environment.Account == account && environment.Host == host {
-			return environment, nil
+func (config *ConfigViper) GetAccount(id int, host string) (*Account, error) {
+	for _, account := range config.Accounts {
+		if account.Id == id && account.Host == host {
+			return account, nil
 		}
 	}
 
-	return nil, fmt.Errorf("Could not find environment for account/host: %d %s", account, host)
+	return nil, fmt.Errorf("Could not find account for account/host: %d %s", id, host)
 }
 
 // Obtain input via STDIN then print out to config file
 // Example of config file
 // login:
-//   default_environment: acct1
-//   environments:
+//   default_account: acct1
+//   accounts:
 //     acct1:
-//       account: 67972
+//       id: 67972
 //       host: us-3.rightscale.com
 //       refresh_token: abc123abc123abc123abc123abc123abc123abc1
 //     acct2:
-//       account: 60073
+//       id: 60073
 //       host: us-4.rightscale.com
 //       refresh_token: zxy987zxy987zxy987zxy987xzy987zxy987xzy9
-func (config *ConfigViper) SetEnvironment(name string, setDefault bool, input io.Reader, output io.Writer) error {
-	// if the default environment isn't set we should set it to the environment we are setting
-	if !config.IsSet("login.default_environment") {
+func (config *ConfigViper) SetAccount(name string, setDefault bool, input io.Reader, output io.Writer) error {
+	// if the default account isn't set we should set it to the account we are setting
+	if !config.IsSet("login.default_account") {
 		setDefault = true
 	}
 
@@ -128,51 +128,51 @@ func (config *ConfigViper) SetEnvironment(name string, setDefault bool, input io
 	settings := config.AllSettings()
 	loginSettings := settings["login"].(map[interface{}]interface{})
 
-	// set the default environment if we want or need to
+	// set the default account if we want or need to
 	if setDefault {
-		loginSettings["default_environment"] = name
+		loginSettings["default_account"] = name
 	}
 
-	// get the previous value for the named environment if it exists and construct a new environment to populate
-	oldEnvironment, ok := config.Environments[name]
-	newEnvironment := &Environment{}
+	// get the previous value for the named account if it exists and construct a new account to populate
+	oldAccount, ok := config.Accounts[name]
+	newAccount := &Account{}
 
 	// prompt for the account ID and use the old value if nothing is entered
 	fmt.Fprint(output, "Account ID")
 	if ok {
-		fmt.Fprintf(output, " (%d)", oldEnvironment.Account)
+		fmt.Fprintf(output, " (%d)", oldAccount.Id)
 	}
 	fmt.Fprint(output, ": ")
-	fmt.Fscanln(input, &newEnvironment.Account)
-	if ok && newEnvironment.Account == 0 {
-		newEnvironment.Account = oldEnvironment.Account
+	fmt.Fscanln(input, &newAccount.Id)
+	if ok && newAccount.Id == 0 {
+		newAccount.Id = oldAccount.Id
 	}
 
 	// prompt for the API endpoint host and use the old value if nothing is entered
 	fmt.Fprint(output, "API endpoint host")
 	if ok {
-		fmt.Fprintf(output, " (%s)", oldEnvironment.Host)
+		fmt.Fprintf(output, " (%s)", oldAccount.Host)
 	}
 	fmt.Fprint(output, ": ")
-	fmt.Fscanln(input, &newEnvironment.Host)
-	if ok && newEnvironment.Host == "" {
-		newEnvironment.Host = oldEnvironment.Host
+	fmt.Fscanln(input, &newAccount.Host)
+	if ok && newAccount.Host == "" {
+		newAccount.Host = oldAccount.Host
 	}
 
 	// prompt for the refresh token and use the old value if nothing is entered
 	fmt.Fprint(output, "Refresh token")
 	if ok {
-		fmt.Fprintf(output, " (%s)", oldEnvironment.RefreshToken)
+		fmt.Fprintf(output, " (%s)", oldAccount.RefreshToken)
 	}
 	fmt.Fprint(output, ": ")
-	fmt.Fscanln(input, &newEnvironment.RefreshToken)
-	if ok && newEnvironment.RefreshToken == "" {
-		newEnvironment.RefreshToken = oldEnvironment.RefreshToken
+	fmt.Fscanln(input, &newAccount.RefreshToken)
+	if ok && newAccount.RefreshToken == "" {
+		newAccount.RefreshToken = oldAccount.RefreshToken
 	}
 
-	// add the new environment to the map of environments overwriting any old value
-	environments := loginSettings["environments"].(map[interface{}]interface{})
-	environments[name] = newEnvironment
+	// add the new account to the map of accounts overwriting any old value
+	accounts := loginSettings["accounts"].(map[interface{}]interface{})
+	accounts[name] = newAccount
 
 	// render the settings map as YAML
 	yml, err := yaml.Marshal(settings)
@@ -207,7 +207,7 @@ func (config *ConfigViper) SetEnvironment(name string, setDefault bool, input io
 	return nil
 }
 
-func (config *ConfigViper) ListConfiguration(output io.Writer) error {
+func (config *ConfigViper) ShowConfiguration(output io.Writer) error {
 	// Check if config file exists
 	if _, err := os.Stat(config.ConfigFileUsed()); err != nil {
 		return err

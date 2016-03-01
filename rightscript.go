@@ -28,7 +28,7 @@ type RightScript struct {
 }
 
 func rightScriptShow(href string) {
-	client := Config.Environment.Client15()
+	client := Config.Account.Client15()
 
 	attachmentsHref := fmt.Sprintf("%s/attachments", href)
 	rightscriptLocator := client.RightScriptLocator(href)
@@ -110,7 +110,7 @@ func rightScriptUpload(files []string, force bool) {
 }
 
 func rightScriptDownload(href, downloadTo string) {
-	client := Config.Environment.Client15()
+	client := Config.Account.Client15()
 
 	attachmentsHref := fmt.Sprintf("%s/attachments", href)
 	rightscriptLocator := client.RightScriptLocator(href)
@@ -250,7 +250,7 @@ func getSource(loc *cm15.RightScriptLocator) (respBody []byte, err error) {
 	var params rsapi.APIParams
 	var p rsapi.APIParams
 	APIVersion := "1.5"
-	client := Config.Environment.Client15()
+	client := Config.Account.Client15()
 
 	uri, err := loc.ActionPath("RightScript", "show_source")
 	if err != nil {
@@ -284,7 +284,7 @@ func uploadAttachment(loc *cm15.RightScriptAttachmentLocator,
 	var params rsapi.APIParams
 	var p rsapi.APIParams
 	APIVersion := "1.5"
-	client := Config.Environment.Client15()
+	client := Config.Account.Client15()
 
 	p_inner := rsapi.APIParams{
 		"content": file,
@@ -321,7 +321,7 @@ func uploadAttachment(loc *cm15.RightScriptAttachmentLocator,
 }
 
 func rightScriptIdByName(name string) (string, error) {
-	client := Config.Environment.Client15()
+	client := Config.Account.Client15()
 	createLocator := client.RightScriptLocator("/api/right_scripts")
 	apiParams := rsapi.APIParams{"filter": []string{"name==" + name}}
 	rightscripts, err := createLocator.Index(apiParams)
@@ -343,7 +343,7 @@ func rightScriptIdByName(name string) (string, error) {
 }
 
 func (r *RightScript) Push() error {
-	client := Config.Environment.Client15()
+	client := Config.Account.Client15()
 	createLocator := client.RightScriptLocator("/api/right_scripts")
 	foundId, err := rightScriptIdByName(r.Metadata.Name)
 	if err != nil {
