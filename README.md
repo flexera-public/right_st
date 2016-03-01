@@ -78,7 +78,7 @@ foo $FOO_PARAM
 ### Usage
 The following RightScript related commands are supported:
 
-```bash
+```
 right_st rightscript show <name|href|id>
   Show a single RightScript and its attachments. 
 
