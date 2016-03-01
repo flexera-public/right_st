@@ -22,7 +22,7 @@ Right ST interfaces with the [RightScale API](http://reference.rightscale.com/ap
     * Account ID - Numeric account number, such as 60073
     * API endpoint host - Hostname, typically my.rightscale.com
     * Refresh Token - Your personal OAuth token available from "Settings" -> "Account Settings" -> "Refresh Token"
-2. Environment variables - These are meant to be used by build systems such as Travis CI. The following vars must be set: RIGHT_ST_LOGIN_ACCOUNT_ID, RIGHT_ST_LOGIN_ACCOUNT_HOST, RIGHT_ST_LOGIN_ACCOUNT_REFRESH_TOKEN. These variables are equivalent to the ones described in the YAML section above.
+2. Environment variables - These are meant to be used by build systems such as Travis CI. The following vars must be set: `RIGHT_ST_LOGIN_ACCOUNT_ID`, `RIGHT_ST_LOGIN_ACCOUNT_HOST`, `RIGHT_ST_LOGIN_ACCOUNT_REFRESH_TOKEN`. These variables are equivalent to the ones described in the YAML section above.
 
 ## Managing RightScripts
 
