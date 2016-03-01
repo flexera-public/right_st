@@ -35,8 +35,9 @@ var (
 	stShowCmd        = stCmd.Command("show", "Show a single ServerTemplate")
 	stShowNameOrHref = stShowCmd.Arg("name|href|id", "ServerTemplate Name or HREF or Id").Required().String()
 
-	stUploadCmd   = stCmd.Command("upload", "Upload a ServerTemplate specified by a YAML document")
-	stUploadPaths = stUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
+	stUploadCmd    = stCmd.Command("upload", "Upload a ServerTemplate specified by a YAML document")
+	stUploadPaths  = stUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
+	stUploadPrefix = stUploadCmd.Flag("prefix", "Add prefix to name all ServerTemplate and RightScripts uploaded (for testing purposes)").Short('x').String()
 
 	stDownloadCmd        = stCmd.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
 	stDownloadNameOrHref = stDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
@@ -51,9 +52,10 @@ var (
 	rightScriptShowCmd        = rightScriptCmd.Command("show", "Show a single RightScript and its attachments")
 	rightScriptShowNameOrHref = rightScriptShowCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
 
-	rightScriptUploadCmd   = rightScriptCmd.Command("upload", "Upload a RightScript")
-	rightScriptUploadPaths = rightScriptUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
-	rightScriptUploadForce = rightScriptUploadCmd.Flag("force", "Force upload of file if metadata is not present").Short('f').Bool()
+	rightScriptUploadCmd    = rightScriptCmd.Command("upload", "Upload a RightScript")
+	rightScriptUploadPaths  = rightScriptUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
+	rightScriptUploadPrefix = rightScriptUploadCmd.Flag("prefix", "Add prefix to name all RightScripts uploaded (for testing purposes)").Short('x').String()
+	rightScriptUploadForce  = rightScriptUploadCmd.Flag("force", "Force upload of file if metadata is not present").Short('f').Bool()
 
 	rightScriptDownloadCmd        = rightScriptCmd.Command("download", "Download a RightScript to a file or files")
 	rightScriptDownloadNameOrHref = rightScriptDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
@@ -126,7 +128,7 @@ func main() {
 		if err != nil {
 			fatalError("%s\n", err.Error())
 		}
-		stUpload(files)
+		stUpload(files, *stUploadPrefix)
 	case stDownloadCmd.FullCommand():
 		href, err := paramToHref("server_templates", *stDownloadNameOrHref, 0)
 		if err != nil {
@@ -146,7 +148,7 @@ func main() {
 		}
 		rightScriptShow(href)
 	case rightScriptUploadCmd.FullCommand():
-		rightScriptUpload(*rightScriptUploadPaths, *rightScriptUploadForce)
+		rightScriptUpload(*rightScriptUploadPaths, *rightScriptUploadForce, *rightScriptUploadPrefix)
 	case rightScriptDownloadCmd.FullCommand():
 		href, err := paramToHref("right_scripts", *rightScriptDownloadNameOrHref, 0)
 		if err != nil {

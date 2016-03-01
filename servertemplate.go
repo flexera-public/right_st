@@ -37,7 +37,7 @@ type Alert struct {
 
 var sequenceTypes []string = []string{"Boot", "Operational", "Decommission"}
 
-func stUpload(files []string) {
+func stUpload(files []string, prefix string) {
 
 	for _, file := range files {
 		fmt.Printf("Validating %s\n", file)
@@ -54,7 +54,7 @@ func stUpload(files []string) {
 		if *debug {
 			fmt.Printf("ST: %#v\n", *st)
 		}
-		err := doUpload(*st, *rightscripts)
+		err := doUpload(*st, *rightscripts, prefix)
 
 		if err != nil {
 			fatalError("Failed to upload ServerTemplate '%s': %s", file, err.Error())
@@ -64,13 +64,18 @@ func stUpload(files []string) {
 
 // Options:
 //   -- commit
-func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript) error {
+func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript, prefix string) error {
 	// Check if ST with same name (HEAD revisions only) exists. If it does, update the head
 	client := Config.Account.Client15()
-	st, err := getServerTemplateByName(stDef.Name)
+	stName := stDef.Name
+
+	if prefix != "" {
+		stName = fmt.Sprintf("%s_%s", prefix, stDef.Name)
+	}
+	st, err := getServerTemplateByName(stName)
 
 	if err != nil {
-		fatalError("Failed to query for ServerTemplate '%s': %s", stDef.Name, err.Error())
+		fatalError("Failed to query for ServerTemplate '%s': %s", stName, err.Error())
 	}
 
 	// -----------------
@@ -81,11 +86,11 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript) e
 	if st == nil {
 		params := cm15.ServerTemplateParam{
 			Description: stDef.Description,
-			Name:        stDef.Name,
+			Name:        stName,
 		}
 		stLoc, err := client.ServerTemplateLocator("/api/server_templates").Create(&params)
 		if err != nil {
-			fatalError("Failed to create ServerTemplate '%s': %s", stDef.Name, err.Error())
+			fatalError("Failed to create ServerTemplate '%s': %s", stName, err.Error())
 		}
 		st, err = stLoc.Show(rsapi.APIParams{})
 		if err != nil {
@@ -171,7 +176,7 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript) e
 			}
 			// Push() has the side effort of always populating script.Href which we use below -- probably
 			// rework this to be a bit more upfront in the future.
-			err := script.Push()
+			err := script.Push(prefix)
 			hrefByName[script.Metadata.Name] = script.Href
 			if err != nil {
 				fatalError("  %s", err.Error())

@@ -76,7 +76,7 @@ func rightScriptShow(href string) {
 	}
 }
 
-func rightScriptUpload(files []string, force bool) {
+func rightScriptUpload(files []string, force bool, prefix string) {
 	// Pass 1, perform validations, gather up results
 	scripts := []*RightScript{}
 	files, err := walkPaths(files)
@@ -102,7 +102,7 @@ func rightScriptUpload(files []string, force bool) {
 
 	// Pass 2, upload
 	for _, script := range scripts {
-		err = script.Push()
+		err = script.Push(prefix)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
@@ -287,8 +287,8 @@ func uploadAttachment(loc *cm15.RightScriptAttachmentLocator,
 	client := Config.Account.Client15()
 
 	p_inner := rsapi.APIParams{
-		"content": file,
-		"name":    name,
+		"content":  file,
+		"filename": name,
 	}
 	p = rsapi.APIParams{
 		"right_script_attachment": p_inner,
@@ -342,10 +342,14 @@ func rightScriptIdByName(name string) (string, error) {
 	return foundId, nil
 }
 
-func (r *RightScript) Push() error {
+func (r *RightScript) Push(prefix string) error {
 	client := Config.Account.Client15()
 	createLocator := client.RightScriptLocator("/api/right_scripts")
-	foundId, err := rightScriptIdByName(r.Metadata.Name)
+	scriptName := r.Metadata.Name
+	if prefix != "" {
+		scriptName = fmt.Sprintf("%s_%s", prefix, r.Metadata.Name)
+	}
+	foundId, err := rightScriptIdByName(scriptName)
 	if err != nil {
 		return err
 	}
@@ -357,10 +361,10 @@ func (r *RightScript) Push() error {
 
 	var rightscriptLocator *cm15.RightScriptLocator
 	if foundId == "" {
-		fmt.Printf("  Creating a new RightScript named '%s' from %s\n", r.Metadata.Name, r.Path)
+		fmt.Printf("  Creating a new RightScript named '%s' from %s\n", scriptName, r.Path)
 		// New one, perform create call
 		params := cm15.RightScriptParam2{
-			Name:        r.Metadata.Name,
+			Name:        scriptName,
 			Description: r.Metadata.Description,
 			Source:      string(fileSrc),
 		}
@@ -373,10 +377,10 @@ func (r *RightScript) Push() error {
 	} else {
 		// Found existing, do an update
 		href := fmt.Sprintf("/api/right_scripts/%s", foundId)
-		fmt.Printf("  Updating existing RightScript named '%s' with HREF %s from %s\n", r.Metadata.Name, href, r.Path)
+		fmt.Printf("  Updating existing RightScript named '%s' with HREF %s from %s\n", scriptName, href, r.Path)
 
 		params := cm15.RightScriptParam3{
-			Name:        r.Metadata.Name,
+			Name:        scriptName,
 			Description: r.Metadata.Description,
 			Source:      string(fileSrc),
 		}
@@ -436,7 +440,7 @@ func (r *RightScript) Push() error {
 			fmt.Printf("  Attachment '%s' already uploaded with md5 %s\n", name, md5)
 			// TBD -- update if a.Name != name?
 		} else {
-			fullPath := filepath.Join(filepath.Dir(r.Path), name)
+			fullPath := filepath.Join(filepath.Dir(r.Path), "attachments", name)
 			fmt.Printf("  Uploading attachment '%s' with md5 %s\n", name, md5)
 			f, err := os.Open(fullPath)
 			if err != nil {

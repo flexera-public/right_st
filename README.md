@@ -104,7 +104,7 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | ----- | ------ | ----------- |
 | Name | String | Name of the ServerTemplate. Name must be unique for your account. |
 | Description | String | Description field for the ServerTemplate. |
-| RightScripts | Hash | The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of strings, where each string is a relative pathname to a RightScript on disk. |
+| RightScripts | Hash of String -> Array| The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of strings, where each string is a relative pathname to a RightScript on disk. |
 | Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overridden in a ServerTemplate. |
 | MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash specifying a MCI. MCIs can be specified two different ways depending on Hash keys supplied: 1. 'Href' 2. 'Name' and 'Revision'. See example below. |
 | Alerts | Array of Alerts | An array of Alert definitions, defined below. |
