@@ -131,7 +131,7 @@ func rightScriptDownload(href, downloadTo string) {
 	}
 
 	if downloadTo == "" {
-		downloadTo = rightscript.Name
+		downloadTo = cleanFileName(rightscript.Name)
 	}
 	fmt.Printf("Downloading '%s' to '%s'\n", rightscript.Name, downloadTo)
 

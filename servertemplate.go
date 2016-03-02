@@ -465,7 +465,7 @@ func stDownload(href, downloadTo string) {
 		rightScriptNames[sequenceType] = make([]string, count)
 	}
 	for _, rb := range rbs {
-		rightScriptNames[strings.Title(rb.Sequence)][rb.Position-1] = rb.RightScript.Name
+		rightScriptNames[strings.Title(rb.Sequence)][rb.Position-1] = cleanFileName(rb.RightScript.Name)
 	}
 
 	alertsLocator := client.AlertSpecLocator(getLink(st.Links, "alert_specs"))
@@ -505,8 +505,7 @@ func stDownload(href, downloadTo string) {
 	}
 
 	if downloadTo == "" {
-		// TBD clean up name?
-		downloadTo = st.Name
+		downloadTo = cleanFileName(st.Name) + ".yml"
 	}
 	fmt.Printf("Downloading '%s' to '%s'\n", st.Name, downloadTo)
 
@@ -518,7 +517,7 @@ func stDownload(href, downloadTo string) {
 	fmt.Printf("Downloading %d attached RightScripts:\n", len(rbs))
 	for _, rb := range rbs {
 		rsHref := getLink(rb.Links, "right_script")
-		rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo), rb.RightScript.Name))
+		rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo), cleanFileName(rb.RightScript.Name)))
 	}
 	fmt.Printf("Finished downloading '%s' to '%s'\n", st.Name, downloadTo)
 }

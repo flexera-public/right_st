@@ -306,3 +306,14 @@ func md5sum(data io.Reader) (string, error) {
 
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
+
+// Allows p{L} is a UTF8 equivalent of \w which will allow should allow for
+// non ascii words
+var disallowedFileChars = regexp.MustCompile(`[^\p{L}0-9_-]+`)
+
+func cleanFileName(file string) string {
+	s := disallowedFileChars.ReplaceAllString(file, "_") // KISS hopefully
+	s = strings.Trim(s, "_")                             // axe trailing _ from ) type endings
+	s = strings.Replace(s, "_-_", "-", -1)               // space dash space comes up quite a bit
+	return s
+}
