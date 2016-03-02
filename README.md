@@ -1,6 +1,6 @@
 # right_st
 
-right_st is a tool for managing RightScale ServerTemplate and RightScripts. The tool is able to download, upload, and show ServerTemplate and RightScripts using RightScale's API. This tool can easily be hooked into Travis CI or other build systems to manage these design objects if stored in Github. See below for usage examples.
+`right_st` is a tool for managing RightScale ServerTemplate and RightScripts. The tool is able to download, upload, and show ServerTemplate and RightScripts using RightScale's API. This tool can easily be hooked into Travis CI or other build systems to manage these design objects if stored in Github. See below for usage examples.
 
 [![Travis CI Build Status](https://travis-ci.org/rightscale/right_st.svg?branch=master)](https://travis-ci.org/rightscale/right_st?branch=master)
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/rightscale/right_st?branch=master&svg=true)](https://ci.appveyor.com/project/RightScale/right-st?branch=master)
@@ -16,7 +16,7 @@ right_st is a tool for managing RightScale ServerTemplate and RightScripts. The 
 
 ## Installation
 
-Since right_st is written in Go it is compiled to a single static binary. Extract and run the executable below:
+Since `right_st` is written in Go it is compiled to a single static binary. Extract and run the executable below:
 
 * Linux: [v0/right_st-linux-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-linux-amd64.tgz)
 * Mac OS X: [v0/right_st-darwin-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-darwin-amd64.tgz)
@@ -26,10 +26,10 @@ Since right_st is written in Go it is compiled to a single static binary. Extrac
 
 Right ST interfaces with the [RightScale API](http://reference.rightscale.com/api1.5). Credentials for the API can be provided in two ways:
 
-1. YAML-based configuration file -  Run `right_st config account <name>`, where name is a nickname for the account, to interactively write the configuration file into $HOME/.right_st.yml for the first time. You will be prompted for the following fields:
-    * Account ID - Numeric account number, such as 60073
-    * API endpoint host - Hostname, typically my.rightscale.com
-    * Refresh Token - Your personal OAuth token available from "Settings" -> "Account Settings" -> "Refresh Token"
+1. YAML-based configuration file -  Run `right_st config account <name>`, where name is a nickname for the account, to interactively write the configuration file into `$HOME/.right_st.yml` for the first time. You will be prompted for the following fields:
+    * Account ID - Numeric account number, such as `60073`
+    * API endpoint host - Hostname, typically `my.rightscale.com`
+    * Refresh Token - Your personal OAuth token available from **Settings > Account Settings > Refresh Token** in the RightScale Cloud Management dashboard
 2. Environment variables - These are meant to be used by build systems such as Travis CI. The following vars must be set: `RIGHT_ST_LOGIN_ACCOUNT_ID`, `RIGHT_ST_LOGIN_ACCOUNT_HOST`, `RIGHT_ST_LOGIN_ACCOUNT_REFRESH_TOKEN`. These variables are equivalent to the ones described in the YAML section above.
 
 ## Managing RightScripts
