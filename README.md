@@ -7,14 +7,13 @@ right_st is a tool for managing RightScale ServerTemplate and RightScripts. The 
 
 ## Installation
 
-Since right_st is written in Go it is compiled to a single static binary. Untar and run the executable below:
+Since right_st is written in Go it is compiled to a single static binary. Extract and run the executable below:
 
 * Linux: [v0/right_st-linux-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-linux-amd64.tgz)
 * Mac OS X: [v0/right_st-darwin-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-darwin-amd64.tgz)
 * Windows: [v0/right_st-windows-amd64.zip](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-windows-amd64.zip)
 
-
-### Configuration 
+### Configuration
 
 Right ST interfaces with the [RightScale API](http://reference.rightscale.com/api1.5). Credentials for the API can be provided in two ways:
 
