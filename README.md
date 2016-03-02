@@ -8,9 +8,9 @@ right_st is a tool for managing RightScale ServerTemplate and RightScripts. The 
 * [Installation](#installation)
   * [Configuration](#configuration)
 * [Managing RightScripts](#managing-rightscripts)
-  * [Usage](#usage)
+  * [RightScript Usage](#rightscript-usage)
 * [Managing ServerTemplates](#managing-servertemplates)
-  * [Usage](#usage-1)
+  * [ServerTemplate Usage](#servertemplate-usage)
 * [Contributors](#contributors)
 * [License](#license)
 
@@ -83,7 +83,7 @@ chmod a+x /usr/local/bin/foo
 foo $FOO_PARAM
 ```
  
-### Usage
+### RightScript Usage
 The following RightScript related commands are supported:
 
 ```
@@ -158,7 +158,7 @@ Alerts:
   Clause: If memory/memory-free.value < 100000000 for 5 minutes Then escalate warning
 ```
 
-### Usage
+### ServerTemplate Usage
 
 The following ServerTemplate related commands are supported:
 
