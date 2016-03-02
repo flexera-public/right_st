@@ -5,6 +5,15 @@ right_st is a tool for managing RightScale ServerTemplate and RightScripts. The 
 [![Travis CI Build Status](https://travis-ci.org/rightscale/right_st.svg?branch=master)](https://travis-ci.org/rightscale/right_st?branch=master)
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/rightscale/right_st?branch=master&svg=true)](https://ci.appveyor.com/project/RightScale/right-st?branch=master)
 
+* [Installation](#installation)
+  * [Configuration](#configuration)
+* [Managing RightScripts](#managing-rightscripts)
+  * [Usage](#usage)
+* [Managing ServerTemplates](#managing-servertemplates)
+  * [Usage](#usage-1)
+* [Contributors](#contributors)
+* [License](#license)
+
 ## Installation
 
 Since right_st is written in Go it is compiled to a single static binary. Extract and run the executable below:
