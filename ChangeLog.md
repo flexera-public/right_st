@@ -1,3 +1,3 @@
-vX.X.X / YYYY-MM-DD
+v1.0.0 / 2016-03-03
 -------------------
 * Initial release
