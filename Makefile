@@ -65,9 +65,24 @@ ifneq ($(TRAVIS_TAG),)
 TRAVIS_BRANCH:=$(TRAVIS_TAG)
 endif
 
-ifeq ($(OS),Windows_NT)
+ifeq ($(GOOS),windows)
 export CC:=x86_64-w64-mingw32-gcc
 export CXX:=x86_64-w64-mingw32-g++
+endif
+
+# determine archives to make for the build job which determines what will be uploaded by the Travis CI job
+ifeq ($(GOOS),linux)
+UPLOADS:=build/$(NAME)-linux-amd64.tgz build/$(NAME)-windows-amd64.zip
+else
+  ifeq ($(GOOS),darwin)
+UPLOADS:=build/$(NAME)-darwin-amd64.tgz
+  else
+    ifeq ($(GOOS),windows)
+UPLOADS:=build/$(NAME)-windows-amd64.zip
+    else
+UPLOADS:=build/$(NAME)-$(GOOS)-$(GOARCH).tgz
+    endif
+  endif
 endif
 
 # the default target builds a binary in the top-level dir for whatever the local OS is
@@ -79,7 +94,7 @@ install: $(EXE)
 	go install
 
 # the standard build produces a "local" executable, a linux tgz, and a darwin (macos) tgz
-build: $(EXE) build/$(NAME)-linux-amd64.tgz build/$(NAME)-darwin-amd64.tgz build/$(NAME)-windows-amd64.zip
+build: $(EXE) $(UPLOADS)
 
 # create a tgz with the binary and any artifacts that are necessary
 # note the hack to allow for various GOOS & GOARCH combos
@@ -115,7 +130,7 @@ upload:
 	      fi; \
 	    fi; \
 	  done; \
-	  if [[ "$(TRAVIS_TAG)" =~ $$re ]]; then \
+	  if [[ $$GOOS == linux ]] && [[ "$(TRAVIS_TAG)" =~ $$re ]]; then \
 	    ../version.sh > version.yml; \
 	    gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/version.yml <version.yml; \
 	  fi)
