@@ -163,20 +163,20 @@ Alerts:
 The following ServerTemplate related commands are supported:
 
 ```
-  st show <name|href|id>
-    Show a single ServerTemplate
+right_st st show <name|href|id>
+  Show a single ServerTemplate
 
-  st upload <path>...
-    Upload a ServerTemplate specified by a YAML document
-    Flags:
-      -x, --prefix: Append a prefix to ServerTemplate and RightScript names when
-                    uploading. For creating dev/test versions of ServerTemplates.
+right_st st upload <path>...
+  Upload a ServerTemplate specified by a YAML document
+  Flags:
+    -x, --prefix: Append a prefix to ServerTemplate and RightScript names when
+                  uploading. For creating dev/test versions of ServerTemplates.
 
-  st download <name|href|id> [<path>]
-    Download a ServerTemplate and all associated RightScripts/Attachments to disk
+right_st st download <name|href|id> [<path>]
+  Download a ServerTemplate and all associated RightScripts/Attachments to disk
 
-  st validate <path>...
-    Validate a ServerTemplate YAML document
+right_st st validate <path>...
+  Validate a ServerTemplate YAML document
 ```
 
 ## Contributors
