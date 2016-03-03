@@ -18,9 +18,9 @@
 
 Since `right_st` is written in Go it is compiled to a single static binary. Extract and run the executable below:
 
-* Linux: [v0/right_st-linux-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-linux-amd64.tgz)
-* Mac OS X: [v0/right_st-darwin-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-darwin-amd64.tgz)
-* Windows: [v0/right_st-windows-amd64.zip](https://binaries.rightscale.com/rsbin/right_st/v0/right_st-windows-amd64.zip)
+* Linux: [v1/right_st-linux-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v1/right_st-linux-amd64.tgz)
+* Mac OS X: [v1/right_st-darwin-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v1/right_st-darwin-amd64.tgz)
+* Windows: [v1/right_st-windows-amd64.zip](https://binaries.rightscale.com/rsbin/right_st/v1/right_st-windows-amd64.zip)
 
 ### Configuration
 
