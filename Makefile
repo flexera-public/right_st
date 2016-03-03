@@ -119,7 +119,7 @@ build/$(NAME)-%.zip: *.go version
 # which happens in the .travis.yml for CI
 upload:
 	@which gof3r >/dev/null || (echo 'Please "make depend"'; false)
-	(cd build; set -ex; \
+	(cd build; set -ex; shopt -s nullglob; \
 	  re='^(v[0-9]+)\.[0-9]+\.[0-9]+$$' ;\
 	  for f in *.tgz *.zip; do \
 	    gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/$(TRAVIS_COMMIT)/$$f <$$f; \
@@ -130,7 +130,7 @@ upload:
 	      fi; \
 	    fi; \
 	  done; \
-	  if [[ $$GOOS == linux ]] && [[ "$(TRAVIS_TAG)" =~ $$re ]]; then \
+	  if [[ $(GOOS) == linux ]] && [[ "$(TRAVIS_TAG)" =~ $$re ]]; then \
 	    ../version.sh > version.yml; \
 	    gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/version.yml <version.yml; \
 	  fi)
