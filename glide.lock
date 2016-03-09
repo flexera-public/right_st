@@ -1,5 +1,5 @@
 hash: c688f870b6684aa348103f37cc0a7f74325a1f567424c6cf29a5d3c39e62042e
-updated: 2016-02-26T20:18:17.728569-08:00
+updated: 2016-03-09T14:55:05.9961282-08:00
 imports:
 - name: bitbucket.org/pkg/inflect
   version: 8961c3750a47
@@ -16,7 +16,7 @@ imports:
 - name: github.com/armon/consul-api
   version: dcfedd50ed5334f96adee43fc88518a4f095e15c
 - name: github.com/BurntSushi/toml
-  version: a4eecd407cf4129fc902ece859a0114e4cf1a7f4
+  version: bbd5bb678321a0d6e58f1099321dfa73391c1b6f
 - name: github.com/coddingtonbear/go-simplejson
   version: a582018feafb39c4884d1b03cad98b91e2804276
 - name: github.com/coreos/go-etcd
@@ -24,7 +24,7 @@ imports:
   subpackages:
   - etcd
 - name: github.com/davecgh/go-spew
-  version: 2df174808ee097f90d259e432cc04442cf60be21
+  version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:
   - spew
 - name: github.com/douglaswth/rsrdp
@@ -42,7 +42,7 @@ imports:
   - proto
   - proto/testdata
 - name: github.com/hashicorp/hcl
-  version: 1c284ec98f4b398443cbabb0d9197f7f4cc0077c
+  version: 71c7409f1abba841e528a80556ed2c67671744c3
   subpackages:
   - hcl/ast
   - hcl/parser
@@ -58,7 +58,7 @@ imports:
   - internal/binarydist
   - internal/osext
 - name: github.com/jessevdk/go-flags
-  version: 97448c91aac742cbca3d020b3e769013a420a06f
+  version: 6b9493b3cb60367edd942144879646604089e3f7
 - name: github.com/kardianos/osext
   version: 29ae4ffbc9a6fe9fb2bc5029050ce6996ea1d3bc
 - name: github.com/kr/pretty
@@ -96,7 +96,7 @@ imports:
   - ginkgo/watch
   - internal/leafnodes
 - name: github.com/onsi/gomega
-  version: a1094b2db2d4845621602c667bd4ccf09834544e
+  version: 7ce781ea776b2fd506491011353bded2e40c8467
   subpackages:
   - internal/assertion
   - internal/asyncassertion
@@ -115,7 +115,7 @@ imports:
 - name: github.com/rightscale/go-jsonselect
   version: d04eebe26072b09f780b43c72c6df71b12b8d105
 - name: github.com/rightscale/rsc
-  version: c90b4bdd663096e6a3e11e3233e0924366a7c01f
+  version: 492a3fb18cd7becacbc3ff4e72e004be222b487f
   vcs: git
   subpackages:
   - ca
@@ -150,7 +150,7 @@ imports:
 - name: github.com/stretchr/objx
   version: cbeaeb16a013161a98496fad62933b1d21786672
 - name: github.com/stretchr/testify
-  version: 1f4a1643a57e798696635ea4c126e9127adb7d3c
+  version: 6fe211e493929a8aac0469b93f28b1d0688a9a3a
   subpackages:
   - assert
   - http
@@ -204,7 +204,7 @@ imports:
   - runes
   - internal/tag
 - name: golang.org/x/tools
-  version: e852fdd89f1a2f53b9538a99c21a44a9f199218b
+  version: 093d7650abf0a26882924de03a6c840a00356572
   subpackages:
   - cmd/cover
   - blog/atom
@@ -251,7 +251,7 @@ imports:
 - name: gopkg.in/alecthomas/kingpin.v2
   version: 639879d6110b1b0409410c7b737ef0bb18325038
 - name: gopkg.in/fsnotify.v1
-  version: 8611c35ab31c1c28aa903d33cf8b6e44a399b09e
+  version: 875cf421b32f8f1b31bd43776297876d01542279
 - name: gopkg.in/inconshreveable/log15.v2
   version: dc7890abeaadcb6a79a9a5ee30bc1897bbf97713
   subpackages:
@@ -269,5 +269,5 @@ imports:
   - httpclient
   - recording
 - name: gopkg.in/yaml.v2
-  version: f7716cbe52baa25d2e9b0d0da546fcf909fc16b4
+  version: a83829b6f1293c91addabc89d0571c246397bbf4
 devImports: []
