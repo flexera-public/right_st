@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"sync"
 	"time"
@@ -82,7 +81,7 @@ func downloadManager(items []*downloadItem) error {
 					sumSize(size)
 					return
 				}
-				// fmt.Printf("        Error downloading %s:", path.Base(i.filename))
+				// fmt.Printf("        Error downloading %s:", filepath.Base(i.filename))
 				// fmt.Printf("          %s", e.Error())
 				if !retry {
 					setError(e)
@@ -113,7 +112,7 @@ func downloadOneItem(item *downloadItem) (bool, int64, error) {
 			return false, 0, err
 		}
 		if item.md5 == existingMd5sum {
-			fmt.Printf("    Skipping attachments/%s, already downloaded\n", path.Base(item.filename))
+			fmt.Printf("    Skipping attachments/%s, already downloaded\n", filepath.Base(item.filename))
 			return false, 0, nil
 		}
 	}
@@ -132,7 +131,7 @@ func downloadOneItem(item *downloadItem) (bool, int64, error) {
 
 	// Do the download
 	startAt := time.Now()
-	fmt.Printf("    Downloading attachment into attachments/%s\n", path.Base(item.filename))
+	fmt.Printf("    Downloading attachment into attachments/%s\n", filepath.Base(item.filename))
 	resp, err := http.Get(item.url.String())
 	if err != nil {
 		f.Close() // on Windows you cannot remove a file that has an open file handle
@@ -154,11 +153,11 @@ func downloadOneItem(item *downloadItem) (bool, int64, error) {
 	if err != nil {
 		f.Close() // on Windows you cannot remove a file that has an open file handle
 		os.Remove(item.filename)
-		return true, 0, fmt.Errorf("%s -- Reading %s", err.Error(), path.Base(item.filename))
+		return true, 0, fmt.Errorf("%s -- Reading %s", err.Error(), filepath.Base(item.filename))
 	}
 	if *debug {
 		fmt.Printf("    %.1fKB in %.1fs for %s", float32(size)/1024,
-			time.Since(startAt).Seconds(), path.Base(item.filename))
+			time.Since(startAt).Seconds(), filepath.Base(item.filename))
 	}
 	return false, size, nil
 }
