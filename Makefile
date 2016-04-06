@@ -169,7 +169,7 @@ lint:
 	go tool vet -composites=false *.go
 
 test: lint
-	ginkgo -cover $(shell ./bin/$(GLIDE_EXEC) novendor)
+	ginkgo -cover -race $(shell ./bin/$(GLIDE_EXEC) novendor)
 
 #===== SPECIAL TARGETS FOR right_st =====
 
