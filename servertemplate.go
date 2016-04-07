@@ -260,15 +260,26 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript, p
 	// -----------------
 	fmt.Println("Setting Inputs")
 	inputsLoc := client.InputLocator(stHref + "/inputs")
+	oldInputs, err := inputsLoc.Index(rsapi.APIParams{"view": "inputs_2_0"})
+	if err != nil {
+		fatalError("  Failed to Index inputs: %s", err.Error())
+	}
 	inputParams := make(map[string]interface{})
+	for _, input := range oldInputs {
+		inputParams[input.Name] = "inherit"
+	}
 	for k, v := range stDef.Inputs {
 		inputParams[k] = v.String()
 	}
-	err = inputsLoc.MultiUpdate(inputParams)
-	if err != nil {
-		fatalError("  Failed to MultiUpdate inputs: %s", err.Error())
+	if len(inputParams) > 0 {
+		err = inputsLoc.MultiUpdate(inputParams)
+		if err != nil {
+			fatalError("  Failed to MultiUpdate inputs: %s", err.Error())
+		}
+		fmt.Println("  Inputs set")
+	} else {
+		fmt.Println("  No inputs to set")
 	}
-	fmt.Println("  Inputs set")
 
 	// -----------------
 	// Synchronize Alerts
