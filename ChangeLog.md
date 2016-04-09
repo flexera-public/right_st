@@ -1,3 +1,8 @@
+Unreleased changes
+-------------------
+* Various fixes: Can specify a directory to download to. Better error messages.
+  Display script body in RightScript show command.
+
 v1.0.2 / 2016-04-07
 -------------------
 * Build with Go 1.6 on Travis CI.

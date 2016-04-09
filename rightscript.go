@@ -42,6 +42,10 @@ func rightScriptShow(href string) {
 	if err != nil {
 		fatalError("Could not find attachments with href %s: %s", attachmentsHref, err.Error())
 	}
+	source, err := getSource(rightscriptLocator)
+	if err != nil {
+		fatalError("Could get source for RightScript with href %s: %s", href, err.Error())
+	}
 	rev := "HEAD"
 	if rightscript.Revision != 0 {
 		rev = fmt.Sprintf("%d", rightscript.Revision)
@@ -74,6 +78,8 @@ func rightScriptShow(href string) {
 	for _, a := range attachments {
 		fmt.Printf("  %s %s %s\n", a.Id, a.Digest, a.Filename)
 	}
+	fmt.Println("Body:")
+	fmt.Println(string(source))
 }
 
 func rightScriptUpload(files []string, force bool, prefix string) {
@@ -132,6 +138,8 @@ func rightScriptDownload(href, downloadTo string) {
 
 	if downloadTo == "" {
 		downloadTo = cleanFileName(rightscript.Name)
+	} else if isDirectory(downloadTo) {
+		downloadTo = filepath.Join(downloadTo, cleanFileName(rightscript.Name)+".yml")
 	}
 	fmt.Printf("Downloading '%s' to '%s'\n", rightscript.Name, downloadTo)
 
@@ -311,13 +319,6 @@ func uploadAttachment(loc *cm15.RightScriptAttachmentLocator,
 		return fmt.Errorf("invalid response %s: %s", resp.Status, string(respBody))
 	}
 	return nil
-	//fmt.Printf("%#v", resp.Header)
-	//location := resp.Header.Get("Location")
-	// if len(location) == 0 {
-	//  return "", fmt.Errorf("Missing location header in response")
-	// } else {
-	//  return location, nil
-	// }
 }
 
 func rightScriptIdByName(name string) (string, error) {

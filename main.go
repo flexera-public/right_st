@@ -231,13 +231,14 @@ func paramToHref(resourceType, param string, revision int) (string, error) {
 				count = count + 1
 			}
 		}
+		revMessage := " and HEAD revision. "
+		if revision != 0 {
+			revMessage = " and revision " + strconv.Itoa(revision) + ". "
+		}
 		if count == 0 {
-			return "", fmt.Errorf("Found no %s matching '%s'", resourceType, param)
+			return "", fmt.Errorf("Found no %s matching '%s'%s", resourceType, param, revMessage)
 		} else if count > 1 {
-			revMessage := " and HEAD revision. "
-			if revision != 0 {
-				revMessage = " and revision " + strconv.Itoa(revision) + ". "
-			}
+
 			return "", fmt.Errorf("Matched multiple %s with the name %s"+revMessage+
 				"Don't know which one to use. Please delete one or specify an HREF to use such as %s", resourceType, param, href)
 		}
@@ -316,4 +317,12 @@ func cleanFileName(file string) string {
 	s = strings.Trim(s, "_")                             // axe trailing _ from ) type endings
 	s = strings.Replace(s, "_-_", "-", -1)               // space dash space comes up quite a bit
 	return s
+}
+
+func isDirectory(path string) bool {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return fileInfo.IsDir()
 }

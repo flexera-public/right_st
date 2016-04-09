@@ -517,10 +517,12 @@ func stDownload(href, downloadTo string) {
 
 	if downloadTo == "" {
 		downloadTo = cleanFileName(st.Name) + ".yml"
+	} else if isDirectory(downloadTo) {
+		downloadTo = filepath.Join(downloadTo, cleanFileName(st.Name)+".yml")
 	}
 	fmt.Printf("Downloading '%s' to '%s'\n", st.Name, downloadTo)
 
-	err = ioutil.WriteFile(downloadTo, bytes, 0755)
+	err = ioutil.WriteFile(downloadTo, bytes, 0644)
 	if err != nil {
 		fatalError("Could not create file: %s", err.Error())
 	}
@@ -528,6 +530,9 @@ func stDownload(href, downloadTo string) {
 	fmt.Printf("Downloading %d attached RightScripts:\n", len(rbs))
 	for _, rb := range rbs {
 		rsHref := getLink(rb.Links, "right_script")
+		if rsHref == "" {
+			fatalError("Could not download ServerTemplate, it has attached cookbook recipes, which are not supported by this tool.\n")
+		}
 		rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo), cleanFileName(rb.RightScript.Name)))
 	}
 	fmt.Printf("Finished downloading '%s' to '%s'\n", st.Name, downloadTo)
