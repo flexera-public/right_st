@@ -169,8 +169,9 @@ var _ = Describe("RightScript Metadata", func() {
 		populatedMetadata = RightScriptMetadata{
 			Name:        "Some RightScript Name",
 			Description: "Some description of stuff",
-			Inputs: &InputMap{
-				"TEXT_INPUT": {
+			Inputs: InputMap{
+				InputMetadata{
+					Name:           "TEXT_INPUT",
 					Category:       "Uncategorized",
 					Description:    "Some test input",
 					InputType:      0,
@@ -179,7 +180,8 @@ var _ = Describe("RightScript Metadata", func() {
 					Default:        &InputValue{"text", "foobar"},
 					PossibleValues: []*InputValue{&InputValue{"text", "foobar"}, &InputValue{"text", "barfoo"}},
 				},
-				"SUPPORTED_VERSIONS": {
+				InputMetadata{
+					Name:        "SUPPORTED_VERSIONS",
 					Category:    "Uncategorized",
 					Description: "Some array input",
 					InputType:   1,
@@ -197,13 +199,6 @@ var _ = Describe("RightScript Metadata", func() {
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
 # Inputs:
-#   SUPPORTED_VERSIONS:
-#     Category: Uncategorized
-#     Description: Some array input
-#     Input Type: array
-#     Required: false
-#     Advanced: true
-#     Default: array:["text:v1","text:v2"]
 #   TEXT_INPUT:
 #     Category: Uncategorized
 #     Description: Some test input
@@ -214,6 +209,13 @@ var _ = Describe("RightScript Metadata", func() {
 #     Possible Values:
 #     - text:foobar
 #     - text:barfoo
+#   SUPPORTED_VERSIONS:
+#     Category: Uncategorized
+#     Description: Some array input
+#     Input Type: array
+#     Required: false
+#     Advanced: true
+#     Default: array:["text:v1","text:v2"]
 # Attachments:
 # - attachments/some_attachment.zip
 # - attachments/another_attachment.tar.xz
@@ -237,8 +239,9 @@ var _ = Describe("RightScript Metadata", func() {
 				Expect(metadata).NotTo(BeNil())
 				Expect(metadata.Name).To(Equal("Some RightScript Name"))
 				Expect(metadata.Description).To(Equal("Some description of stuff"))
-				Expect(metadata.Inputs).To(Equal(&InputMap{
-					"TEXT_INPUT": {
+				Expect(metadata.Inputs).To(Equal(InputMap{
+					InputMetadata{
+						Name:           "TEXT_INPUT",
 						Category:       "Uncategorized",
 						Description:    "Some test input",
 						InputType:      0,
@@ -247,7 +250,8 @@ var _ = Describe("RightScript Metadata", func() {
 						Default:        &InputValue{"text", "foobar"},
 						PossibleValues: []*InputValue{&InputValue{"text", "foobar"}, &InputValue{"text", "barfoo"}},
 					},
-					"SUPPORTED_VERSIONS": {
+					InputMetadata{
+						Name:        "SUPPORTED_VERSIONS",
 						Category:    "Uncategorized",
 						Description: "Some array input",
 						InputType:   1,
@@ -293,7 +297,7 @@ var _ = Describe("RightScript Metadata", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(&yaml.TypeError{
 					Errors: []string{
-						"line 7: cannot unmarshal !!seq into main.InputMap",
+						"line 7: cannot unmarshal !!seq into map[string]main.InputMetadata",
 					},
 				}))
 			})

@@ -41,7 +41,7 @@ RightScripts consist of a script body, attachments, and metadata. Metadata is em
 | RightScript Name | String | Name of RightScript. Name must be unique for your account. |
 | Description | String | Description field for the RightScript. Free form text which can be Markdown |
 | Inputs | Hash of String -> Input | The hash key is the input name. The hash value is an Input definition (defined below) |
-| Attachments | Array of Strings | Each string is a filename of an attachment file. Attachments must be placed in an "attachments/" subdirectory |
+| Attachments | Array of Strings | Each string is a filename of an attachment file. Relative or absolute paths supported. Relative paths will be placed in an "attachments/" subdirectory. For example "1/foo" will expect a file foo at "attachments/1/foo"|
 
 Input definition format is as follows:
 
@@ -66,12 +66,12 @@ to the script.
 # Description: Runs attached foo executable with input
 # Inputs:
 #   FOO_PARAM:
-#     Input Type: single
 #     Category: RightScale
 #     Description: A parameter to the foo tool
-#     Default: "text:foo1"
+#     Input Type: single
 #     Required: false
 #     Advanced: true
+#     Default: "text:foo1"
 #     Possible Values: ["text:foo1", "text:foo2"]
 # Attachments:
 # - foo
@@ -103,6 +103,8 @@ right_st rightscript download <name|href|id> [<path>]
 
 right_st rightscript scaffold [<flags>] <path>...
   Add RightScript YAML metadata comments to a file or files
+  Flags:
+    -f, --force: Force regeneration of scaffold data.
 
 right_st rightscript validate <path>...
   Validate RightScript YAML metadata comments in a file or files

@@ -112,8 +112,10 @@ func downloadOneItem(item *downloadItem) (bool, int64, error) {
 			return false, 0, err
 		}
 		if item.md5 == existingMd5sum {
-			fmt.Printf("    Skipping attachments/%s, already downloaded\n", filepath.Base(item.filename))
+			fmt.Printf("    Skipping attachment '%s', already downloaded\n", filepath.Base(item.filename))
 			return false, 0, nil
+		} else {
+			return false, 0, fmt.Errorf("File %s already exists", item.filename)
 		}
 	}
 	// Create parent directory
@@ -131,7 +133,7 @@ func downloadOneItem(item *downloadItem) (bool, int64, error) {
 
 	// Do the download
 	startAt := time.Now()
-	fmt.Printf("    Downloading attachment into attachments/%s\n", filepath.Base(item.filename))
+	fmt.Printf("    Downloading attachment '%s' to '%s'\n", filepath.Base(item.filename), item.filename)
 	resp, err := http.Get(item.url.String())
 	if err != nil {
 		f.Close() // on Windows you cannot remove a file that has an open file handle

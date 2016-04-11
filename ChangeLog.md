@@ -1,7 +1,11 @@
 Unreleased changes
 -------------------
 * Various fixes: Can specify a directory to download to. Better error messages.
-  Display script body in RightScript show command.
+* Now display script body in RightScript show command.
+* Added --force option to scaffold to rescaffold an existing script
+* Will clean up RightScript metadata on download if it is incorrect
+* Attachments with the same name but belonging to different Rightscript will throw an error
+* Attachment names can now have absolute paths, or relative path components added in
 
 v1.0.2 / 2016-04-07
 -------------------

@@ -56,7 +56,7 @@ func rightScriptShow(href string) {
 	fmt.Printf("Inputs:\n")
 	for _, input := range rightscript.Inputs {
 		i := jsonMapToInput(input)
-		fmt.Printf("  %s\n", input["name"].(string))
+		fmt.Printf("  %s\n", i.Name)
 		fmt.Printf("    Category: %s\n", i.Category)
 		fmt.Printf("    Description: %s\n", i.Description)
 		fmt.Printf("    Input Type: %s\n", i.InputType.String())
@@ -139,7 +139,7 @@ func rightScriptDownload(href, downloadTo string) {
 	if downloadTo == "" {
 		downloadTo = cleanFileName(rightscript.Name)
 	} else if isDirectory(downloadTo) {
-		downloadTo = filepath.Join(downloadTo, cleanFileName(rightscript.Name)+".yml")
+		downloadTo = filepath.Join(downloadTo, cleanFileName(rightscript.Name))
 	}
 	fmt.Printf("Downloading '%s' to '%s'\n", rightscript.Name, downloadTo)
 
@@ -148,20 +148,39 @@ func rightScriptDownload(href, downloadTo string) {
 		attachmentNames[i] = attachment.Filename
 	}
 
-	inputs := make(InputMap)
+	inputs := InputMap{}
 	for _, input := range rightscript.Inputs {
-		inputs[input["name"].(string)] = jsonMapToInput(input)
+		inputs = append(inputs, jsonMapToInput(input))
 	}
-	metadata := RightScriptMetadata{
+	apiMetadata := RightScriptMetadata{
 		Name:        rightscript.Name,
 		Description: rightscript.Description,
-		Inputs:      &inputs,
+		Inputs:      inputs,
 		Attachments: attachmentNames,
 	}
 
-	scaffoldedSource, err := scaffoldBuffer(source, metadata, "")
+	sourceMetadata, err := ParseRightScriptMetadata(bytes.NewReader(source))
+	if err != nil {
+		fmt.Printf("Metadata in %s is malformed: %s\n", rightscript.Name, err.Error())
+	}
+
+	// API attachments are always just plain names. SourceMetadata attachment names may have path components describing
+	// where to put the file on disk, thus are truthier, so we merge those in.
+	if sourceMetadata != nil {
+		for i, aApi := range attachments {
+			for _, aSrc := range sourceMetadata.Attachments {
+				if path.Base(aApi.Filename) == path.Base(aSrc) {
+					attachments[i].Filename = aSrc
+				}
+			}
+		}
+	}
+
+	// Re-running it through scaffoldBuffer has the benefit of cleaning up any errors in how
+	// the inputs are described. Also any attachments added or removed manually will be
+	// handled in that the builtin metadata will reflect whats on disk
+	scaffoldedSourceBytes, err := scaffoldBuffer(source, apiMetadata, "", false)
 	if err == nil {
-		scaffoldedSourceBytes := scaffoldedSource.Bytes()
 		if bytes.Compare(scaffoldedSourceBytes, source) != 0 {
 			fmt.Println("Automatically inserted RightScript metadata.")
 		}
@@ -176,6 +195,10 @@ func rightScriptDownload(href, downloadTo string) {
 	downloadItems := []*downloadItem{}
 	for _, attachment := range attachments {
 		attachmentPath := filepath.Join(filepath.Dir(downloadTo), "attachments", attachment.Filename)
+		if filepath.IsAbs(attachment.Filename) {
+			attachmentPath = attachment.Filename
+		}
+
 		downloadUrl, err := url.Parse(attachment.DownloadUrl)
 		if err != nil {
 			fatalError("Could not parse URL of attachment: %s", err.Error())
@@ -195,11 +218,12 @@ func rightScriptDownload(href, downloadTo string) {
 }
 
 // Convert a JSON response to InputMetadata struct
-func jsonMapToInput(input map[string]interface{}) *InputMetadata {
+func jsonMapToInput(input map[string]interface{}) InputMetadata {
 	var defaultValue *InputValue
 	if rawValue, ok := input["default_value"].(string); ok {
 		defaultValue, _ = parseInputValue(rawValue)
 	}
+
 	possibleValues := []*InputValue{}
 	if rawPossibleValues, ok := input["possible_values"].([]interface{}); ok {
 		for _, rawValue := range rawPossibleValues {
@@ -210,9 +234,13 @@ func jsonMapToInput(input map[string]interface{}) *InputMetadata {
 
 	inputType, _ := parseInputType(input["kind"].(string))
 
-	return &InputMetadata{
-		Category:       input["category_name"].(string),
-		Description:    input["description"].(string),
+	categoryName, _ := input["category_name"].(string) // May be null
+	description, _ := input["description"].(string)    // May be null
+
+	return InputMetadata{
+		Name:           input["name"].(string),
+		Category:       categoryName,
+		Description:    description,
 		InputType:      inputType,
 		Required:       input["required"].(bool),
 		Advanced:       input["advanced"].(bool),
@@ -221,14 +249,14 @@ func jsonMapToInput(input map[string]interface{}) *InputMetadata {
 	}
 }
 
-func rightScriptScaffold(files []string, backup bool) {
+func rightScriptScaffold(files []string, backup bool, force bool) {
 	files, err := walkPaths(files)
 	if err != nil {
 		fatalError("%s\n", err.Error())
 	}
 
 	for _, file := range files {
-		err = ScaffoldRightScript(file, backup, os.Stdout)
+		err = ScaffoldRightScript(file, backup, os.Stdout, force)
 		if err != nil {
 			fatalError("%s\n", err.Error())
 		}
@@ -497,24 +525,27 @@ func validateRightScript(file string, ignoreMissingMetadata bool) (*RightScript,
 		return &rightScript, fmt.Errorf("Inputs must be specified")
 	}
 
+	seenAttachments := make(map[string]bool)
 	for _, attachment := range metadata.Attachments {
-		// To make this easier on ourselves and mirror how things are stored in RightScale, attachments can't have any path
-		// elements in them. This assures all attachments will be placed in an "attachments" subdir by convention.
-		if path.Base(attachment) != attachment {
-			return nil, fmt.Errorf("Attachment name invalid: %s. Attachment names can't contain slashes.", attachment)
+		if seenAttachments[path.Base(attachment)] {
+			return nil, fmt.Errorf("Attachment name %s appears twice", attachment)
 		}
+		seenAttachments[path.Base(attachment)] = true
+		// Support both relative and full paths
 		fullPath := filepath.Join(filepath.Dir(file), "attachments", attachment)
+		if filepath.IsAbs(attachment) {
+			fullPath = attachment
+		}
 
 		file, err := os.Open(fullPath)
 		if err != nil {
-			return &rightScript, fmt.Errorf("Could not open attachment: %s. Make sure attachment is in \"attachments/\" subdirectory", err.Error())
+			return &rightScript, fmt.Errorf("Could not open attachment: %s. Make sure attachment is in \"attachments/\" subdirectory or an absolute path", err.Error())
 		}
 		_, err = md5sum(file)
 		file.Close()
 		if err != nil {
 			return &rightScript, err
 		}
-
 	}
 
 	if metadata.Name == "" {

@@ -64,6 +64,7 @@ var (
 	rightScriptScaffoldCmd      = rightScriptCmd.Command("scaffold", "Add RightScript YAML metadata comments to a file or files")
 	rightScriptScaffoldPaths    = rightScriptScaffoldCmd.Arg("path", "File or directory to set metadata for").Required().ExistingFilesOrDirs()
 	rightScriptScaffoldNoBackup = rightScriptScaffoldCmd.Flag("no-backup", "Do not create backup files before scaffolding").Short('n').Bool()
+	rightScriptScaffoldForce    = rightScriptScaffoldCmd.Flag("force", "Force re-scaffolding").Short('f').Bool()
 
 	rightScriptValidateCmd   = rightScriptCmd.Command("validate", "Validate RightScript YAML metadata comments in a file or files")
 	rightScriptValidatePaths = rightScriptValidateCmd.Arg("path", "Path to script file or directory containing script files").Required().ExistingFilesOrDirs()
@@ -160,7 +161,7 @@ func main() {
 		if err != nil {
 			fatalError("%s\n", err.Error())
 		}
-		rightScriptScaffold(files, !*rightScriptScaffoldNoBackup)
+		rightScriptScaffold(files, !*rightScriptScaffoldNoBackup, *rightScriptScaffoldForce)
 	case rightScriptValidateCmd.FullCommand():
 		files, err := walkPaths(*rightScriptValidatePaths)
 		if err != nil {

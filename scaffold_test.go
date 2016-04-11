@@ -68,7 +68,7 @@ var _ = Describe("RightScript Scaffold", func() {
 		})
 
 		It("should add default metadata", func() {
-			err := ScaffoldRightScript(emptyScript, false, buffer)
+			err := ScaffoldRightScript(emptyScript, false, buffer, true)
 			Expect(err).To(Succeed())
 			Expect(buffer.Contents()).To(BeEquivalentTo(emptyScript + ": Added metadata\n"))
 
@@ -78,7 +78,7 @@ var _ = Describe("RightScript Scaffold", func() {
 		})
 
 		It("should create a backup file if desired", func() {
-			err := ScaffoldRightScript(emptyScript, true, buffer)
+			err := ScaffoldRightScript(emptyScript, true, buffer, true)
 			Expect(err).To(Succeed())
 			Expect(buffer.Contents()).To(BeEquivalentTo(emptyScript + ": Added metadata\n"))
 
@@ -110,13 +110,88 @@ echo 'I have metadata already!'
 		})
 
 		It("should not add metadata", func() {
-			err := ScaffoldRightScript(metadataScript, false, buffer)
+			err := ScaffoldRightScript(metadataScript, false, buffer, false)
 			Expect(err).To(Succeed())
-			Expect(buffer.Contents()).To(BeEquivalentTo(metadataScript + ": Script unchanged, already contains metadata\n"))
+			Expect(string(buffer.Contents())).Should(ContainSubstring("Script unchanged, already contains metadata"))
 
 			script, err := ioutil.ReadFile(metadataScript)
 			Expect(err).To(Succeed())
 			Expect(script).To(BeEquivalentTo(metadataScriptContents))
+		})
+	})
+
+	Context("With rescaffolding a script with metadata", func() {
+		var metadataScriptBefore string
+		var metadataScriptAfter string
+		BeforeEach(func() {
+			metadataScriptBefore = `#!/bin/bash
+# ---
+# RightScript Name: Metadata Already
+# Description: A script that already has metadata
+# Inputs:
+#   FOO:
+#     Category: (put your input category here)
+#     Description: (put your input description here, it can be multiple lines using
+#       YAML syntax)
+#     Input Type: single
+#     Required: true
+#     Advanced: true
+#   BAR:
+#     Category: (put your input category here)
+#     Description: (put your input description here, it can be multiple lines using
+#       YAML syntax)
+#     Input Type: single
+#     Required: false
+#     Advanced: false
+# Attachments: []
+# ...
+
+echo $FOO
+# BAR was removed
+${BAZ:=hello}
+echo $BAZ
+`
+			metadataScriptAfter = `#!/bin/bash
+# ---
+# RightScript Name: Metadata Already
+# Description: A script that already has metadata
+# Inputs:
+#   FOO:
+#     Category: (put your input category here)
+#     Description: (put your input description here, it can be multiple lines using
+#       YAML syntax)
+#     Input Type: single
+#     Required: true
+#     Advanced: true
+#   BAZ:
+#     Category: (put your input category here)
+#     Description: (put your input description here, it can be multiple lines using
+#       YAML syntax)
+#     Input Type: single
+#     Required: false
+#     Advanced: false
+#     Default: text:hello
+# Attachments: []
+# ...
+
+echo $FOO
+# BAR was removed
+${BAZ:=hello}
+echo $BAZ
+`
+			if err := ioutil.WriteFile(metadataScript, []byte(metadataScriptBefore), 0600); err != nil {
+				panic(err)
+			}
+		})
+
+		It("should re-scaffold metadata", func() {
+			err := ScaffoldRightScript(metadataScript, false, buffer, true)
+			Expect(err).To(Succeed())
+			Expect(buffer.Contents()).To(BeEquivalentTo(metadataScript + ": Added metadata\n"))
+
+			script, err := ioutil.ReadFile(metadataScript)
+			Expect(err).To(Succeed())
+			Expect(script).To(BeEquivalentTo(metadataScriptAfter))
 		})
 	})
 
@@ -133,14 +208,6 @@ echo "$STRING $ARRAY $PATH"
 # RightScript Name: Shell
 # Description: (put your description here, it can be multiple lines using YAML syntax)
 # Inputs:
-#   ARRAY:
-#     Category: (put your input category here)
-#     Description: (put your input description here, it can be multiple lines using
-#       YAML syntax)
-#     Input Type: array
-#     Required: false
-#     Advanced: false
-#     Default: array:["text:hello","text:world"]
 #   STRING:
 #     Category: (put your input category here)
 #     Description: (put your input description here, it can be multiple lines using
@@ -149,6 +216,14 @@ echo "$STRING $ARRAY $PATH"
 #     Required: false
 #     Advanced: false
 #     Default: text:hello
+#   ARRAY:
+#     Category: (put your input category here)
+#     Description: (put your input description here, it can be multiple lines using
+#       YAML syntax)
+#     Input Type: array
+#     Required: false
+#     Advanced: false
+#     Default: array:["text:hello","text:world"]
 # Attachments: []
 # ...
 ` + shellScriptContents
@@ -159,7 +234,7 @@ echo "$STRING $ARRAY $PATH"
 		})
 
 		It("should add metadata with variables and their default values", func() {
-			err := ScaffoldRightScript(shellScript, false, buffer)
+			err := ScaffoldRightScript(shellScript, false, buffer, true)
 			Expect(err).To(Succeed())
 			Expect(buffer.Contents()).To(BeEquivalentTo(shellScript + ": Added metadata\n"))
 
@@ -196,7 +271,7 @@ puts "#{ENV['INPUT']} #{ENV["PATH"]}"
 		})
 
 		It("should add metadata with variables", func() {
-			err := ScaffoldRightScript(rubyScript, false, buffer)
+			err := ScaffoldRightScript(rubyScript, false, buffer, true)
 			Expect(err).To(Succeed())
 			Expect(buffer.Contents()).To(BeEquivalentTo(rubyScript + ": Added metadata\n"))
 
@@ -233,7 +308,7 @@ print "$ENV{INPUT} $ENV{PATH}\n";
 		})
 
 		It("should add metadata with variables", func() {
-			err := ScaffoldRightScript(perlScript, false, buffer)
+			err := ScaffoldRightScript(perlScript, false, buffer, true)
 			Expect(err).To(Succeed())
 			Expect(buffer.Contents()).To(BeEquivalentTo(perlScript + ": Added metadata\n"))
 
@@ -268,7 +343,7 @@ Write-Output "${env:INPUT} $env:PATH"
 		})
 
 		It("should add metadata with variables", func() {
-			err := ScaffoldRightScript(powershellScript, false, buffer)
+			err := ScaffoldRightScript(powershellScript, false, buffer, true)
 			Expect(err).To(Succeed())
 			Expect(buffer.Contents()).To(BeEquivalentTo(powershellScript + ": Added metadata\n"))
 

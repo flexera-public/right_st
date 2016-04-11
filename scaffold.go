@@ -22,7 +22,13 @@ var (
 	ignoreVariables    = regexp.MustCompile(`^(?:ATTACH_DIR|SHELL|TERM|USER|PATH|MAIL|PWD|HOME|RS_.*|INSTANCE_ID|PRIVATE_ID|DATACENTER|EC2_.*)$`)
 )
 
-func ScaffoldRightScript(path string, backup bool, stdout io.Writer) error {
+const (
+	PreMetadata = iota
+	InMetadata
+	PostMetadata
+)
+
+func ScaffoldRightScript(path string, backup bool, stdout io.Writer, force bool) error {
 	scriptBytes, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
@@ -32,33 +38,39 @@ func ScaffoldRightScript(path string, backup bool, stdout io.Writer) error {
 		return err
 	}
 
-	inputs := make(InputMap)
-	metadata := RightScriptMetadata{
-		Name:        strings.Title(separator.ReplaceAllLiteralString(strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)), " ")),
-		Description: "(put your description here, it can be multiple lines using YAML syntax)",
-		Inputs:      &inputs,
-	}
-
-	scaffoldedScript, err := scaffoldBuffer(scriptBytes, metadata, path)
+	metadata, err := ParseRightScriptMetadata(bytes.NewReader(scriptBytes))
 	if err != nil {
 		return err
 	}
-	scaffoldedScriptBytes, _ := ioutil.ReadAll(scaffoldedScript)
-	if bytes.Compare(scaffoldedScriptBytes, scriptBytes) == 0 {
-		fmt.Fprintf(stdout, "%s: Script unchanged, already contains metadata\n", path)
-	} else {
-		if backup {
-			err := ioutil.WriteFile(path+".bak", scriptBytes, stat.Mode())
-			if err != nil {
-				return err
-			}
+	if metadata != nil {
+		if !force {
+			fmt.Fprintf(stdout, "%s: Script unchanged, already contains metadata. Use --force to force redetection.\n", path)
+			return nil
 		}
-		err := ioutil.WriteFile(path, scaffoldedScriptBytes, stat.Mode())
+	} else {
+		metadata = &RightScriptMetadata{
+			Name:        strings.Title(separator.ReplaceAllLiteralString(strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)), " ")),
+			Description: "(put your description here, it can be multiple lines using YAML syntax)",
+			Inputs:      InputMap{},
+		}
+	}
+
+	scaffoldedScriptBytes, err := scaffoldBuffer(scriptBytes, *metadata, path, true)
+	if err != nil {
+		return err
+	}
+
+	if backup {
+		err := ioutil.WriteFile(path+".bak", scriptBytes, stat.Mode())
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "%s: Added metadata\n", path)
 	}
+	err = ioutil.WriteFile(path, scaffoldedScriptBytes, stat.Mode())
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "%s: Added metadata\n", path)
 	return nil
 }
 
@@ -70,16 +82,11 @@ func ScaffoldRightScript(path string, backup bool, stdout io.Writer) error {
 //   *bytes.Buffer - New buffer with added metadata. Currently metadata will only be added if there is none. We don't
 //                   currently bother with any fancy merging or updating if new inputs/attachments get added in the API or disk
 //   err error - error value
-func scaffoldBuffer(source []byte, defaults RightScriptMetadata, filename string) (*bytes.Buffer, error) {
-	metadata, err := ParseRightScriptMetadata(bytes.NewReader(source))
-	if err != nil {
-		return nil, err
-	}
-	if metadata != nil {
-		return bytes.NewBuffer(source), nil
-	}
-	// TBD merge defaults into metadata or vice versa. For now, just start with the defaults
-	metadata = &defaults
+func scaffoldBuffer(source []byte, defaults RightScriptMetadata, filename string, detectInputs bool) ([]byte, error) {
+	// We simply start with the defaults passed in as our base set of metadata.
+	// Merging of defaults with exisiting metadata items happens before this function as strategies willl be different
+	// based on the source.
+	metadata := &defaults
 
 	variable := shellVariable
 	switch strings.ToLower(filepath.Ext(filename)) {
@@ -91,40 +98,92 @@ func scaffoldBuffer(source []byte, defaults RightScriptMetadata, filename string
 		variable = powershellVariable
 	}
 
+	// Pass 1: We remove any existing metadata comments and record the line at which we
+	// removed them, so that we may re-insert them later.
+	inMetadataState := PreMetadata
+	metadataStartLine := 0
 	scanner := bufio.NewScanner(bytes.NewReader(source))
-	shebangEnd := -1
 	var buffer bytes.Buffer
-	for scanner.Scan() {
+	for lineCount := 0; scanner.Scan(); lineCount += 1 {
 		line := scanner.Text()
-		if shebangEnd < 0 {
+
+		if inMetadataState == PreMetadata && metadataStart.MatchString(line) {
+			metadataStartLine = lineCount
+			inMetadataState = InMetadata
+		} else if inMetadataState == InMetadata && metadataEnd.MatchString(line) {
+			inMetadataState = PostMetadata
+		} else {
+			if inMetadataState != InMetadata {
+				buffer.WriteString(line + "\n")
+			}
+		}
+	}
+	if inMetadataState == PostMetadata {
+		source = buffer.Bytes() // we encountered metadata
+	} else {
+		metadataStartLine = 0 // we didn't encounter metadata
+	}
+	scanner = bufio.NewScanner(bytes.NewReader(source))
+
+	// Pass 2: We autodetect all inputs. If we didn't autodetect metadata before we calculate the insertion point
+	// as being after the shebang
+	seenNames := make(map[string]bool)
+
+	for lineCount := 0; scanner.Scan(); lineCount += 1 {
+		line := scanner.Text()
+		if lineCount == 0 {
 			if shebang.MatchString(line) {
-				shebangEnd = len(line)
 				switch {
 				case strings.Contains(line, "ruby"):
 					variable = rubyVariable
 				case strings.Contains(line, "perl"):
 					variable = perlVariable
 				}
+				if metadataStartLine == 0 {
+					metadataStartLine = 1
+				}
 				continue
-			} else {
-				shebangEnd = 0
 			}
+		}
+
+		// We don't want to redetect for RightScripts -- users may have left out inputs on purpose to ignore them.
+		if !detectInputs {
+			continue
 		}
 
 		for _, submatches := range variable.FindAllStringSubmatch(line, -1) {
 			name := submatches[1]
+			seenNames[name] = true
+
 			if ignoreVariables.MatchString(name) {
 				continue
 			}
-			inputs := *metadata.Inputs
-			if _, ok := inputs[name]; !ok {
-				inputs[name] = &InputMetadata{
+			foundInput := false
+			for _, i := range metadata.Inputs {
+				if i.Name == name {
+					foundInput = true
+				}
+			}
+
+			if !foundInput {
+				newInput := InputMetadata{
+					Name:        name,
 					Category:    "(put your input category here)",
 					Description: "(put your input description here, it can be multiple lines using YAML syntax)",
 				}
+				metadata.Inputs = append(metadata.Inputs, newInput)
 			}
-			if len(submatches) > 2 && submatches[2] != "" && inputs[name].Default == nil {
+
+			var inputItem *InputMetadata
+			for idx, input := range metadata.Inputs {
+				if input.Name == name {
+					inputItem = &metadata.Inputs[idx]
+				}
+			}
+
+			if len(submatches) > 2 && submatches[2] != "" && inputItem.Default == nil {
 				values := strings.Split(submatches[2], ",")
+
 				var (
 					inputType  InputType
 					inputValue InputValue
@@ -140,39 +199,40 @@ func scaffoldBuffer(source []byte, defaults RightScriptMetadata, filename string
 					inputType = Array
 					inputValue = InputValue{Type: "array", Value: "[" + strings.Join(array, ",") + "]"}
 				}
-				inputs[name].InputType = inputType
-				inputs[name].Default = &inputValue
+
+				inputItem.InputType = inputType
+				inputItem.Default = &inputValue
 			}
 		}
-
-		buffer.WriteString(line + "\n")
 	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
-	if shebangEnd < 0 {
-		shebangEnd = 0
-	}
-	scriptBytes := make([]byte, len(source))
-	copy(scriptBytes, source)
-	script := bytes.NewBuffer(scriptBytes)
-	script.Truncate(shebangEnd)
-
-	if shebangEnd != 0 {
-		_, err = script.WriteString("\n")
-		if err != nil {
-			return nil, err
+	if detectInputs {
+		// Now remove any inputs that might have been deleted
+		inputs := InputMap{}
+		for _, in := range metadata.Inputs {
+			if seenNames[in.Name] {
+				inputs = append(inputs, in)
+			}
 		}
-	}
-	_, err = metadata.WriteTo(script)
-	if err != nil {
-		return nil, err
-	}
-	_, err = buffer.WriteTo(script)
-	if err != nil {
-		return nil, err
+		metadata.Inputs = inputs
 	}
 
-	return script, nil
+	if err := scanner.Err(); err != nil {
+		return []byte{}, err
+	}
+
+	// Pass 3: Create a new buffer with the metadata inserted at the right point.
+	scanner = bufio.NewScanner(bytes.NewReader(source))
+	script := bytes.Buffer{}
+	for lineCount := 0; scanner.Scan(); lineCount += 1 {
+		line := scanner.Text()
+		if lineCount == metadataStartLine {
+			metadata.WriteTo(&script)
+		}
+		script.WriteString(line + "\n")
+	}
+	if len(script.Bytes()) == 0 {
+		metadata.WriteTo(&script)
+	}
+
+	return script.Bytes(), nil
 }

@@ -26,16 +26,17 @@ var (
 )
 
 type RightScriptMetadata struct {
-	Name        string    `yaml:"RightScript Name"`
-	Description string    `yaml:"Description"`
-	Inputs      *InputMap `yaml:"Inputs"`
-	Attachments []string  `yaml:"Attachments"`
-	Comment     string    `yaml:"-"`
+	Name        string   `yaml:"RightScript Name"`
+	Description string   `yaml:"Description,omitempty"`
+	Inputs      InputMap `yaml:"Inputs"`
+	Attachments []string `yaml:"Attachments"`
+	Comment     string   `yaml:"-"`
 }
 
 type InputMetadata struct {
+	Name           string        `yaml:"-"`
 	Category       string        `yaml:"Category"`
-	Description    string        `yaml:"Description"`
+	Description    string        `yaml:"Description,omitempty"`
 	InputType      InputType     `yaml:"Input Type"`
 	Required       bool          `yaml:"Required"`
 	Advanced       bool          `yaml:"Advanced"`
@@ -43,7 +44,9 @@ type InputMetadata struct {
 	PossibleValues []*InputValue `yaml:"Possible Values,omitempty"`
 }
 
-type InputMap map[string]*InputMetadata
+// We use an array internally but serialize to a YAML map by performing transformations on this.
+// See UnmarshalYAML/MarshalYAML functions for details
+type InputMap []InputMetadata
 
 type InputType int
 
@@ -121,8 +124,7 @@ func (metadata *RightScriptMetadata) WriteTo(script io.Writer) (n int64, err err
 	}
 
 	if metadata.Inputs == nil {
-		inputs := make(InputMap)
-		metadata.Inputs = &inputs
+		metadata.Inputs = InputMap{}
 	}
 
 	c, err := fmt.Fprintf(script, "%s ---\n", metadata.Comment)
@@ -221,6 +223,46 @@ func (i *InputValue) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 	*i = *iv_pnt
+	return nil
+}
+
+// The Marshal/Unmarshal for InputMap bear some explanation. So we have a simple hash/map defined as InputMap in the
+// publicly facing Input Definition. Hash/maps in golang however aren't ordered. Luckily yaml.v2 for golang has an
+// ordered Hash called MapSlice, which is an array of MapItems which have a Key and Value field. So we turn our internal
+// array into this MapSlice when Marshalling to get something that looks like a hash but is ordered. When Unmarshalling,
+// we unmarshall to BOTH a MapSlice and a Hash of InputDefinitions. The MapSlice is simply mined to get the order.
+// The hash of InputDefinitions is so we can make sure we unmarshal into a well ordered struct instead of the untyped
+// interface{} pile that is MapSlice. Magic!
+func (im InputMap) MarshalYAML() (interface{}, error) {
+	// with the API, internally we store Inputs as an array of values.
+	destMap := yaml.MapSlice{}
+	for _, i := range im {
+		destMap = append(destMap, yaml.MapItem{Key: i.Name, Value: i})
+	}
+	return destMap, nil
+}
+
+func (im *InputMap) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var valueOrder yaml.MapSlice
+	var value map[string]InputMetadata
+	err := unmarshal(&value) // For convenient strong typed-ness
+	if err != nil {
+		return err
+	}
+	err = unmarshal(&valueOrder) // For ordering information
+	if err != nil {
+		return err
+	}
+	inputMap := InputMap{}
+	for _, v := range valueOrder {
+		inputName := v.Key.(string)
+
+		inputMetadata := value[inputName]
+		inputMetadata.Name = inputName
+		inputMap = append(inputMap, inputMetadata)
+	}
+
+	*im = inputMap
 	return nil
 }
 
