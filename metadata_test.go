@@ -161,7 +161,6 @@ var _ = Describe("RightScript Metadata", func() {
 		emptyMetadata = RightScriptMetadata{}
 		emptyMetadataScript = `# ---
 # RightScript Name: ""
-# Description: ""
 # Inputs: {}
 # Attachments: []
 # ...
@@ -224,7 +223,6 @@ var _ = Describe("RightScript Metadata", func() {
 		differentCommentMetadata = RightScriptMetadata{Comment: "//"}
 		differentCommentMetadataScript = `// ---
 // RightScript Name: ""
-// Description: ""
 // Inputs: {}
 // Attachments: []
 // ...
@@ -346,7 +344,7 @@ var _ = Describe("RightScript Metadata", func() {
 				n, err := emptyMetadata.WriteTo(buffer)
 				Expect(err).To(Succeed())
 				Expect(buffer.Contents()).To(BeEquivalentTo(emptyMetadataScript))
-				Expect(n).To(BeEquivalentTo(84))
+				Expect(n).To(BeEquivalentTo(66))
 			})
 		})
 		Context("With populated metadata", func() {
@@ -362,7 +360,7 @@ var _ = Describe("RightScript Metadata", func() {
 				n, err := differentCommentMetadata.WriteTo(buffer)
 				Expect(err).To(Succeed())
 				Expect(buffer.Contents()).To(BeEquivalentTo(differentCommentMetadataScript))
-				Expect(n).To(BeEquivalentTo(90))
+				Expect(n).To(BeEquivalentTo(71))
 			})
 		})
 	})
