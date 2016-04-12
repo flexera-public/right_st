@@ -130,6 +130,10 @@ func rightScriptDownload(href, downloadTo string) {
 	if err != nil {
 		fatalError("Could get source for RightScript with href %s: %s", href, err.Error())
 	}
+	sourceMetadata, err := ParseRightScriptMetadata(bytes.NewReader(source))
+	if err != nil {
+		fmt.Printf("WARNING: Metadata in %s is malformed: %s\n", rightscript.Name, err.Error())
+	}
 
 	attachments, err := attachmentsLocator.Index(rsapi.APIParams{})
 	if err != nil {
@@ -145,7 +149,18 @@ func rightScriptDownload(href, downloadTo string) {
 
 	attachmentNames := make([]string, len(attachments))
 	for i, attachment := range attachments {
-		attachmentNames[i] = attachment.Filename
+		filename := attachment.Filename
+		// API attachments are always just plain names. SourceMetadata attachment names may have path components describing
+		// where to put the file on disk, thus are truthier, so we merge those in.
+		if sourceMetadata != nil {
+			for _, aSrc := range sourceMetadata.Attachments {
+				if path.Base(filename) == path.Base(aSrc) {
+					filename = aSrc
+				}
+			}
+		}
+		attachments[i].Filename = filename
+		attachmentNames[i] = filename
 	}
 
 	inputs := InputMap{}
@@ -157,23 +172,6 @@ func rightScriptDownload(href, downloadTo string) {
 		Description: rightscript.Description,
 		Inputs:      inputs,
 		Attachments: attachmentNames,
-	}
-
-	sourceMetadata, err := ParseRightScriptMetadata(bytes.NewReader(source))
-	if err != nil {
-		fmt.Printf("Metadata in %s is malformed: %s\n", rightscript.Name, err.Error())
-	}
-
-	// API attachments are always just plain names. SourceMetadata attachment names may have path components describing
-	// where to put the file on disk, thus are truthier, so we merge those in.
-	if sourceMetadata != nil {
-		for i, aApi := range attachments {
-			for _, aSrc := range sourceMetadata.Attachments {
-				if path.Base(aApi.Filename) == path.Base(aSrc) {
-					attachments[i].Filename = aSrc
-				}
-			}
-		}
 	}
 
 	// Re-running it through scaffoldBuffer has the benefit of cleaning up any errors in how
