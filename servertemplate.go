@@ -107,13 +107,50 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript, p
 	// Get a list of MCIs on the existing ST.
 	fmt.Println("Updating MCIs:")
 
-	mciLocator := client.ServerTemplateMultiCloudImageLocator("/api/server_template_multi_cloud_images")
+	stMciLocator := client.ServerTemplateMultiCloudImageLocator("/api/server_template_multi_cloud_images")
 
-	existingMcis, err := mciLocator.Index(rsapi.APIParams{"filter": []string{"server_template_href==" + stHref}})
+	existingMcis, err := stMciLocator.Index(rsapi.APIParams{"filter": []string{"server_template_href==" + stHref}})
 	if err != nil {
-		fatalError("Could not find MCIs with href %s: %s", mciLocator.Href, err.Error())
+		fatalError("Could not find MCIs with href %s: %s", stMciLocator.Href, err.Error())
 	}
-	// Delete MCIs that exist on the existing ST but not in this definition.
+	// Delete MCIs that exist on the existing ST but not in this definition. We perform all the deletions first so
+	// we don't have to worry about readding the same MCI with a different revision and throwing an error later
+	// firstValidMci is an MCI we know for sure we're not going to default. We can't delete an MCI marked default so
+	// make the firstValidMci the default in that case then proceed with the delete.
+	var firstValidMci *cm15.ServerTemplateMultiCloudImageLocator
+	for _, mci := range existingMcis {
+		mciHref := getLink(mci.Links, "multi_cloud_image")
+		for _, mciDef := range stDef.MultiCloudImages {
+			if mciDef.Href == mciHref {
+				firstValidMci = mci.Locator(client)
+				break
+			}
+		}
+		if firstValidMci != nil {
+			break
+		}
+	}
+	// Dummy MCI. If we can't find ANY valid Mcis, that means we're going to delete all the existing attached MCIs
+	// before adding any new ones. This presents a problem in that the API will return an error if you try and delete
+	// the final MCI. We work around this by adding a dummy MCI we later delete
+	if firstValidMci == nil {
+		mciLocator := client.MultiCloudImageLocator("/api/multi_cloud_images")
+
+		dummyMcis, err := mciLocator.Index(rsapi.APIParams{})
+		if err != nil {
+			fatalError("Failed to find dummy MCIs: %s", mciLocator.Href, err.Error())
+		}
+		params := cm15.ServerTemplateMultiCloudImageParam{
+			MultiCloudImageHref: getLink(dummyMcis[0].Links, "self"),
+			ServerTemplateHref:  stHref,
+		}
+		loc, err := stMciLocator.Create(&params)
+		if err != nil {
+			fatalError("  Failed to associate Dummy MCI '%s' with ServerTemplate '%s': %s", getLink(dummyMcis[0].Links, "self"), stHref, err.Error())
+		}
+		firstValidMci = loc
+		defer loc.Destroy()
+	}
 	for _, mci := range existingMcis {
 		mciHref := getLink(mci.Links, "multi_cloud_image")
 		foundMci := false // found on ST definition
@@ -124,6 +161,9 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript, p
 		}
 		if !foundMci {
 			fmt.Printf("  Removing MCI %s\n", mciHref)
+			if mci.IsDefault {
+				firstValidMci.MakeDefault()
+			}
 			err := mci.Locator(client).Destroy()
 			if err != nil {
 				fatalError("  Could not Remove MCI %s", mciHref)
@@ -146,7 +186,7 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript, p
 				ServerTemplateHref:  stHref,
 			}
 			fmt.Printf("  Adding MCI '%s' revision '%d' (%s)\n", mciDef.Name, mciDef.Revision, mciDef.Href)
-			loc, err := mciLocator.Create(&params)
+			loc, err := stMciLocator.Create(&params)
 			if err != nil {
 				fatalError("  Failed to associate MCI '%s' with ServerTemplate '%s': %s", mciDef.Href, stHref, err.Error())
 			}
@@ -155,6 +195,7 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript, p
 			}
 		}
 	}
+
 	fmt.Println("  MCIs synced")
 
 	// -----------------

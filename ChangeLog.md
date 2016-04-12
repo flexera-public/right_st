@@ -6,6 +6,9 @@ Unreleased changes
 * Will clean up RightScript metadata on download if it is incorrect
 * Attachments with the same name but belonging to different Rightscript will throw an error
 * Attachment names can now have absolute paths, or relative path components added in
+* Fix [#13] with some trickery. Add a temporary MCI before deleting then adding the new MCI revision.
+
+[#13]: https://github.com/rightscale/right_st/issues/13
 
 v1.0.2 / 2016-04-07
 -------------------
