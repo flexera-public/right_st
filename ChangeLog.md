@@ -2,13 +2,19 @@ Unreleased changes
 -------------------
 * Various fixes: Can specify a directory to download to. Better error messages.
 * Now display script body in RightScript show command.
-* Added --force option to scaffold to rescaffold an existing script
+* Added --force option to scaffold to rescaffold an existing script [#5]
 * Will clean up RightScript metadata on download if it is incorrect
-* Attachments with the same name but belonging to different Rightscript will throw an error
-* Attachment names can now have absolute paths, or relative path components added in
-* Fix [#13] with some trickery. Add a temporary MCI before deleting then adding the new MCI revision.
+* Attachments with the same name but belonging to different Rightscript will
+  throw an error
+* Attachment names can now have absolute paths, or relative path components
+  added in
+* Fix [#13] with some trickery. Add a temporary MCI before deleting then adding
+  the new MCI revision.
+* Fix [#17] fully by only allowing actual host names.
 
+[#5]: https://github.com/rightscale/right_st/issues/5
 [#13]: https://github.com/rightscale/right_st/issues/13
+[#17]: https://github.com/rightscale/right_st/issues/17
 
 v1.0.2 / 2016-04-07
 -------------------
