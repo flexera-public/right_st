@@ -290,11 +290,15 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript, p
 			bindings = append(bindings, &b)
 		}
 	}
-	err = rbLoc.MultiUpdate(bindings)
-	if err != nil {
-		fatalError("  MultiUpdate to set RunnableBinding order failed: %s", err.Error())
+	if len(bindings) > 0 {
+		err = rbLoc.MultiUpdate(bindings)
+		if err != nil {
+			fatalError("  MultiUpdate to set RunnableBinding order failed: %s", err.Error())
+		}
+		fmt.Println("  RightScript order set")
+	} else {
+		fmt.Println("  No RightScripts to order")
 	}
-	fmt.Println("  RightScript order set")
 
 	// -----------------
 	// Set Inputs
