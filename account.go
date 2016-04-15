@@ -23,6 +23,9 @@
 package main
 
 import (
+	"fmt"
+	"net"
+
 	"github.com/rightscale/rsc/cm15"
 	"github.com/rightscale/rsc/cm16"
 	"github.com/rightscale/rsc/rsapi"
@@ -36,18 +39,31 @@ type Account struct {
 	client16     *cm16.API
 }
 
-func (account *Account) Client15() *cm15.API {
+func (account *Account) Client15() (*cm15.API, error) {
+	if err := account.validate(); err != nil {
+		return nil, err
+	}
 	if account.client15 == nil {
 		auth := rsapi.NewOAuthAuthenticator(account.RefreshToken, account.Id)
 		account.client15 = cm15.New(account.Host, auth)
 	}
-	return account.client15
+	return account.client15, nil
 }
 
-func (account *Account) Client16() *cm16.API {
+func (account *Account) Client16() (*cm16.API, error) {
+	if err := account.validate(); err != nil {
+		return nil, err
+	}
 	if account.client16 == nil {
 		auth := rsapi.NewOAuthAuthenticator(account.RefreshToken, account.Id)
 		account.client16 = cm16.New(account.Host, auth)
 	}
-	return account.client16
+	return account.client16, nil
+}
+
+func (account *Account) validate() error {
+	if _, err := net.LookupIP(account.Host); err != nil {
+		return fmt.Errorf("Invalid host name for account (host: %s, id: %d): %s", account.Host, account.Id, err)
+	}
+	return nil
 }

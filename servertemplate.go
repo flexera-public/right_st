@@ -65,8 +65,12 @@ func stUpload(files []string, prefix string) {
 // Options:
 //   -- commit
 func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript, prefix string) error {
+	client, err := Config.Account.Client15()
+	if err != nil {
+		return err
+	}
+
 	// Check if ST with same name (HEAD revisions only) exists. If it does, update the head
-	client := Config.Account.Client15()
 	stName := stDef.Name
 
 	if prefix != "" {
@@ -408,7 +412,10 @@ func doUpload(stDef ServerTemplate, rightScriptsDef map[string][]*RightScript, p
 //   Show a list of previous revisions?
 //   If we're not head, show a link to the head revision/lineage?
 func stShow(href string) {
-	client := Config.Account.Client15()
+	client, err := Config.Account.Client15()
+	if err != nil {
+		fatalError("Could not find ServerTemplate with href %s: %s", href, err.Error())
+	}
 
 	stLocator := client.ServerTemplateLocator(href)
 	st, err := stLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
@@ -487,7 +494,11 @@ func stShow(href string) {
 }
 
 func stDownload(href, downloadTo string) {
-	client := Config.Account.Client15()
+	client, err := Config.Account.Client15()
+	if err != nil {
+		fatalError("Could not find ServerTemplate with href %s: %s", href, err.Error())
+	}
+
 	fmt.Printf("Downloading '%s'\n", href)
 
 	stLocator := client.ServerTemplateLocator(href)
@@ -604,22 +615,23 @@ func stValidate(files []string) {
 // TBD
 //   Handle Cookbooks in some way (error out)
 func validateServerTemplate(file string) (*ServerTemplate, *map[string][]*RightScript, []error) {
-	var errors []error
-
 	f, err := os.Open(file)
 	if err != nil {
-		errors = append(errors, err)
-		return nil, nil, errors
+		return nil, nil, []error{err}
 	}
 	defer f.Close()
 
 	st, err := ParseServerTemplate(f)
 	if err != nil {
-		errors = append(errors, err)
-		return nil, nil, errors
+		return nil, nil, []error{err}
 	}
 
-	client := Config.Account.Client15()
+	client, err := Config.Account.Client15()
+	if err != nil {
+		return nil, nil, []error{err}
+	}
+
+	var errors []error
 
 	//idMatch := regexp.MustCompile(`^\d+$`)
 	// TBD: Let people specify MCIs multiple ways:
@@ -695,7 +707,10 @@ func ParseServerTemplate(ymlData io.Reader) (*ServerTemplate, error) {
 }
 
 func getServerTemplateByName(name string) (*cm15.ServerTemplate, error) {
-	client := Config.Account.Client15()
+	client, err := Config.Account.Client15()
+	if err != nil {
+		return nil, err
+	}
 
 	stLocator := client.ServerTemplateLocator("/api/server_templates")
 	apiParams := rsapi.APIParams{"filter": []string{"name==" + name}}

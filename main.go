@@ -192,7 +192,10 @@ func main() {
 }
 
 func paramToHref(resourceType, param string, revision int) (string, error) {
-	client := Config.Account.Client15()
+	client, err := Config.Account.Client15()
+	if err != nil {
+		return "", err
+	}
 
 	idMatch := regexp.MustCompile(`^\d+$`)
 	hrefMatch := regexp.MustCompile(fmt.Sprintf("^/api/%s/\\d+$", resourceType))

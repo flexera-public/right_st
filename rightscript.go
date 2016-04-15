@@ -28,7 +28,10 @@ type RightScript struct {
 }
 
 func rightScriptShow(href string) {
-	client := Config.Account.Client15()
+	client, err := Config.Account.Client15()
+	if err != nil {
+		fatalError("Could not find rightscript with href %s: %s", href, err.Error())
+	}
 
 	attachmentsHref := fmt.Sprintf("%s/attachments", href)
 	rightscriptLocator := client.RightScriptLocator(href)
@@ -116,7 +119,10 @@ func rightScriptUpload(files []string, force bool, prefix string) {
 }
 
 func rightScriptDownload(href, downloadTo string) {
-	client := Config.Account.Client15()
+	client, err := Config.Account.Client15()
+	if err != nil {
+		fatalError("Could not find RightScript with href %s: %s", href, err.Error())
+	}
 
 	attachmentsHref := fmt.Sprintf("%s/attachments", href)
 	rightscriptLocator := client.RightScriptLocator(href)
@@ -284,7 +290,10 @@ func getSource(loc *cm15.RightScriptLocator) (respBody []byte, err error) {
 	var params rsapi.APIParams
 	var p rsapi.APIParams
 	APIVersion := "1.5"
-	client := Config.Account.Client15()
+	client, err := Config.Account.Client15()
+	if err != nil {
+		return nil, err
+	}
 
 	uri, err := loc.ActionPath("RightScript", "show_source")
 	if err != nil {
@@ -318,7 +327,10 @@ func uploadAttachment(loc *cm15.RightScriptAttachmentLocator,
 	var params rsapi.APIParams
 	var p rsapi.APIParams
 	APIVersion := "1.5"
-	client := Config.Account.Client15()
+	client, err := Config.Account.Client15()
+	if err != nil {
+		return err
+	}
 
 	p_inner := rsapi.APIParams{
 		"content":  file,
@@ -348,7 +360,11 @@ func uploadAttachment(loc *cm15.RightScriptAttachmentLocator,
 }
 
 func rightScriptIdByName(name string) (string, error) {
-	client := Config.Account.Client15()
+	client, err := Config.Account.Client15()
+	if err != nil {
+		return "", err
+	}
+
 	createLocator := client.RightScriptLocator("/api/right_scripts")
 	apiParams := rsapi.APIParams{"filter": []string{"name==" + name}}
 	rightscripts, err := createLocator.Index(apiParams)
@@ -370,7 +386,11 @@ func rightScriptIdByName(name string) (string, error) {
 }
 
 func (r *RightScript) Push(prefix string) error {
-	client := Config.Account.Client15()
+	client, err := Config.Account.Client15()
+	if err != nil {
+		return err
+	}
+
 	createLocator := client.RightScriptLocator("/api/right_scripts")
 	scriptName := r.Metadata.Name
 	if prefix != "" {

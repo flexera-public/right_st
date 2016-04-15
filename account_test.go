@@ -37,18 +37,42 @@ var _ = Describe("Account", func() {
 	}
 
 	It("Gets an API 1.5 client singleton", func() {
-		firstClient := account.Client15()
+		firstClient, err := account.Client15()
+		Expect(err).NotTo(HaveOccurred())
 		Expect(firstClient).NotTo(BeNil())
 
-		secondClient := account.Client15()
+		secondClient, err := account.Client15()
+		Expect(err).NotTo(HaveOccurred())
 		Expect(secondClient).To(BeIdenticalTo(firstClient))
 	})
 
 	It("Gets an API 1.6 client singleton", func() {
-		firstClient := account.Client16()
+		firstClient, err := account.Client16()
+		Expect(err).NotTo(HaveOccurred())
 		Expect(firstClient).NotTo(BeNil())
 
-		secondClient := account.Client16()
+		secondClient, err := account.Client16()
+		Expect(err).NotTo(HaveOccurred())
 		Expect(secondClient).To(BeIdenticalTo(firstClient))
+	})
+
+	Context("With an invalid host", func() {
+		var invalidHostAccount = Account{
+			Id:           54321,
+			Host:         "localhost/api/oauth2",
+			RefreshToken: "def1234567890abcdef1234567890abcdef12345",
+		}
+
+		It("Returns an error for API 1.5", func() {
+			client, err := invalidHostAccount.Client15()
+			Expect(err).To(MatchError(MatchRegexp(`^Invalid host name for account \(host: .+, id: .+\): .+$`)))
+			Expect(client).To(BeNil())
+		})
+
+		It("Returns an error for API 1.6", func() {
+			client, err := invalidHostAccount.Client16()
+			Expect(err).To(MatchError(MatchRegexp(`^Invalid host name for account \(host: .+, id: .+\): .+$`)))
+			Expect(client).To(BeNil())
+		})
 	})
 })
