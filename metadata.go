@@ -28,6 +28,7 @@ var (
 type RightScriptMetadata struct {
 	Name        string   `yaml:"RightScript Name"`
 	Description string   `yaml:"Description,omitempty"`
+	Packages    string   `yaml:"Packages,omitempty"`
 	Inputs      InputMap `yaml:"Inputs"`
 	Attachments []string `yaml:"Attachments"`
 	Comment     string   `yaml:"-"`
