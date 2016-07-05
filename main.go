@@ -42,6 +42,7 @@ var (
 	stDownloadCmd        = stCmd.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
 	stDownloadNameOrHref = stDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
 	stDownloadTo         = stDownloadCmd.Arg("path", "Download location").String()
+	stDownloadPublished  = stDownloadCmd.Flag("published", "Insert links to published RightScripts instead of downloading to disk.").Bool()
 
 	stValidateCmd   = stCmd.Command("validate", "Validate a ServerTemplate YAML document")
 	stValidatePaths = stValidateCmd.Arg("path", "Path to script file(s)").Required().ExistingFiles()
@@ -135,7 +136,7 @@ func main() {
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
-		stDownload(href, *stDownloadTo)
+		stDownload(href, *stDownloadTo, *stDownloadPublished)
 	case stValidateCmd.FullCommand():
 		files, err := walkPaths(*stValidatePaths)
 		if err != nil {

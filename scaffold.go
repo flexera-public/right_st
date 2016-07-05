@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	shebang            = regexp.MustCompile(`^#!.*$`)
+	shebang            = regexp.MustCompile(`(?m)^#!.*$`)
 	separator          = regexp.MustCompile(`[-_]`)
 	rubyVariable       = regexp.MustCompile(`ENV\[["']([A-Z][A-Z0-9_]*)["']\]`)
 	perlVariable       = regexp.MustCompile(`\$ENV\{["']?([A-Z][A-Z0-9_]*)["']?\}`)
