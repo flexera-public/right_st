@@ -52,7 +52,7 @@ imports:
 - name: github.com/onsi/ginkgo
   version: 17ea479729ee427265ac1e913443018350946ddf
 - name: github.com/onsi/gomega
-  version: 8adf9e1730c55cdc590de7d49766cb2acc88d8f2
+  version: 82a02eccf12c018071eef42fbb701c0db6f1e3db
 - name: github.com/rightscale/rsc
   version: aa333207ef456cd1977eef4e8de6ea9baeca3230
   vcs: git

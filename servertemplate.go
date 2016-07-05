@@ -561,7 +561,10 @@ func stDownload(href, downloadTo string, published bool) {
 			if err != nil {
 				fatalError("Could not get RightScript %s: %s\n", rsHref, err.Error())
 			}
-			pub := findPublication("RightScript", rs.Name, rs.Revision, map[string]string{`Description`: rs.Description})
+			pub, err := findPublication("RightScript", rs.Name, rs.Revision, map[string]string{`Description`: rs.Description})
+			if err != nil {
+				fatalError("Error finding publication: %s\n", err.Error())
+			}
 			if pub != nil {
 				fmt.Printf("Not downloading '%s' to disk, using Revision %d, Publisher '%s' from the marketplace\n",
 					rs.Name, rs.Revision, pub.Publisher)
@@ -708,7 +711,10 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 					matchers[`Publisher`] = rs.Publisher
 				}
 
-				pub := findPublication("RightScript", rs.Name, rs.Revision, matchers)
+				pub, err := findPublication("RightScript", rs.Name, rs.Revision, matchers)
+				if err != nil {
+					fatalError("Error finding publication: %s\n", err.Error())
+				}
 				if pub == nil {
 					fatalError("Could not find a publication in library for RightScript '%s' Revision %d Publisher '%s'\n", rs.Name, rs.Revision, rs.Publisher)
 				}

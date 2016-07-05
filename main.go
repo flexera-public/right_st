@@ -11,12 +11,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/alecthomas/kingpin"
 	"github.com/mattn/go-colorable"
+	"github.com/rightscale/rsc/cm15"
 	"github.com/rightscale/rsc/httpclient"
 	"github.com/rightscale/rsc/log"
 	"github.com/rightscale/rsc/rsapi"
@@ -330,4 +332,64 @@ func isDirectory(path string) bool {
 		return false
 	}
 	return fileInfo.IsDir()
+}
+
+// Finds a publication in the MultiCloud Marketplace.
+// Params:
+//   kind: one of RightScript, MultiCloudImage, ServerTemplate
+//   name: name of publication to search for
+//   revision: revision of the publication to search for
+//   matchers: Hash of string (field name) -> string (match value). additional matching criteria in case there are
+//     multiple publications with the same name and revision. Usually `Publisher` is used as a tie breaker.
+// Returns:
+//   Publication if found. nil if not found. errors fatally if multiple publications are found.
+func findPublication(kind string, name string, revision int, matchers map[string]string) (*cm15.Publication, error) {
+	client, err := Config.Account.Client15()
+
+	pubLocator := client.PublicationLocator("/api/publications")
+	filters := []string{
+		"name==" + name,
+		"revision==" + fmt.Sprintf("%d", revision),
+	}
+	if *debug {
+		fmt.Printf("DEBUG: looking for publication with KIND:%s NAME:%s REVISION:%d MATCHERS:%v\n", kind, name, revision, matchers)
+	}
+	pubsUnfiltered, err := pubLocator.Index(rsapi.APIParams{"filter": filters})
+	if err != nil {
+		fatalError("Call to /api/publications failed: %s", err.Error())
+	}
+	var pubs []*cm15.Publication
+	for _, pub := range pubsUnfiltered {
+		// Recheck the name here, filter does a partial match and we need an exact one.
+		// Also make sure the type is correct
+		if pub.Name == name && kind == pub.ContentType {
+			// We may provide additional matchers to break ties, i.e. the Description/Publisher field. In any are supplied
+			// we make sure they all match.
+			matched_all_matchers := true
+			for fieldName, value := range matchers {
+				v := reflect.Indirect(reflect.ValueOf(pub)).FieldByName(fieldName)
+				if v.IsValid() {
+					if v.String() != value {
+						matched_all_matchers = false
+					}
+				}
+			}
+			if matched_all_matchers {
+				pubs = append(pubs, pub)
+			}
+		}
+	}
+
+	if len(pubs) == 0 {
+		return nil, nil
+	} else if len(pubs) == 2 {
+		fmt.Printf("Too many %s publications matching %s with revision %d\n", kind, name, revision)
+		for _, pub := range pubs {
+			pubHref := getLink(pub.Links, "self")
+			fmt.Printf("  Publisher:%s Revision:%d Href:%s\n", pub.Publisher, pub.Revision, pubHref)
+		}
+		return nil, fmt.Errorf("Too many publications")
+	} else {
+		return pubs[0], nil
+	}
 }

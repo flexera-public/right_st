@@ -8,7 +8,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -408,7 +407,7 @@ func rightScriptIdByName(name string) (string, error) {
 	}
 	foundId := ""
 	for _, rs := range rightscripts {
-		// Recheck the name here, filter does a impartial match and we need an exact one
+		// Recheck the name here, filter does a partial match and we need an exact one
 		if rs.Name == name && rs.Revision == 0 {
 			if foundId != "" {
 				return "", fmt.Errorf("Error, matched multiple RightScripts with the same name, please delete one: %s %s", rs.Id, foundId)
@@ -438,15 +437,17 @@ func (r *RightScript) PushRemote() error {
 	//   2. If we don't find it, throw an error
 	//   3. Get the imported RightScript. If it doesn't exist, import it then get the href
 	//   4. Insert HREF into r struct for later use.
-
 	matchers := map[string]string{}
 	if r.Publisher != "" {
 		matchers[`Publisher`] = r.Publisher
 	}
 
-	pub := findPublication("RightScript", r.Name, r.Revision, matchers)
+	pub, err := findPublication("RightScript", r.Name, r.Revision, matchers)
+	if err != nil {
+		return err
+	}
 	if pub == nil {
-		fatalError("Could not find a publication in library for RightScript '%s' Revision %d Publisher '%s'\n", r.Name, r.Revision, r.Publisher)
+		return fmt.Errorf("Could not find a publication in library for RightScript '%s' Revision %d Publisher '%s'\n", r.Name, r.Revision, r.Publisher)
 	}
 
 	rsLocator := client.RightScriptLocator("/api/right_scripts")
@@ -459,7 +460,7 @@ func (r *RightScript) PushRemote() error {
 		return err
 	}
 	for _, rs := range rsUnfiltered {
-		// Recheck the name here, filter does a impartial match and we need an exact one.
+		// Recheck the name here, filter does a partial match and we need an exact one.
 		// Matching the descriptions helps to disambiguate if we have multiple publications
 		// with that same name/revision pair.
 		if rs.Name == r.Name && rs.Revision == r.Revision && rs.Description == pub.Description {
@@ -482,7 +483,7 @@ func (r *RightScript) PushRemote() error {
 			return err
 		}
 		for _, rs := range rsUnfiltered {
-			// Recheck the name here, filter does a impartial match and we need an exact one.
+			// Recheck the name here, filter does a partial match and we need an exact one.
 			// Matching the descriptions helps to disambiguate if we have multiple publications
 			// with that same name/revision pair.
 			if rs.Name == r.Name && rs.Description == pub.Description {
@@ -740,60 +741,4 @@ func (rs *RightScript) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	return nil
-}
-
-// kind is one of RightScript, MultiCloudImage, ServerTemplate
-// name and revision are required and will match exactly from
-// matchers is an additional set of matchers incase there's multiple publications
-//   with the same name and revision. Usually Description is a good tie breaker.
-func findPublication(kind string, name string, revision int, matchers map[string]string) *cm15.Publication {
-	client, err := Config.Account.Client15()
-
-	pubLocator := client.PublicationLocator("/api/publications")
-	filters := []string{
-		"name==" + name,
-		"revision==" + fmt.Sprintf("%d", revision),
-	}
-	if *debug {
-		fmt.Printf("DEBUG: looking for publication with KIND:%s NAME:%s REVISION:%d MATCHERS:%v\n", kind, name, revision, matchers)
-	}
-	pubsUnfiltered, err := pubLocator.Index(rsapi.APIParams{"filter": filters})
-	if err != nil {
-		fatalError("Call to /api/publications failed: %s", err.Error())
-	}
-	var pubs []*cm15.Publication
-	for _, pub := range pubsUnfiltered {
-		// Recheck the name here, filter does a impartial match and we need an exact one.
-		// Also make sure the type is correct
-		if pub.Name == name && kind == pub.ContentType {
-			// We may provide additional matchers to break ties, i.e. the Description/Publisher field. In any are supplied
-			// we make sure they all match.
-			matched_all_matchers := true
-			for fieldName, value := range matchers {
-				v := reflect.Indirect(reflect.ValueOf(pub)).FieldByName(fieldName)
-				if v.IsValid() {
-					if v.String() != value {
-						matched_all_matchers = false
-					}
-				}
-			}
-			if matched_all_matchers {
-				pubs = append(pubs, pub)
-			}
-		}
-	}
-
-	if len(pubs) == 0 {
-		return nil
-	} else if len(pubs) == 2 {
-		fmt.Printf("Too many %s publications matching %s with revision %d\n", kind, name, revision)
-		for _, pub := range pubs {
-			pubHref := getLink(pub.Links, "self")
-			fmt.Printf("  Publisher:%s Revision:%d Href:%s\n", pub.Publisher, pub.Revision, pubHref)
-		}
-		fatalError("Too many publications")
-		return nil
-	} else {
-		return pubs[0]
-	}
 }
