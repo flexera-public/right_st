@@ -119,7 +119,7 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | ----- | ------ | ----------- |
 | Name | String | Name of the ServerTemplate. Name must be unique for your account. |
 | Description | String | Description field for the ServerTemplate. |
-| RightScripts | Hash of String -> Array| The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of strings, where each string is a relative pathname to a RightScript on disk. |
+| RightScripts | Hash of String -> Array of RightScripts| The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of RightScripts. Each RightScript can be specified in one of two ways, as a locally managed RightScript and a "published" or "external" RightScript. A locally managed RightScript is specified as a pathname to a file on disk. Published RightScripts are links to RightScripts shared in the MultiCloud marketplace and consist of a hash specifying a Name/Revision/Publisher to look up.|
 | Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overridden in a ServerTemplate. |
 | MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash specifying a MCI. MCIs can be specified two different ways depending on Hash keys supplied: 1. 'Href' 2. 'Name' and 'Revision'. See example below. |
 | Alerts | Array of Alerts | An array of Alert definitions, defined below. |
@@ -132,7 +132,7 @@ An Alert definition consists of three fields: a Name, Definition, and Clause (al
 * Duration is minutes and must be an integer greater than 0.
 * Action is either "escalate" in which case the ActionValue is the name of the escalation. Or Action is "grow" or "shrink" in which case ActionValue is the custom tag value to use as the voting tag.
 
-Here is an example ServerTemplate yaml file:
+Here is an example ServerTemplate yaml file.
 ```yaml
 Name: My ServerTemplate
 Description: This is an example Description
@@ -141,6 +141,9 @@ Inputs:
   SECOND_INPUT: "env:RS_UUID"
 RightScripts:
   Boot:
+  - Name: RL10 Linux Setup Hostname
+    Revision: 6
+    Publisher: RightScale
   - path/to/script1.sh
   - path/to/script2.sh
   Operational:
@@ -176,6 +179,10 @@ right_st st upload <path>...
 
 right_st st download <name|href|id> [<path>]
   Download a ServerTemplate and all associated RightScripts/Attachments to disk
+  Flags:
+    -p, --published: When downloading RightScripts, first check if it's published in
+                     the MultiCloud marketplace and insert a link to the published
+                     script if so.
 
 right_st st validate <path>...
   Validate a ServerTemplate YAML document

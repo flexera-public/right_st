@@ -1,3 +1,9 @@
+v1.2.0 / 2016-06-05
+-------------------
+* Add ability to use "published" aka "external" RightScripts. These are
+  RightScripts published in the MultiCloud Marketplace. These are linked to
+  instead of downloaded to disk ([#16])
+
 v1.1.0 / 2016-04-15
 -------------------
 * Various fixes: Can specify a directory to download to. Better error messages.

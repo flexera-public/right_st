@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/rightscale/rsc/cm15"
@@ -21,10 +22,25 @@ type Iterable struct {
 	Revision int                 `json:"revision,omitempty"`
 }
 
+// RightScripts as saved in the YAML on disk come in two varieties:
+// Type == local. This means that the source code of the RightScript is managed
+//   locally on disk. Path will be populated with the location of the file
+// Type == remote. This means that the source code lives in RightScale and is
+//   merely linked here. A few different combinations are possible then:
+//   (Name, Revision) or (Href)
+const (
+	LocalRightScript int = iota
+	PublishedRightScript
+)
+
 type RightScript struct {
-	Href     string
-	Path     string
-	Metadata RightScriptMetadata
+	Type      int // LocalRightScript or PublishedRightScript
+	Href      string
+	Path      string // Needed for local case
+	Name      string // Needed for remote case
+	Revision  int    // Needed for remote case
+	Publisher string // Needed for remote case
+	Metadata  RightScriptMetadata
 }
 
 func rightScriptShow(href string) {
@@ -118,7 +134,22 @@ func rightScriptUpload(files []string, force bool, prefix string) {
 	}
 }
 
-func rightScriptDownload(href, downloadTo string) {
+// This can be improved to look for bash'isms for older style scripts, powershellisms, etc.
+func guessExtension(source string) string {
+	if matches := shebang.FindStringSubmatch(source); len(matches) > 0 {
+		if strings.Contains(matches[0], "ruby") {
+			return ".rb"
+		} else if strings.Contains(matches[0], "perl") {
+			return ".pl"
+		} else if strings.Contains(matches[0], "sh") { // bash + sh
+			return ".sh"
+		}
+	}
+
+	return ""
+}
+
+func rightScriptDownload(href, downloadTo string) string {
 	client, err := Config.Account.Client15()
 	if err != nil {
 		fatalError("Could not find RightScript with href %s: %s", href, err.Error())
@@ -146,10 +177,12 @@ func rightScriptDownload(href, downloadTo string) {
 		fatalError("Could get attachments for RightScript from href %s: %s", attachmentsHref, err.Error())
 	}
 
+	guessedExtension := guessExtension(string(source))
+
 	if downloadTo == "" {
-		downloadTo = cleanFileName(rightscript.Name)
+		downloadTo = cleanFileName(rightscript.Name) + guessedExtension
 	} else if isDirectory(downloadTo) {
-		downloadTo = filepath.Join(downloadTo, cleanFileName(rightscript.Name))
+		downloadTo = filepath.Join(downloadTo, cleanFileName(rightscript.Name)+guessedExtension)
 	}
 	fmt.Printf("Downloading '%s' to '%s'\n", rightscript.Name, downloadTo)
 
@@ -219,6 +252,7 @@ func rightScriptDownload(href, downloadTo string) {
 		}
 	}
 
+	return downloadTo
 }
 
 // Convert a JSON response to InputMetadata struct
@@ -373,7 +407,7 @@ func rightScriptIdByName(name string) (string, error) {
 	}
 	foundId := ""
 	for _, rs := range rightscripts {
-		// Recheck the name here, filter does a impartial match and we need an exact one
+		// Recheck the name here, filter does a partial match and we need an exact one
 		if rs.Name == name && rs.Revision == 0 {
 			if foundId != "" {
 				return "", fmt.Errorf("Error, matched multiple RightScripts with the same name, please delete one: %s %s", rs.Id, foundId)
@@ -386,6 +420,85 @@ func rightScriptIdByName(name string) (string, error) {
 }
 
 func (r *RightScript) Push(prefix string) error {
+	if r.Type == PublishedRightScript {
+		return r.PushRemote()
+	} else {
+		return r.PushLocal(prefix)
+	}
+}
+
+func (r *RightScript) PushRemote() error {
+	client, err := Config.Account.Client15()
+	if err != nil {
+		return err
+	}
+	// Algorithm:
+	//   1. Find the RightScript in publications first. Get the name/description/publisher
+	//   2. If we don't find it, throw an error
+	//   3. Get the imported RightScript. If it doesn't exist, import it then get the href
+	//   4. Insert HREF into r struct for later use.
+	matchers := map[string]string{}
+	if r.Publisher != "" {
+		matchers[`Publisher`] = r.Publisher
+	}
+
+	pub, err := findPublication("RightScript", r.Name, r.Revision, matchers)
+	if err != nil {
+		return err
+	}
+	if pub == nil {
+		return fmt.Errorf("Could not find a publication in library for RightScript '%s' Revision %d Publisher '%s'\n", r.Name, r.Revision, r.Publisher)
+	}
+
+	rsLocator := client.RightScriptLocator("/api/right_scripts")
+	filters := []string{
+		"name==" + r.Name,
+	}
+
+	rsUnfiltered, err := rsLocator.Index(rsapi.APIParams{"filter": filters})
+	if err != nil {
+		return err
+	}
+	for _, rs := range rsUnfiltered {
+		// Recheck the name here, filter does a partial match and we need an exact one.
+		// Matching the descriptions helps to disambiguate if we have multiple publications
+		// with that same name/revision pair.
+		if rs.Name == r.Name && rs.Revision == r.Revision && rs.Description == pub.Description {
+			r.Href = getLink(rs.Links, "self")
+		}
+	}
+
+	if r.Href == "" {
+		loc := pub.Locator(client)
+
+		err = loc.Import()
+
+		if err != nil {
+			return fmt.Errorf("Failed to import publication %s for RightScript '%s' Revision %d Publisher %s\n",
+				getLink(pub.Links, "self"), r.Name, r.Revision, r.Publisher)
+		}
+
+		rsUnfiltered, err := rsLocator.Index(rsapi.APIParams{"filter": filters})
+		if err != nil {
+			return err
+		}
+		for _, rs := range rsUnfiltered {
+			// Recheck the name here, filter does a partial match and we need an exact one.
+			// Matching the descriptions helps to disambiguate if we have multiple publications
+			// with that same name/revision pair.
+			if rs.Name == r.Name && rs.Description == pub.Description {
+				r.Href = getLink(rs.Links, "self")
+			}
+		}
+		if r.Href == "" {
+			return fmt.Errorf("Could not refind RightScript '%s' Revision %d after import!", r.Name, r.Revision)
+		}
+	}
+
+	return nil
+}
+
+func (r *RightScript) PushLocal(prefix string) error {
 	client, err := Config.Account.Client15()
 	if err != nil {
 		return err
@@ -407,6 +520,7 @@ func (r *RightScript) Push(prefix string) error {
 	}
 
 	var rightscriptLocator *cm15.RightScriptLocator
+
 	if foundId == "" {
 		fmt.Printf("  Creating a new RightScript named '%s' from %s\n", scriptName, r.Path)
 		// New one, perform create call
@@ -533,7 +647,14 @@ func validateRightScript(file string, ignoreMissingMetadata bool) (*RightScript,
 			return nil, fmt.Errorf("No embedded metadata for %s. Use --force to upload anyways.", file)
 		}
 	}
-	rightScript := RightScript{"", file, *metadata}
+
+	rightScript := RightScript{
+		Type:     LocalRightScript,
+		Href:     "",
+		Path:     file,
+		Name:     metadata.Name,
+		Metadata: *metadata,
+	}
 
 	if *debug {
 		pretty.Println(metadata)
@@ -571,4 +692,53 @@ func validateRightScript(file string, ignoreMissingMetadata bool) (*RightScript,
 	}
 
 	return &rightScript, nil
+}
+
+func (rs RightScript) MarshalYAML() (interface{}, error) {
+	if rs.Type == LocalRightScript {
+		return rs.Path, nil
+	} else {
+		destMap := make(map[string]interface{})
+		destMap["Name"] = rs.Name
+		destMap["Revision"] = rs.Revision
+		destMap["Publisher"] = rs.Publisher
+		return destMap, nil
+	}
+}
+
+func (rs *RightScript) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var pathType string
+	var mapType map[string]string
+	errorMsg := "Could not unmarshal RightScript. Must be either a path to file on disk or a hash with a Name/Revision keys"
+	err := unmarshal(&pathType)
+	if err == nil {
+		rs.Type = LocalRightScript
+		rs.Path = pathType
+	} else {
+		err = unmarshal(&mapType)
+		if err != nil {
+			return fmt.Errorf(errorMsg)
+		}
+		name, ok := mapType["Name"]
+		if !ok {
+			return fmt.Errorf(errorMsg)
+		}
+		rs.Name = name
+		publisher, ok := mapType["Publisher"]
+		if ok {
+			rs.Publisher = publisher
+		}
+		revStr, ok := mapType["Revision"]
+		if !ok {
+			return fmt.Errorf(errorMsg)
+		}
+		rev, err := strconv.Atoi(revStr)
+		if err != nil {
+			return fmt.Errorf("Revision must be an integer")
+		}
+		rs.Type = PublishedRightScript
+		rs.Revision = rev
+	}
+
+	return nil
 }

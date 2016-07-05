@@ -226,7 +226,7 @@ func (i *InputValue) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-// The Marshal/Unmarshal for InputMap bear some explanation. So we have a simple hash/map defined as InputMap in the
+// The Marshal/Unmarshal for InputMap bears some explanation. So we have a simple hash/map defined as InputMap in the
 // publicly facing Input Definition. Hash/maps in golang however aren't ordered. Luckily yaml.v2 for golang has an
 // ordered Hash called MapSlice, which is an array of MapItems which have a Key and Value field. So we turn our internal
 // array into this MapSlice when Marshalling to get something that looks like a hash but is ordered. When Unmarshalling,

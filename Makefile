@@ -38,7 +38,7 @@ ACL=public-read
 GOPKG_VERS=v1
 # Dependencies handled by go+glide. Requires 1.5+
 export GO15VENDOREXPERIMENT=1
-GLIDE_VERSION?=0.8.3
+GLIDE_VERSION?=v0.11.0
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
 GLIDE_TGZ=glide-$(GLIDE_VERSION)-$(GOOS)-$(GOARCH).tar.gz
@@ -152,7 +152,7 @@ bin/$(GLIDE_EXEC):
 
 # Handled natively in GO now for 1.5! Use glide to manage!
 depend: bin/$(GLIDE_EXEC)
-	./bin/$(GLIDE_EXEC) --quiet install --quick
+	./bin/$(GLIDE_EXEC) --quiet install --cache
 	for d in $(INSTALL_DEPEND); do (cd vendor/$$d && go install); done
 
 clean:
