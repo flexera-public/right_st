@@ -121,7 +121,7 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | Description | String | Description field for the ServerTemplate. |
 | RightScripts | Hash of String -> Array of RightScripts| The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of RightScripts. Each RightScript can be specified in one of two ways, as a locally managed RightScript and a "published" or "external" RightScript. A locally managed RightScript is specified as a pathname to a file on disk. Published RightScripts are links to RightScripts shared in the MultiCloud marketplace and consist of a hash specifying a Name/Revision/Publisher to look up.|
 | Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overridden in a ServerTemplate. |
-| MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash specifying a MCI. MCIs can be specified two different ways depending on Hash keys supplied: 1. 'Href' 2. 'Name' and 'Revision'. See example below. |
+| MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash specifying a MCI. MCIs can be specified three different ways depending on Hash keys supplied: 1. 'Href' 2. 'Name' and 'Revision'. 3. 'Name' and 'Revision' and 'Publisher'. If a publisher is supplied, will auto-import that MCI from the MultiCloud Marketplace.See example below. |
 | Alerts | Array of Alerts | An array of Alert definitions, defined below. |
 
 An Alert definition consists of three fields: a Name, Definition, and Clause (all strings). Clause is a text description of the Alert with this exact format: `If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Action> <ActionValue>`.
@@ -153,6 +153,9 @@ RightScripts:
 MultiCloudImages:
 - Name: Ubuntu_14.04_x64
   Revision: 20
+- Name: Ubuntu_12.04_x64
+  Revision: 18
+  Publisher: RightScale
 - Href: /api/multi_cloud_images/403042003
 Alerts:
 - Name: CPU Scale Down

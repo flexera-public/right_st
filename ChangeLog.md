@@ -1,3 +1,8 @@
+unreleased changes
+-------------------
+* Support for "published" or "external" MCIs. right_st will attempt to check for
+  and use MultiCloudImages from the MultiCloud Marketplace if they exist.
+
 v1.2.0 / 2016-06-05
 -------------------
 * Add ability to use "published" aka "external" RightScripts. These are

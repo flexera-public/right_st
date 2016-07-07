@@ -35,6 +35,9 @@ MultiCloudImages:
   - Href: /api/multi_cloud_images/403042003
   - Name: FooImage
     Revision: 100
+  - Name: FooCorpImage
+    Revision: 100
+    Publisher: FooCorp
 `)
 			It("should parse correctly", func() {
 				dummy1List := []*RightScript{
@@ -56,6 +59,7 @@ MultiCloudImages:
 				Expect(st.MultiCloudImages).To(Equal([]*MultiCloudImage{
 					&MultiCloudImage{Href: "/api/multi_cloud_images/403042003"},
 					&MultiCloudImage{Name: "FooImage", Revision: 100},
+					&MultiCloudImage{Name: "FooCorpImage", Revision: 100, Publisher: "FooCorp"},
 				}))
 			})
 		})

@@ -347,6 +347,11 @@ func findPublication(kind string, name string, revision int, matchers map[string
 	client, err := Config.Account.Client15()
 
 	pubLocator := client.PublicationLocator("/api/publications")
+
+	if name == "" {
+		return nil, fmt.Errorf("No Name given when looking up %s publication", kind)
+	}
+
 	filters := []string{
 		"name==" + name,
 		"revision==" + fmt.Sprintf("%d", revision),
@@ -356,7 +361,7 @@ func findPublication(kind string, name string, revision int, matchers map[string
 	}
 	pubsUnfiltered, err := pubLocator.Index(rsapi.APIParams{"filter": filters})
 	if err != nil {
-		fatalError("Call to /api/publications failed: %s", err.Error())
+		return nil, fmt.Errorf("Call to /api/publications failed: %s", err.Error())
 	}
 	var pubs []*cm15.Publication
 	for _, pub := range pubsUnfiltered {

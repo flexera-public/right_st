@@ -15,9 +15,12 @@ import (
 )
 
 type MultiCloudImage struct {
-	Href     string `yaml:"Href,omitempty"`
-	Name     string `yaml:"Name,omitempty"`
-	Revision int    `yaml:"Revision,omitempty"`
+	Href      string `yaml:"Href,omitempty"`
+	Name      string `yaml:"Name,omitempty"`
+	Revision  int    `yaml:"Revision,omitempty"`
+	Publisher string `yaml:"Publisher,omitempty"`
+	// Pairing of cloud name -> resource uid pairings
+	Clouds map[string]string `yaml:"Clouds,omitempty"`
 }
 
 type ServerTemplate struct {
@@ -117,8 +120,70 @@ func doServerTemplateUpload(stDef ServerTemplate, prefix string) error {
 	if err != nil {
 		fatalError("Could not find MCIs with href %s: %s", stMciLocator.Href, err.Error())
 	}
+
+	// Algorithm for linking Publications:
+	//   1. For MultiCloudImages with a publication, find the publications first. Get the name/description/publisher
+	//   2. If we don't find it, throw an error
+	//   3. Get the imported MultiCloudImages. If it doesn't exist, import it then get the href
+	//   4. Insert HREF into r struct for later use.
+	for _, mciDef := range stDef.MultiCloudImages {
+		if mciDef.Publisher != "" {
+			pub, err := findPublication("MultiCloudImage", mciDef.Name, mciDef.Revision,
+				map[string]string{`Publisher`: mciDef.Publisher})
+			if err != nil {
+				fatalError("Could not lookup publication %s", err.Error())
+			}
+			if pub == nil {
+				fatalError("Could not find a publication in the MultiCloud Marketplace for MultiCloudImage '%s' Revision %d Publisher '%s'",
+					mciDef.Name, mciDef.Revision, mciDef.Publisher)
+			}
+
+			mciLocator := client.MultiCloudImageLocator("/api/multi_cloud_images")
+			filters := []string{
+				"name==" + mciDef.Name,
+			}
+
+			mciUnfiltered, err := mciLocator.Index(rsapi.APIParams{"filter": filters})
+			if err != nil {
+				fatalError("Error looking up MCI: %s", err.Error())
+			}
+			for _, mci := range mciUnfiltered {
+				// Recheck the name here, filter does a partial match and we need an exact one.
+				// Matching the descriptions helps to disambiguate if we have multiple publications
+				// with that same name/revision pair.
+				if mci.Name == mciDef.Name && mci.Revision == mciDef.Revision && mci.Description == pub.Description {
+					mciDef.Href = getLink(mci.Links, "self")
+				}
+			}
+
+			if mciDef.Href == "" {
+				loc := pub.Locator(client)
+
+				err = loc.Import()
+
+				if err != nil {
+					return fmt.Errorf("Failed to import publication %s for MultiCloudImage '%s' Revision %d Publisher %s\n",
+						getLink(pub.Links, "self"), mciDef.Name, mciDef.Revision, mciDef.Publisher)
+				}
+
+				mciUnfiltered, err := mciLocator.Index(rsapi.APIParams{"filter": filters})
+				if err != nil {
+					fatalError("Error looking up MCI: %s", err.Error())
+				}
+				for _, mci := range mciUnfiltered {
+					if mci.Name == mciDef.Name && mci.Revision == mciDef.Revision && mci.Description == pub.Description {
+						mciDef.Href = getLink(mci.Links, "self")
+					}
+				}
+				if mciDef.Href == "" {
+					return fmt.Errorf("Could not refind MultiCloudImage '%s' Revision %d after import!", mciDef.Name, mciDef.Revision)
+				}
+			}
+		}
+	}
+
 	// Delete MCIs that exist on the existing ST but not in this definition. We perform all the deletions first so
-	// we don't have to worry about readding the same MCI with a different revision and throwing an error later
+	// we don't have to worry about reading the same MCI with a different revision and throwing an error later
 	// firstValidMci is an MCI we know for sure we're not going to default. We can't delete an MCI marked default so
 	// make the firstValidMci the default in that case then proceed with the delete.
 	var firstValidMci *cm15.ServerTemplateMultiCloudImageLocator
@@ -524,6 +589,20 @@ func stDownload(href, downloadTo string, published bool) {
 	mciImages := make([]*MultiCloudImage, len(mcis))
 	for i, mci := range mcis {
 		mciImages[i] = &MultiCloudImage{Name: mci.Name, Revision: mci.Revision}
+		// We repull the MCI here to get the description field, which we need to break ties between
+		// similarly named publications!
+		mciLoc := client.MultiCloudImageLocator(getLink(mci.Links, "self"))
+		mci, err := mciLoc.Show()
+		if err != nil {
+			fatalError("Could not get MultiCloudImage %s: %s\n", getLink(mci.Links, "self"), err.Error())
+		}
+		pub, err := findPublication("MultiCloudImage", mci.Name, mci.Revision, map[string]string{`Description`: mci.Description})
+		if err != nil {
+			fatalError("Error finding publication: %s\n", err.Error())
+		}
+		if pub != nil {
+			mciImages[i].Publisher = pub.Publisher
+		}
 	}
 
 	//-------------------------------------
@@ -642,6 +721,7 @@ func stValidate(files []string) {
 	for _, file := range files {
 		_, errors := validateServerTemplate(file)
 		if len(errors) != 0 {
+			fmt.Println("Encountered the following errors with the ServerTemplate:")
 			err_encountered = true
 			for _, err := range errors {
 				fmt.Fprintf(os.Stderr, "%s: %s\n", file, err.Error())
@@ -676,11 +756,14 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 
 	var errors []error
 
-	//idMatch := regexp.MustCompile(`^\d+$`)
+	//-------------------------------------
+	// MultiCloudImages
+	//-------------------------------------
 	// TBD: Let people specify MCIs multiple ways:
 	//   1. Href
-	//   2. Name/revision pair (preferred - at least somewhat portable)
-	//   3. Set of Images + Tags to support autocreation/management of MCIs (TBD)
+	//   2. Name/Revision pair (preferred - at least somewhat portable)
+	//   3. Name/Revision/Publisher triplet (preferred -- more portable)
+	//   4. Set of Images + Tags to support autocreation/management of MCIs (TBD, most portable)
 	for _, mciDef := range st.MultiCloudImages {
 		if mciDef.Href != "" {
 			loc := client.MultiCloudImageLocator(mciDef.Href)
@@ -690,11 +773,21 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 			}
 			mciDef.Name = mci.Name
 			mciDef.Revision = mci.Revision
+		} else if mciDef.Publisher != "" {
+			pub, err := findPublication("MultiCloudImage", mciDef.Name, mciDef.Revision,
+				map[string]string{`Publisher`: mciDef.Publisher})
+			if err != nil {
+				errors = append(errors, fmt.Errorf("Error finding publication for MultiCloudImage: %s\n", err.Error()))
+			}
+			if pub == nil {
+				errors = append(errors, fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for MultiCloudImage '%s' Revision %d Publisher '%s'",
+					mciDef.Name, mciDef.Revision, mciDef.Publisher))
+			}
 		} else if mciDef.Name != "" {
 			href, err := paramToHref("multi_cloud_images", mciDef.Name, mciDef.Revision)
 			if err != nil {
-				// TBD fallback: If revision != 0, look for this combo in publications and try that!
-				errors = append(errors, fmt.Errorf("Could not find MCI named '%s' with revision %d in account", mciDef.Name, mciDef.Revision))
+				errors = append(errors, fmt.Errorf("Could not find MCI named '%s' with revision %d in account",
+					mciDef.Name, mciDef.Revision))
 			}
 			mciDef.Href = href
 		} else {
@@ -703,6 +796,9 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 		}
 	}
 
+	//-------------------------------------
+	// RightScripts
+	//-------------------------------------
 	for sequence, scripts := range st.RightScripts {
 		for i, rs := range scripts {
 			if rs.Type == PublishedRightScript {
@@ -713,13 +809,15 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 
 				pub, err := findPublication("RightScript", rs.Name, rs.Revision, matchers)
 				if err != nil {
-					fatalError("Error finding publication: %s\n", err.Error())
+					errors = append(errors, fmt.Errorf("Error finding publication for RightScript: %s\n", err.Error()))
 				}
 				if pub == nil {
-					fatalError("Could not find a publication in library for RightScript '%s' Revision %d Publisher '%s'\n", rs.Name, rs.Revision, rs.Publisher)
+					errors = append(errors, fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for RightScript '%s' Revision %d Publisher '%s'",
+						rs.Name, rs.Revision, rs.Publisher))
+				} else {
+					rs.Metadata.Description = pub.Description
 				}
 				rs.Metadata.Name = rs.Name
-				rs.Metadata.Description = pub.Description
 			} else if rs.Type == LocalRightScript {
 				rsNew, err := validateRightScript(filepath.Join(filepath.Dir(file), rs.Path), false)
 				if err != nil {
@@ -731,6 +829,9 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 		}
 	}
 
+	//-------------------------------------
+	// Alerts
+	//-------------------------------------
 	for i, alert := range st.Alerts {
 		if alert.Name == "" {
 			alertError := fmt.Errorf("Alert %d error: Name field must be present", i)
