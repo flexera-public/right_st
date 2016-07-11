@@ -58,6 +58,7 @@ Input definition format is as follows:
 
 Example RightScript is as follows. This RightScript has one attachment, which must be located at "attachments/foo" relative
 to the script.
+
 ```bash
 #! /bin/bash -e
 
@@ -82,7 +83,7 @@ cp -f $RS_ATTACH_DIR/foo /usr/local/bin/foo
 chmod a+x /usr/local/bin/foo
 foo $FOO_PARAM
 ```
- 
+
 ### RightScript Usage
 The following RightScript related commands are supported:
 
@@ -121,10 +122,25 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | Description | String | Description field for the ServerTemplate. |
 | RightScripts | Hash of String -> Array of RightScripts| The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of RightScripts. Each RightScript can be specified in one of two ways, as a locally managed RightScript and a "published" or "external" RightScript. A locally managed RightScript is specified as a pathname to a file on disk. Published RightScripts are links to RightScripts shared in the MultiCloud marketplace and consist of a hash specifying a Name/Revision/Publisher to look up.|
 | Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overridden in a ServerTemplate. |
-| MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash specifying a MCI. MCIs can be specified three different ways depending on Hash keys supplied: 1. 'Href' 2. 'Name' and 'Revision'. 3. 'Name' and 'Revision' and 'Publisher'. If a publisher is supplied, will auto-import that MCI from the MultiCloud Marketplace.See example below. |
+| MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash of fields taking a few different formats.See section below for further details. |
 | Alerts | Array of Alerts | An array of Alert definitions, defined below. |
 
-An Alert definition consists of three fields: a Name, Definition, and Clause (all strings). Clause is a text description of the Alert with this exact format: `If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Action> <ActionValue>`.
+A MultiCloudImage definition allows you to specify an MCI four different ways by supplying different hash keys. The first three combinations specified below allow you to use pre-existing MCIs. The fourth one allows you to fully manage an MCI in your local account:
+
+1. 'Name' and 'Revision' and 'Publisher': Name/Revision/Publisher of MCI available in the MultiCloud Marketplace. The MCI will be automatically imported into the account if it's not already there. Preferred.
+2. 'Name' and 'Revision'.: Name/Revision of MCI in your local account. It will not attempt to be autoimported from the MultiCloud Marketplace.
+3. 'Href': Href of the MCI in the account being uploaded. This is a fallback in case 1 or 2 doesn't work.
+4. Fully specified. The following keys are supported:
+    * 'Name' - String - Name of the MCI
+    * 'Tags' - Array of Strings - Representing tags on the MCI. Typically 'rs_agent:type=right_link_lite' will be required.
+    * 'Description' - String - Optional description for the MCI
+    * 'Settings' - Array of Settings - A setting represents the following API resource: [MultiCloudImageSettings](http://reference.rightscale.com/api1.5/resources/ResourceMultiCloudImageSettings.html). Each Setting must have the following keys:
+        * `Cloud` - String - Name of cloud
+        * `Image` - String - resource_uid of image
+        * `Instance Type` - String - Name of instance type.
+
+An Alert definition consists of three fields: a Name, Definition, and Clause (all strings). Clause is a text description of the Alert with this exact format: `If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Action> <ActionValue>`:
+
 * Metric is a collectd metric name such as `cpu-0/cpu-idle`. 
 * ValueType is the metric type (`value`, `count`, etc - allowable values differ for each metric so look in the dashboard!). 
 * ComparisonOperator is `>`, `>=`, `<`, `<=`, `==`, or `!=`
@@ -133,6 +149,7 @@ An Alert definition consists of three fields: a Name, Definition, and Clause (al
 * Action is either "escalate" in which case the ActionValue is the name of the escalation. Or Action is "grow" or "shrink" in which case ActionValue is the custom tag value to use as the voting tag.
 
 Here is an example ServerTemplate yaml file.
+
 ```yaml
 Name: My ServerTemplate
 Description: This is an example Description
@@ -151,12 +168,28 @@ RightScripts:
   Decommission:
   - path/to/decom_script1.sh
 MultiCloudImages:
-- Name: Ubuntu_14.04_x64
-  Revision: 20
+# Format 1: Name/Revision/Publisher pair: This specifies a MCI from the Marketplace
 - Name: Ubuntu_12.04_x64
   Revision: 18
   Publisher: RightScale
+# Format 2: Name/Revision pair: This specifies a account-specific MCI, such as one cloned from a Marketplace MCI
+- Name: Ubuntu_14.04_x64_cloned
+  Revision: 20
+# Format 3: Href to an account-specific MCI
 - Href: /api/multi_cloud_images/403042003
+# Format 4: Fully Managed MCI object specifying all clouds/images:
+- Name: MyUbuntu_14.04_x64
+- Description: My companies custom MCI
+- Tags
+  - rs_agent:type=right_link_lite
+  - rs_agent:mime_shellscript=https://rightlink.rightscale.com/rll/10/rightlink.boot.sh
+- Settings:
+  - Cloud: EC2 us-east-1
+    Instance Type: m3.medium
+    Image: ami-5e91b936
+  - Cloud: EC2 eu-west-1
+    Instance Type: m3.medium
+    Image: ami-b1841cc6
 Alerts:
 - Name: CPU Scale Down
   Description: Votes to shrink ServerArray by setting tag rs_vote:my_app_name=shrink
@@ -186,6 +219,9 @@ right_st st download <name|href|id> [<path>]
     -p, --published: When downloading RightScripts, first check if it's published in
                      the MultiCloud marketplace and insert a link to the published
                      script if so.
+    -i, --images: When specifying MultiCloudImages, use Format 4. This fully specifies
+                  all cloud/image/instance type combinations to completely manage the
+                  MultiCloudImage in the YAML.
 
 right_st st validate <path>...
   Validate a ServerTemplate YAML document

@@ -345,7 +345,7 @@ func isDirectory(path string) bool {
 // Returns:
 //   Publication if found. nil if not found. errors fatally if multiple publications are found.
 func findPublication(kind string, name string, revision int, matchers map[string]string) (*cm15.Publication, error) {
-	client, err := Config.Account.Client15()
+	client, _ := Config.Account.Client15()
 
 	pubLocator := client.PublicationLocator("/api/publications")
 
@@ -398,4 +398,58 @@ func findPublication(kind string, name string, revision int, matchers map[string
 	} else {
 		return pubs[0], nil
 	}
+}
+
+func getTagsByHref(href string) ([]string, error) {
+	client, _ := Config.Account.Client15()
+	var tags []string
+	tagsLoc := client.TagLocator("/api/tags/by_resource")
+	res, err := tagsLoc.ByResource([]string{href})
+	if err != nil {
+		return tags, err
+	}
+	if len(res) != 1 {
+		return tags, fmt.Errorf("Could not find tags for href %s", href)
+	}
+	tagset := res[0]["tags"].([]interface{})
+	for _, t := range tagset {
+		th := t.(map[string]interface{})
+		tags = append(tags, th["name"].(string))
+	}
+
+	return tags, nil
+}
+
+func setTagsByHref(href string, tags []string) error {
+	client, _ := Config.Account.Client15()
+
+	existingTags, err := getTagsByHref(href)
+	if err != nil {
+		return err
+	}
+	toDelete := []string{}
+	for _, et := range existingTags {
+		seen := false
+		for _, t := range tags {
+			if t == et {
+				seen = true
+			}
+		}
+		if !seen {
+			toDelete = append(toDelete, et)
+		}
+	}
+	if len(toDelete) > 0 {
+		tagsLoc := client.TagLocator("/api/tags/multi_delete")
+		err = tagsLoc.MultiDelete([]string{href}, toDelete)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(tags) > 0 {
+		tagsLoc := client.TagLocator("/api/tags/multi_add")
+		return tagsLoc.MultiAdd([]string{href}, tags)
+	}
+	return nil
 }

@@ -18,11 +18,12 @@ type Setting struct {
 }
 
 type MultiCloudImage struct {
-	Href        string `yaml:"Href,omitempty"`
-	Name        string `yaml:"Name,omitempty"`
-	Description string `yaml:"Description,omitempty"`
-	Revision    int    `yaml:"Revision,omitempty"`
-	Publisher   string `yaml:"Publisher,omitempty"`
+	Href        string   `yaml:"Href,omitempty"`
+	Name        string   `yaml:"Name,omitempty"`
+	Description string   `yaml:"Description,omitempty"`
+	Revision    int      `yaml:"Revision,omitempty"`
+	Publisher   string   `yaml:"Publisher,omitempty"`
+	Tags        []string `yaml:"Tags,omitempty"`
 	// Settings are like MultiCloudImageSettings, defining cloud/resource_uid sets
 	Settings []*Setting `yaml:"Settings,omitempty"`
 }
@@ -136,6 +137,11 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, useImages bool) ([]*Multi
 	mciImages := make([]*MultiCloudImage, 0)
 	for _, mci := range apiMcis {
 		if useImages {
+			tags, err := getTagsByHref(getLink(mci.Links, "self"))
+			if err != nil {
+				return nil, fmt.Errorf("Could not get tags for MultiCloudImage '%s': %s\n", getLink(mci.Links, "self"), err.Error())
+			}
+
 			settingsLoc := client.MultiCloudImageSettingLocator(getLink(mci.Links, "settings"))
 			settings, err := settingsLoc.Index(rsapi.APIParams{})
 			if err != nil {
@@ -172,7 +178,7 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, useImages bool) ([]*Multi
 				mciSettings = append(mciSettings, &mciSetting)
 			}
 			if len(mciSettings) > 0 {
-				mciImages = append(mciImages, &MultiCloudImage{Name: mci.Name, Description: mci.Description, Settings: mciSettings})
+				mciImages = append(mciImages, &MultiCloudImage{Name: mci.Name, Tags: tags, Description: mci.Description, Settings: mciSettings})
 			} else {
 				fmt.Printf("WARNING: skipping MCI '%s', contains no usable settings\n", mci.Name)
 			}
@@ -292,6 +298,11 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 				href = string(loc.Href)
 			}
 			mciDef.Href = href
+
+			err = setTagsByHref(mciDef.Href, mciDef.Tags)
+			if err != nil {
+				return fmt.Errorf("Failed to add tags to MultiCloudImage '%s': %s", mciDef.Href, err.Error())
+			}
 			// get existing settings
 			settingsLoc := client.MultiCloudImageSettingLocator(mciDef.Href + "/settings")
 			settings, err := settingsLoc.Index(rsapi.APIParams{})
@@ -343,6 +354,7 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 					}
 				}
 			}
+
 		}
 	}
 
