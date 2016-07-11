@@ -29,6 +29,12 @@ RightScripts:
     - Dummy2.sh
   Decommission:
     - Dummy3.sh
+Alerts:
+- Name: CPU Scale Down
+  Description: Votes to shrink ServerArray
+  Clause: If cpu-0/cpu-idle.value > '50' for 3 minutes Then shrink my_app_name
+- Name: Low memory warning
+  Clause: If memory/memory-free.value < 100000000 for 5 minutes Then escalate warning
 Inputs:
   SERVER_HOSTNAME: text:test.local
 MultiCloudImages:
@@ -57,6 +63,13 @@ MultiCloudImages:
 				Expect(st).NotTo(BeNil())
 				Expect(st.Name).To(Equal("Test ST"))
 				Expect(st.Description).To(Equal("Test ST Description"))
+				Expect(st.Alerts).To(Equal([]*Alert{
+					&Alert{Name: "CPU Scale Down",
+						Description: "Votes to shrink ServerArray",
+						Clause:      "If cpu-0/cpu-idle.value > '50' for 3 minutes Then shrink my_app_name"},
+					&Alert{Name: "Low memory warning",
+						Clause: "If memory/memory-free.value < 100000000 for 5 minutes Then escalate warning"},
+				}))
 				Expect(st.Inputs).To(Equal(map[string]*InputValue{"SERVER_HOSTNAME": &InputValue{Type: "text", Value: "test.local"}}))
 				Expect(st.RightScripts["Boot"]).To(Equal(dummy1List))
 				Expect(st.RightScripts["Operational"]).To(Equal(dummy2List))

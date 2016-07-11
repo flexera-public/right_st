@@ -40,10 +40,10 @@ type Account struct {
 }
 
 func (account *Account) Client15() (*cm15.API, error) {
-	if err := account.validate(); err != nil {
-		return nil, err
-	}
 	if account.client15 == nil {
+		if err := account.validate(); err != nil {
+			return nil, err
+		}
 		auth := rsapi.NewOAuthAuthenticator(account.RefreshToken, account.Id)
 		account.client15 = cm15.New(account.Host, auth)
 	}
@@ -51,10 +51,10 @@ func (account *Account) Client15() (*cm15.API, error) {
 }
 
 func (account *Account) Client16() (*cm16.API, error) {
-	if err := account.validate(); err != nil {
-		return nil, err
-	}
 	if account.client16 == nil {
+		if err := account.validate(); err != nil {
+			return nil, err
+		}
 		auth := rsapi.NewOAuthAuthenticator(account.RefreshToken, account.Id)
 		account.client16 = cm16.New(account.Host, auth)
 	}

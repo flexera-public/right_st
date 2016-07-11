@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/go-yaml/yaml"
@@ -14,38 +13,14 @@ import (
 	"github.com/rightscale/rsc/rsapi"
 )
 
-type Setting struct {
-	Cloud            string `yaml:"Cloud"`
-	InstanceType     string `yaml:"Instance Type"`
-	Image            string `yaml:"Image"`
-	cloudHref        string
-	instanceTypeHref string
-	imageHref        string
-}
-
-type MultiCloudImage struct {
-	Href        string `yaml:"Href,omitempty"`
-	Name        string `yaml:"Name,omitempty"`
-	Description string `yaml:"Description,omitempty"`
-	Revision    int    `yaml:"Revision,omitempty"`
-	Publisher   string `yaml:"Publisher,omitempty"`
-	// Settings are like MultiCloudImageSettings, defining cloud/resource_uid sets
-	Settings []*Setting `yaml:"Settings,omitempty"`
-}
-
 type ServerTemplate struct {
+	href             string
 	Name             string                    `yaml:"Name"`
 	Description      string                    `yaml:"Description"`
 	Inputs           map[string]*InputValue    `yaml:"Inputs"`
 	RightScripts     map[string][]*RightScript `yaml:"RightScripts"`
 	MultiCloudImages []*MultiCloudImage        `yaml:"MultiCloudImages"`
 	Alerts           []*Alert                  `yaml:"Alerts"`
-}
-
-type Alert struct {
-	Name        string `yaml:"Name"`
-	Description string `yaml:"Description,omitempty"`
-	Clause      string `yaml:"Clause"`
 }
 
 var sequenceTypes []string = []string{"Boot", "Operational", "Decommission"}
@@ -71,7 +46,7 @@ func stUpload(files []string, prefix string) {
 		if *debug {
 			fmt.Printf("ST: %#v\n", *st)
 		}
-		err := doServerTemplateUpload(*st, prefix)
+		err := doServerTemplateUpload(st, prefix)
 
 		if err != nil {
 			fatalError("Failed to upload ServerTemplate '%s': %s", file, err.Error())
@@ -81,7 +56,7 @@ func stUpload(files []string, prefix string) {
 
 // Options:
 //   -- commit
-func doServerTemplateUpload(stDef ServerTemplate, prefix string) error {
+func doServerTemplateUpload(stDef *ServerTemplate, prefix string) error {
 	client, err := Config.Account.Client15()
 	if err != nil {
 		return err
@@ -119,252 +94,22 @@ func doServerTemplateUpload(stDef ServerTemplate, prefix string) error {
 		}
 		stVerb = "Creating"
 	}
-	stHref := getLink(st.Links, "self")
-	fmt.Printf("%s ServerTemplate with HREF %s\n", stVerb, getLink(st.Links, "self"))
+	stDef.href = getLink(st.Links, "self")
+	fmt.Printf("%s ServerTemplate with HREF %s\n", stVerb, stDef.href)
 
 	// -----------------
-	// Synchonize MCIs
+	// Synchronize MCIs
 	// -----------------
 	// Get a list of MCIs on the existing ST.
 	fmt.Println("Updating MCIs:")
-
-	stMciLocator := client.ServerTemplateMultiCloudImageLocator("/api/server_template_multi_cloud_images")
-
-	existingMcis, err := stMciLocator.Index(rsapi.APIParams{"filter": []string{"server_template_href==" + stHref}})
-	if err != nil {
-		fatalError("Could not find MCIs with href %s: %s", stMciLocator.Href, err.Error())
+	if err := uploadMultiCloudImages(stDef, prefix); err != nil {
+		fatalError("  Synchronize MultiCloudImages failed: %s", err.Error())
 	}
-
-	// Algorithm for linking Publications:
-	//   1. For MultiCloudImages with a publication, find the publications first. Get the name/description/publisher
-	//   2. If we don't find it, throw an error
-	//   3. Get the imported MultiCloudImages. If it doesn't exist, import it then get the href
-	//   4. Insert HREF into r struct for later use.
-	for _, mciDef := range stDef.MultiCloudImages {
-		if mciDef.Publisher != "" {
-			pub, err := findPublication("MultiCloudImage", mciDef.Name, mciDef.Revision,
-				map[string]string{`Publisher`: mciDef.Publisher})
-			if err != nil {
-				fatalError("Could not lookup publication %s", err.Error())
-			}
-			if pub == nil {
-				fatalError("Could not find a publication in the MultiCloud Marketplace for MultiCloudImage '%s' Revision %d Publisher '%s'",
-					mciDef.Name, mciDef.Revision, mciDef.Publisher)
-			}
-
-			mciLocator := client.MultiCloudImageLocator("/api/multi_cloud_images")
-			filters := []string{
-				"name==" + mciDef.Name,
-			}
-
-			mciUnfiltered, err := mciLocator.Index(rsapi.APIParams{"filter": filters})
-			if err != nil {
-				fatalError("Error looking up MCI: %s", err.Error())
-			}
-			for _, mci := range mciUnfiltered {
-				// Recheck the name here, filter does a partial match and we need an exact one.
-				// Matching the descriptions helps to disambiguate if we have multiple publications
-				// with that same name/revision pair.
-				if mci.Name == mciDef.Name && mci.Revision == mciDef.Revision && mci.Description == pub.Description {
-					mciDef.Href = getLink(mci.Links, "self")
-				}
-			}
-
-			if mciDef.Href == "" {
-				loc := pub.Locator(client)
-
-				err = loc.Import()
-
-				if err != nil {
-					return fmt.Errorf("Failed to import publication %s for MultiCloudImage '%s' Revision %d Publisher %s\n",
-						getLink(pub.Links, "self"), mciDef.Name, mciDef.Revision, mciDef.Publisher)
-				}
-
-				mciUnfiltered, err := mciLocator.Index(rsapi.APIParams{"filter": filters})
-				if err != nil {
-					fatalError("Error looking up MCI: %s", err.Error())
-				}
-				for _, mci := range mciUnfiltered {
-					if mci.Name == mciDef.Name && mci.Revision == mciDef.Revision && mci.Description == pub.Description {
-						mciDef.Href = getLink(mci.Links, "self")
-					}
-				}
-				if mciDef.Href == "" {
-					return fmt.Errorf("Could not refind MultiCloudImage '%s' Revision %d after import!", mciDef.Name, mciDef.Revision)
-				}
-			}
-		}
-	}
-
-	// For MCIs managed by us, we create them as needed. All Hrefs to cloud/instance type objects should be resolved
-	// during the validation step, so we should be good to go
-	for _, mciDef := range stDef.MultiCloudImages {
-		if len(mciDef.Settings) > 0 {
-			mciName := mciDef.Name
-			if prefix != "" {
-				mciName = fmt.Sprintf("%s_%s", prefix, mciName)
-			}
-
-			href, err := paramToHref("multi_cloud_images", mciName, 0)
-			if err != nil && !strings.Contains(err.Error(), "Found no multi_cloud_images matching") {
-				return fmt.Errorf("API call to find MultiCloudImage '%s' failed: %s", mciName, err.Error())
-			}
-			if href == "" {
-				createParams := cm15.MultiCloudImageParam{Description: mciDef.Description, Name: mciName}
-				loc, err := client.MultiCloudImageLocator("/api/multi_cloud_images").Create(&createParams)
-				if err != nil {
-					return fmt.Errorf("API call to create MultiCloudImage '%s' failed: %s", mciName, err.Error())
-				}
-				href = string(loc.Href)
-			}
-			mciDef.Href = href
-			// get existing settings
-			settingsLoc := client.MultiCloudImageSettingLocator(mciDef.Href + "/settings")
-			settings, err := settingsLoc.Index(rsapi.APIParams{})
-			if err != nil {
-				fatalError("Could not get MultiCloudImage settings %s: %s\n", mciDef.Href, err.Error())
-			}
-			seenSettings := make(map[string]bool)
-
-			for _, s := range mciDef.Settings {
-				// for each desired setting, if existing setting with same cloud exists, update it. else add it.
-				updated := false
-				seenSettings[s.cloudHref] = true
-				for _, s2 := range settings {
-					if s.cloudHref == getLink(s2.Links, "cloud") {
-						updateParams := cm15.MultiCloudImageSettingParam{
-							CloudHref:        s.cloudHref,
-							ImageHref:        s.imageHref,
-							InstanceTypeHref: s.instanceTypeHref,
-							// unsupported: UserData, KernelImageHref, RamdiskImageHref
-						}
-
-						err := s2.Locator(client).Update(&updateParams)
-						if err != nil {
-							fatalError("Could not update MultiCloudImage setting %s: %s\n", getLink(s2.Links, "self"), err.Error())
-						}
-						updated = true
-					}
-				}
-				if !updated {
-					createParams := cm15.MultiCloudImageSettingParam{
-						CloudHref:        s.cloudHref,
-						ImageHref:        s.imageHref,
-						InstanceTypeHref: s.instanceTypeHref,
-						// unsupported: UserData, KernelImageHref, RamdiskImageHref
-					}
-					_, err := settingsLoc.Create(&createParams)
-					if err != nil {
-						fatalError("Could not create MultiCloudImage setting %s: %s\n", mciDef.Href, err.Error())
-					}
-				}
-			}
-			// for existing settings not in desired settings, remove them
-			for _, s := range settings {
-				if !seenSettings[getLink(s.Links, "cloud")] {
-					err := s.Locator(client).Destroy()
-					if err != nil {
-						fatalError("  Could not Remove MCI Setting for MCI '%s' with Cloud '%s': %s",
-							mciName, getLink(s.Links, "cloud"), err.Error())
-					}
-				}
-			}
-		}
-	}
-
-	// Delete MCIs that exist on the existing ST but not in this definition. We perform all the deletions first so
-	// we don't have to worry about reading the same MCI with a different revision and throwing an error later
-	// firstValidMci is an MCI we know for sure we're not going to default. We can't delete an MCI marked default so
-	// make the firstValidMci the default in that case then proceed with the delete.
-	var firstValidMci *cm15.ServerTemplateMultiCloudImageLocator
-	for _, mci := range existingMcis {
-		mciHref := getLink(mci.Links, "multi_cloud_image")
-		for _, mciDef := range stDef.MultiCloudImages {
-			if mciDef.Href == mciHref {
-				firstValidMci = mci.Locator(client)
-				break
-			}
-		}
-		if firstValidMci != nil {
-			break
-		}
-	}
-	// Dummy MCI. If we can't find ANY valid Mcis, that means we're going to delete all the existing attached MCIs
-	// before adding any new ones. This presents a problem in that the API will return an error if you try and delete
-	// the final MCI. We work around this by adding a dummy MCI we later delete
-	if firstValidMci == nil {
-		mciLocator := client.MultiCloudImageLocator("/api/multi_cloud_images")
-
-		dummyMcis, err := mciLocator.Index(rsapi.APIParams{})
-		if err != nil {
-			fatalError("Failed to find dummy MCIs: %s", mciLocator.Href, err.Error())
-		}
-		params := cm15.ServerTemplateMultiCloudImageParam{
-			MultiCloudImageHref: getLink(dummyMcis[0].Links, "self"),
-			ServerTemplateHref:  stHref,
-		}
-		loc, err := stMciLocator.Create(&params)
-		if err != nil {
-			fatalError("  Failed to associate Dummy MCI '%s' with ServerTemplate '%s': %s", getLink(dummyMcis[0].Links, "self"), stHref, err.Error())
-		}
-		firstValidMci = loc
-		defer loc.Destroy()
-	}
-	for _, mci := range existingMcis {
-		mciHref := getLink(mci.Links, "multi_cloud_image")
-		foundMci := false // found on ST definition
-		for _, mciDef := range stDef.MultiCloudImages {
-			if mciDef.Href == mciHref {
-				foundMci = true
-			}
-		}
-		if !foundMci {
-			fmt.Printf("  Removing MCI %s\n", mciHref)
-			if mci.IsDefault {
-				firstValidMci.MakeDefault()
-			}
-			err := mci.Locator(client).Destroy()
-			if err != nil {
-				fatalError("  Could not Remove MCI %s", mciHref)
-			}
-		}
-	}
-
-	// Add all MCIs.
-	for i, mciDef := range stDef.MultiCloudImages {
-		foundMci := false // found on ST
-		for _, mci := range existingMcis {
-			mciHref := getLink(mci.Links, "multi_cloud_image")
-			if mciDef.Href == mciHref {
-				foundMci = true
-			}
-		}
-		if !foundMci {
-			params := cm15.ServerTemplateMultiCloudImageParam{
-				MultiCloudImageHref: mciDef.Href,
-				ServerTemplateHref:  stHref,
-			}
-			mciName := mciDef.Name
-			if prefix != "" {
-				mciName = fmt.Sprintf("%s_%s", prefix, mciName)
-			}
-			fmt.Printf("  Adding MCI '%s' revision '%d' (%s)\n", mciName, mciDef.Revision, mciDef.Href)
-			loc, err := stMciLocator.Create(&params)
-			if err != nil {
-				fatalError("  Failed to associate MCI '%s' with ServerTemplate '%s': %s", mciDef.Href, stHref, err.Error())
-			}
-			if i == 0 {
-				_ = loc.MakeDefault()
-			}
-		}
-	}
-
 	fmt.Println("  MCIs synced")
 
 	// -----------------
 	// Synchronize RightScripts
 	// -----------------
-
 	// By the time we get to here, we've done a good bit of error checking, so don't have to recheck much.
 	// We know the files on disk are all openable, the RightScripts on disk have valid metadata.
 	//   TBD: issue: we don't check for duplicate rightscript names till .Push(). move that check to validation section?
@@ -467,7 +212,7 @@ func doServerTemplateUpload(stDef ServerTemplate, prefix string) error {
 	// Set Inputs
 	// -----------------
 	fmt.Println("Setting Inputs")
-	inputsLoc := client.InputLocator(stHref + "/inputs")
+	inputsLoc := client.InputLocator(stDef.href + "/inputs")
 	oldInputs, err := inputsLoc.Index(rsapi.APIParams{"view": "inputs_2_0"})
 	if err != nil {
 		fatalError("  Failed to Index inputs: %s", err.Error())
@@ -492,75 +237,12 @@ func doServerTemplateUpload(stDef ServerTemplate, prefix string) error {
 	// -----------------
 	// Synchronize Alerts
 	// -----------------
-	fmt.Println("Synchonizing Alerts")
-	alertsLocator := client.AlertSpecLocator(getLink(st.Links, "alert_specs"))
-	existingAlerts, err := alertsLocator.Index(rsapi.APIParams{})
-	if err != nil {
-		fatalError("Could not find AlertSpecs with href %s: %s", alertsLocator.Href, err.Error())
-	}
-	seenAlert := make(map[string]bool)
-	alertLookup := make(map[string]*cm15.AlertSpec)
-	for _, alert := range existingAlerts {
-		alertLookup[alert.Name] = alert
-	}
-	// Add/Update alerts
-	for _, alert := range stDef.Alerts {
-		parsedAlert, _ := parseAlertClause(alert.Clause)
-		seenAlert[alert.Name] = true
-		existingAlert, ok := alertLookup[alert.Name]
-		if ok { // update
-			if alert.Clause != printAlertClause(*existingAlert) || alert.Description != existingAlert.Description {
-				alertsUpdateLocator := client.AlertSpecLocator(getLink(existingAlert.Links, "self"))
-
-				fmt.Printf("  Updating Alert %s\n", alert.Name)
-				params := cm15.AlertSpecParam2{
-					Condition:      parsedAlert.Condition,
-					Description:    alert.Description,
-					Duration:       strconv.Itoa(parsedAlert.Duration),
-					EscalationName: parsedAlert.EscalationName,
-					File:           parsedAlert.File,
-					Name:           alert.Name,
-					Threshold:      parsedAlert.Threshold,
-					Variable:       parsedAlert.Variable,
-					VoteTag:        parsedAlert.VoteTag,
-					VoteType:       parsedAlert.VoteType,
-				}
-				err := alertsUpdateLocator.Update(&params)
-				if err != nil {
-					fatalError("  Failed to update Alert %s: %s", alert.Name, err.Error())
-				}
-			}
-		} else { // new alert
-			fmt.Printf("  Adding Alert %s\n", alert.Name)
-			params := cm15.AlertSpecParam{
-				Condition:      parsedAlert.Condition,
-				Description:    alert.Description,
-				Duration:       strconv.Itoa(parsedAlert.Duration),
-				EscalationName: parsedAlert.EscalationName,
-				File:           parsedAlert.File,
-				Name:           alert.Name,
-				Threshold:      parsedAlert.Threshold,
-				Variable:       parsedAlert.Variable,
-				VoteTag:        parsedAlert.VoteTag,
-				VoteType:       parsedAlert.VoteType,
-			}
-			_, err := alertsLocator.Create(&params)
-			if err != nil {
-				fatalError("  Failed to create Alert %s: %s", alert.Name, err.Error())
-			}
-		}
-	}
-	for _, alert := range existingAlerts {
-		if !seenAlert[alert.Name] {
-			fmt.Printf("  Removing alert %s\n", alert.Name)
-			err := alert.Locator(client).Destroy()
-			if err != nil {
-				fatalError("  Could not destroy Alert %s: %s", alert.Name, err.Error())
-			}
-		}
+	fmt.Println("Synchronizing Alerts")
+	if err := uploadAlerts(stDef); err != nil {
+		fatalError("  Synchronize alerts failed: %s", err.Error())
 	}
 
-	fmt.Printf("Successfully uploaded ServerTemplate %s with HREF %s\n", st.Name, stHref)
+	fmt.Printf("Successfully uploaded ServerTemplate %s with HREF %s\n", st.Name, stDef.href)
 
 	// If the user requested a commit on changes, commit the ST. This will commit all RightScripts as well.
 	return nil
@@ -674,73 +356,9 @@ func stDownload(href, downloadTo string, usePublished bool, useImages bool) {
 	//-------------------------------------
 	// MultiCloudImages
 	//-------------------------------------
-	mciLocator := client.MultiCloudImageLocator(getLink(st.Links, "multi_cloud_images"))
-	mcis, err := mciLocator.Index(rsapi.APIParams{})
+	mcis, err := downloadMultiCloudImages(st, useImages)
 	if err != nil {
-		fatalError("Could not find MCIs with href %s: %s", mciLocator.Href, err.Error())
-	}
-	mciImages := make([]*MultiCloudImage, 0)
-	for _, mci := range mcis {
-		if useImages {
-			settingsLoc := client.MultiCloudImageSettingLocator(getLink(mci.Links, "settings"))
-			settings, err := settingsLoc.Index(rsapi.APIParams{})
-			if err != nil {
-				fatalError("Could not get MultiCloudImage settings %s: %s\n", getLink(mci.Links, "settings"), err.Error())
-			}
-			mciSettings := make([]*Setting, 0)
-			for _, s := range settings {
-				cloud, err := client.CloudLocator(getLink(s.Links, "cloud")).Show(rsapi.APIParams{})
-				if err != nil {
-					if strings.Contains(err.Error(), "ResourceNotFound") {
-						fmt.Printf("WARNING: For MCI '%s', skipping setting for cloud %s: cloud isn't registered in this account.\n",
-							mci.Name, getLink(s.Links, "cloud"))
-						continue
-					} else {
-						fatalError("Could not complete API call: %s\n", err.Error())
-					}
-				}
-				if getLink(s.Links, "instance_type") == "" {
-					fmt.Printf("WARNING: For MCI '%s', skipping setting for cloud %s: fingerprinted MCIs not supported by this tool.\n",
-						mci.Name, getLink(s.Links, "cloud"))
-					continue
-				}
-				instanceType, err := client.InstanceTypeLocator(getLink(s.Links, "instance_type")).Show(rsapi.APIParams{})
-				if err != nil {
-					fatalError("Could not complete API call: %s\n", err.Error())
-				}
-				image, err := client.ImageLocator(getLink(s.Links, "image")).Show(rsapi.APIParams{})
-				if err != nil {
-					fmt.Printf("WARNING: Could not complete API call: %s\n", err.Error())
-					continue
-				}
-
-				mciSetting := Setting{Cloud: cloud.Name, InstanceType: instanceType.ResourceUid, Image: image.ResourceUid}
-				mciSettings = append(mciSettings, &mciSetting)
-			}
-			if len(mciSettings) > 0 {
-				mciImages = append(mciImages, &MultiCloudImage{Name: mci.Name, Description: mci.Description, Settings: mciSettings})
-			} else {
-				fmt.Printf("WARNING: skipping MCI '%s', contains no usable settings\n", mci.Name)
-			}
-		} else {
-			// We repull the MCI here to get the description field, which we need to break ties between
-			// similarly named publications!
-			mciLoc := client.MultiCloudImageLocator(getLink(mci.Links, "self"))
-			mci, err := mciLoc.Show()
-			if err != nil {
-				fatalError("Could not get MultiCloudImage %s: %s\n", getLink(mci.Links, "self"), err.Error())
-			}
-			pub, err := findPublication("MultiCloudImage", mci.Name, mci.Revision, map[string]string{`Description`: mci.Description})
-			if err != nil {
-				fatalError("Error finding publication: %s\n", err.Error())
-			}
-			mciImage := MultiCloudImage{Name: mci.Name, Revision: mci.Revision, Description: mci.Description}
-			if pub != nil {
-				mciImage.Publisher = pub.Publisher
-			}
-			mciImages = append(mciImages, &mciImage)
-		}
-
+		fatalError("Could not get MCIs from API: %s", err.Error())
 	}
 
 	//-------------------------------------
@@ -805,18 +423,9 @@ func stDownload(href, downloadTo string, usePublished bool, useImages bool) {
 	//-------------------------------------
 	// Alerts
 	//-------------------------------------
-	alertsLocator := client.AlertSpecLocator(getLink(st.Links, "alert_specs"))
-	alertSpecs, err := alertsLocator.Index(rsapi.APIParams{})
+	alerts, err := downloadAlerts(st)
 	if err != nil {
-		fatalError("Could not find Alerts with href %s: %s", alertsLocator.Href, err.Error())
-	}
-	alerts := make([]*Alert, len(alertSpecs))
-	for i, alertSpec := range alertSpecs {
-		alerts[i] = &Alert{
-			Name:        alertSpec.Name,
-			Description: alertSpec.Description,
-			Clause:      printAlertClause(*alertSpec),
-		}
+		fatalError("Could not get Alerts from API: %s", err.Error())
 	}
 
 	//-------------------------------------
@@ -838,7 +447,7 @@ func stDownload(href, downloadTo string, usePublished bool, useImages bool) {
 		Name:             st.Name,
 		Description:      st.Description,
 		Inputs:           stInputs,
-		MultiCloudImages: mciImages,
+		MultiCloudImages: mcis,
 		RightScripts:     rightScripts,
 		Alerts:           alerts,
 	}
@@ -887,7 +496,7 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 		return nil, []error{err}
 	}
 
-	client, err := Config.Account.Client15()
+	_, err = Config.Account.Client15()
 	if err != nil {
 		return nil, []error{err}
 	}
@@ -897,92 +506,8 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 	//-------------------------------------
 	// MultiCloudImages
 	//-------------------------------------
-	// TBD: Let people specify MCIs multiple ways:
-	//   1. Href
-	//   2. Name/Revision pair (preferred - at least somewhat portable)
-	//   3. Name/Revision/Publisher triplet (preferred -- more portable)
-	//   4. Set of Images + Tags to support autocreation/management of MCIs (TBD, most portable)
-	clouds, err := client.CloudLocator("/api/clouds").Index(rsapi.APIParams{})
-	if err != nil {
-		fatalError("Could not execute API call to get clouds: %s", err.Error())
-	}
-	instanceTypes := make(map[string][]*cm15.InstanceType)
 	for _, mciDef := range st.MultiCloudImages {
-		if mciDef.Href != "" {
-			loc := client.MultiCloudImageLocator(mciDef.Href)
-			mci, err := loc.Show()
-			if err != nil {
-				errors = append(errors, fmt.Errorf("Could not find MCI HREF %s in account", mciDef.Href))
-			}
-			mciDef.Name = mci.Name
-			mciDef.Revision = mci.Revision
-		} else if len(mciDef.Settings) > 0 {
-			for i, s := range mciDef.Settings {
-				if s.Cloud == "" || s.InstanceType == "" || s.Image == "" {
-					errors = append(errors, fmt.Errorf("Invalid setting, Cloud, Instance Type, and Image fields must be set\n"))
-					continue
-				}
-				for _, c := range clouds {
-					if getLink(c.Links, "self") == s.Cloud || c.DisplayName == s.Cloud || c.Name == s.Cloud {
-						mciDef.Settings[i].cloudHref = getLink(c.Links, "self")
-					}
-				}
-				if mciDef.Settings[i].cloudHref == "" {
-					errors = append(errors, fmt.Errorf("Cannot find cloud %s for MCI '%s' Setting #%d",
-						s.Cloud, mciDef.Name, i+1))
-					continue
-				}
-				if _, ok := instanceTypes[mciDef.Settings[i].cloudHref]; !ok {
-					its, err := client.InstanceTypeLocator(mciDef.Settings[i].cloudHref + "/instance_types").Index(rsapi.APIParams{})
-					if err != nil {
-						errors = append(errors, fmt.Errorf("WARNING: Could not complete API call: %s\n", err.Error()))
-					}
-					instanceTypes[mciDef.Settings[i].cloudHref] = its
-				}
-				for _, it := range instanceTypes[mciDef.Settings[i].cloudHref] {
-					if it.Name == s.InstanceType || it.ResourceUid == s.InstanceType {
-						mciDef.Settings[i].instanceTypeHref = getLink(it.Links, "self")
-					}
-				}
-				if mciDef.Settings[i].instanceTypeHref == "" {
-					errors = append(errors, fmt.Errorf("Cannot find instance type %s for MCI '%s' Setting #%d",
-						s.InstanceType, mciDef.Name, i+1))
-				}
-
-				apiParams := rsapi.APIParams{"filter": []string{"resource_uid==" + s.Image}}
-				images, err := client.ImageLocator(mciDef.Settings[i].cloudHref + "/images").Index(apiParams)
-				if err != nil {
-					errors = append(errors, fmt.Errorf("WARNING: Could not complete API call: %s\n", err.Error()))
-				}
-				if len(images) < 1 {
-					errors = append(errors, fmt.Errorf("Cannot find image with resource_uid %s for MCI '%s' Setting #%d",
-						s.Image, mciDef.Name, i+1))
-				} else {
-					mciDef.Settings[i].imageHref = getLink(images[0].Links, "self")
-				}
-
-			}
-		} else if mciDef.Publisher != "" {
-			pub, err := findPublication("MultiCloudImage", mciDef.Name, mciDef.Revision,
-				map[string]string{`Publisher`: mciDef.Publisher})
-			if err != nil {
-				errors = append(errors, fmt.Errorf("Error finding publication for MultiCloudImage: %s\n", err.Error()))
-			}
-			if pub == nil {
-				errors = append(errors, fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for MultiCloudImage '%s' Revision %d Publisher '%s'",
-					mciDef.Name, mciDef.Revision, mciDef.Publisher))
-			}
-		} else if mciDef.Name != "" {
-			href, err := paramToHref("multi_cloud_images", mciDef.Name, mciDef.Revision)
-			if err != nil {
-				errors = append(errors, fmt.Errorf("Could not find MCI named '%s' with revision %d in account",
-					mciDef.Name, mciDef.Revision))
-			}
-			mciDef.Href = href
-		} else {
-			errors = append(errors, fmt.Errorf("MultiCloudImage item must be a hash with Settings, Name/Revision, or Name/Revision/Publisher keys set to a valid values."))
-			continue
-		}
+		errors = append(errors, validateMultiCloudImage(mciDef)...)
 	}
 
 	//-------------------------------------
@@ -1022,14 +547,9 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 	// Alerts
 	//-------------------------------------
 	for i, alert := range st.Alerts {
-		if alert.Name == "" {
-			alertError := fmt.Errorf("Alert %d error: Name field must be present", i)
-			errors = append(errors, alertError)
-		}
-		_, err := parseAlertClause(alert.Clause)
+		err := validateAlert(alert)
 		if err != nil {
-			alertError := fmt.Errorf("Alert %d error: %s", i, err.Error())
-			errors = append(errors, alertError)
+			errors = append(errors, fmt.Errorf("Alert %d error: %s", i, err.Error()))
 		}
 	}
 
@@ -1078,85 +598,4 @@ func getServerTemplateByName(name string) (*cm15.ServerTemplate, error) {
 		}
 	}
 	return foundSt, nil
-}
-
-// Expected Format with array index offsets into tokens array below:
-// If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Escalate|Grow|Shrink> <ActionValue>
-// 0  1                       2                    3           4   5          6       7    8											9
-func parseAlertClause(alert string) (*cm15.AlertSpec, error) {
-	alertSpec := new(cm15.AlertSpec)
-	tokens := strings.SplitN(alert, " ", 10)
-	alertFmt := `If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Action> <ActionValue>`
-	if len(tokens) != 10 {
-		return nil, fmt.Errorf("Alert clause misformatted: not long enough. Must be of format: '%s'", alertFmt)
-	}
-	if strings.ToLower(tokens[0]) != "if" {
-		return nil, fmt.Errorf("Alert clause misformatted: missing If. Must be of format: '%s'", alertFmt)
-	}
-	metricTokens := strings.Split(tokens[1], ".")
-	if len(metricTokens) != 2 {
-		return nil, fmt.Errorf("Alert <Metric>.<ValueType> misformatted, should be like 'cpu-0/cpu-idle.value'.")
-	}
-	// Check metricTokens[0] should contain a slash.
-	// Check metricTokens[1] can be numerous types: count, cumulative_requests, current_session, free
-	//   midterm, percent, processes, read, running, rx, tx, shortterm, state, status, threads,
-	//   used, users, value, write
-	alertSpec.File = metricTokens[0]
-	alertSpec.Variable = metricTokens[1]
-	comparisonValues := []string{">", ">=", "<", "<=", "==", "!="}
-	foundValue := false
-	for _, val := range comparisonValues {
-		if tokens[2] == val {
-			foundValue = true
-		}
-	}
-	if !foundValue {
-		return nil, fmt.Errorf("Alert <ComparisonOperator> must be one of the following comparison operators: %s", strings.Join(comparisonValues, ", "))
-	}
-	alertSpec.Condition = tokens[2]
-	// Threshold must be one of NaN, numeric OR booting, decommission, operational, pending, stranded, terminated
-	alertSpec.Threshold = tokens[3]
-	if strings.ToLower(tokens[4]) != "for" {
-		return nil, fmt.Errorf("Alert clause misformatted, missing 'for'. Must be of format: '%s'", alertFmt)
-	}
-	duration, err := strconv.Atoi(tokens[5])
-	if err != nil || duration < 1 {
-		return nil, fmt.Errorf("Alert <Duration> must be a positive integer > 0")
-	}
-	alertSpec.Duration = duration
-
-	if strings.Trim(strings.ToLower(tokens[6]), ",") != "minutes" {
-		return nil, fmt.Errorf("Alert clause misformatted: missing 'minutes'. Must be of format: '%s'", alertFmt)
-	}
-	if strings.ToLower(tokens[7]) != "then" {
-		return nil, fmt.Errorf("Alert clause misformatted: missing 'Then'. Must be of format: '%s'", alertFmt)
-	}
-	token8 := strings.ToLower(tokens[8])
-	if token8 != "escalate" && token8 != "grow" && token8 != "shrink" {
-		return nil, fmt.Errorf("Alert <Action> must be escalate, grow, or shrink")
-	}
-	if token8 == "escalate" {
-		alertSpec.EscalationName = tokens[9]
-	} else {
-		alertSpec.VoteType = token8
-		alertSpec.VoteTag = tokens[9]
-	}
-	return alertSpec, nil
-}
-
-// Complement to parseAlertClause
-// If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Escalate|Grow|Shrink> <ActionValue>
-// 0  1                       2                    3           4   5          6       7    8											9
-func printAlertClause(as cm15.AlertSpec) string {
-	var asAction, asActionValue string
-	if as.EscalationName != "" {
-		asAction = "escalate"
-		asActionValue = as.EscalationName
-	} else {
-		asAction = as.VoteType
-		asActionValue = as.VoteTag
-	}
-	alertStr := fmt.Sprintf("If %s.%s %s %s for %d minutes Then %s %s",
-		as.File, as.Variable, as.Condition, as.Threshold, as.Duration, asAction, asActionValue)
-	return alertStr
 }
