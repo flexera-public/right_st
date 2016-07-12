@@ -49,6 +49,7 @@ MultiCloudImages:
     - Cloud: AWS US-West
       Instance Type: t1.micro
       Image: ami-e305efa7
+      User Data: Foo
 `)
 			It("should parse correctly", func() {
 				dummy1List := []*RightScript{
@@ -79,7 +80,7 @@ MultiCloudImages:
 					&MultiCloudImage{Name: "FooImage", Revision: 100},
 					&MultiCloudImage{Name: "FooCorpImage", Revision: 100, Publisher: "FooCorp"},
 					&MultiCloudImage{Name: "ImageBasedMci", Settings: []*Setting{
-						&Setting{Cloud: "AWS US-West", InstanceType: "t1.micro", Image: "ami-e305efa7"},
+						&Setting{Cloud: "AWS US-West", InstanceType: "t1.micro", Image: "ami-e305efa7", UserData: "Foo"},
 					}},
 				}))
 			})

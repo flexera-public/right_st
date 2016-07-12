@@ -12,6 +12,7 @@ type Setting struct {
 	Cloud            string `yaml:"Cloud"`
 	InstanceType     string `yaml:"Instance Type"`
 	Image            string `yaml:"Image"`
+	UserData         string `yaml:"User Data"`
 	cloudHref        string
 	instanceTypeHref string
 	imageHref        string
@@ -333,7 +334,8 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 							CloudHref:        s.cloudHref,
 							ImageHref:        s.imageHref,
 							InstanceTypeHref: s.instanceTypeHref,
-							// unsupported: UserData, KernelImageHref, RamdiskImageHref
+							UserData:         s.UserData,
+							// unsupported: KernelImageHref, RamdiskImageHref
 						}
 
 						err := s2.Locator(client).Update(&updateParams)
@@ -348,7 +350,8 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 						CloudHref:        s.cloudHref,
 						ImageHref:        s.imageHref,
 						InstanceTypeHref: s.instanceTypeHref,
-						// unsupported: UserData, KernelImageHref, RamdiskImageHref
+						UserData:         s.UserData,
+						// unsupported: KernelImageHref, RamdiskImageHref
 					}
 					_, err := settingsLoc.Create(&createParams)
 					if err != nil {

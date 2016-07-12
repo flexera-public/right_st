@@ -134,10 +134,11 @@ A MultiCloudImage definition allows you to specify an MCI four different ways by
     * 'Name' - String - Name of the MCI
     * 'Tags' - Array of Strings - Representing tags on the MCI. Typically 'rs_agent:type=right_link_lite' will be required.
     * 'Description' - String - Optional description for the MCI
-    * 'Settings' - Array of Settings - A setting represents the following API resource: [MultiCloudImageSettings](http://reference.rightscale.com/api1.5/resources/ResourceMultiCloudImageSettings.html). Each Setting must have the following keys:
-        * `Cloud` - String - Name of cloud
-        * `Image` - String - resource_uid of image
-        * `Instance Type` - String - Name of instance type.
+    * 'Settings' - Array of Settings - A setting represents the following API resource: [MultiCloudImageSettings](http://reference.rightscale.com/api1.5/resources/ResourceMultiCloudImageSettings.html). The following keys are used:
+        * `Cloud` - String - Required - Name of cloud
+        * `Image` - String - Required - resource_uid of image
+        * `Instance Type` - String - Required - Name of instance type.
+        * `User Data` - String - Optional - User Data template for this cloud/image combination.
 
 An Alert definition consists of three fields: a Name, Definition, and Clause (all strings). Clause is a text description of the Alert with this exact format: `If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Action> <ActionValue>`:
 
