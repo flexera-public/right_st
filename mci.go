@@ -12,7 +12,7 @@ type Setting struct {
 	Cloud            string `yaml:"Cloud"`
 	InstanceType     string `yaml:"Instance Type"`
 	Image            string `yaml:"Image"`
-	UserData         string `yaml:"User Data"`
+	UserData         string `yaml:"User Data,omitempty"`
 	cloudHref        string
 	instanceTypeHref string
 	imageHref        string
@@ -127,7 +127,7 @@ func validateMultiCloudImage(mciDef *MultiCloudImage) (errors []error) {
 	return
 }
 
-func downloadMultiCloudImages(st *cm15.ServerTemplate, useImages bool) ([]*MultiCloudImage, error) {
+func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool) ([]*MultiCloudImage, error) {
 	client, _ := Config.Account.Client15()
 
 	mciLocator := client.MultiCloudImageLocator(getLink(st.Links, "multi_cloud_images"))
@@ -137,7 +137,7 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, useImages bool) ([]*Multi
 	}
 	mciImages := make([]*MultiCloudImage, 0)
 	for _, mci := range apiMcis {
-		if useImages {
+		if downloadMciSettings {
 			tags, err := getTagsByHref(getLink(mci.Links, "self"))
 			if err != nil {
 				return nil, fmt.Errorf("Could not get tags for MultiCloudImage '%s': %s\n", getLink(mci.Links, "self"), err.Error())

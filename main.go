@@ -41,11 +41,11 @@ var (
 	stUploadPaths  = stUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
 	stUploadPrefix = stUploadCmd.Flag("prefix", "Add prefix to name all ServerTemplate and RightScripts uploaded (for testing purposes)").Short('x').String()
 
-	stDownloadCmd        = stCmd.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
-	stDownloadNameOrHref = stDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
-	stDownloadTo         = stDownloadCmd.Arg("path", "Download location").String()
-	stDownloadPublished  = stDownloadCmd.Flag("published", "Insert links to published RightScripts instead of downloading to disk.").Bool()
-	stDownloadImages     = stDownloadCmd.Flag("images", "Download image data to recreate an MCI from scratch (for cross-account imports)").Bool()
+	stDownloadCmd         = stCmd.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
+	stDownloadNameOrHref  = stDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
+	stDownloadTo          = stDownloadCmd.Arg("path", "Download location").String()
+	stDownloadPublished   = stDownloadCmd.Flag("published", "Insert links to published RightScripts instead of downloading to disk.").Bool()
+	stDownloadMciSettings = stDownloadCmd.Flag("mci-settings", "Download MCI settings data to recreate/manage an MCI.").Bool()
 
 	stValidateCmd   = stCmd.Command("validate", "Validate a ServerTemplate YAML document")
 	stValidatePaths = stValidateCmd.Arg("path", "Path to script file(s)").Required().ExistingFiles()
@@ -139,7 +139,7 @@ func main() {
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
-		stDownload(href, *stDownloadTo, *stDownloadPublished, *stDownloadImages)
+		stDownload(href, *stDownloadTo, *stDownloadPublished, *stDownloadMciSettings)
 	case stValidateCmd.FullCommand():
 		files, err := walkPaths(*stValidatePaths)
 		if err != nil {

@@ -340,7 +340,7 @@ func stShow(href string) {
 	}
 }
 
-func stDownload(href, downloadTo string, usePublished bool, useImages bool) {
+func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings bool) {
 	client, err := Config.Account.Client15()
 	if err != nil {
 		fatalError("Could not find ServerTemplate with href %s: %s", href, err.Error())
@@ -363,7 +363,7 @@ func stDownload(href, downloadTo string, usePublished bool, useImages bool) {
 	//-------------------------------------
 	// MultiCloudImages
 	//-------------------------------------
-	mcis, err := downloadMultiCloudImages(st, useImages)
+	mcis, err := downloadMultiCloudImages(st, downloadMciSettings)
 	if err != nil {
 		fatalError("Could not get MCIs from API: %s", err.Error())
 	}

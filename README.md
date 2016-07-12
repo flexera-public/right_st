@@ -220,9 +220,9 @@ right_st st download <name|href|id> [<path>]
     -p, --published: When downloading RightScripts, first check if it's published in
                      the MultiCloud marketplace and insert a link to the published
                      script if so.
-    -i, --images: When specifying MultiCloudImages, use Format 4. This fully specifies
-                  all cloud/image/instance type combinations to completely manage the
-                  MultiCloudImage in the YAML.
+    -m, --mci-settings: When specifying MultiCloudImages, use Format 4. This fully specifies
+                        all cloud/image/instance type settings combinations to completely
+                        manage the MultiCloudImage in the YAML.
 
 right_st st validate <path>...
   Validate a ServerTemplate YAML document
