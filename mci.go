@@ -82,7 +82,7 @@ func validateMultiCloudImage(mciDef *MultiCloudImage) (errors []error) {
 				instanceTypesLookup[mciDef.Settings[i].cloudHref] = its
 			}
 			for _, it := range instanceTypesLookup[mciDef.Settings[i].cloudHref] {
-				if it.Name == s.InstanceType || it.ResourceUid == s.InstanceType {
+				if getLink(it.Links, "self") == s.InstanceType || it.Name == s.InstanceType || it.ResourceUid == s.InstanceType {
 					mciDef.Settings[i].instanceTypeHref = getLink(it.Links, "self")
 				}
 			}

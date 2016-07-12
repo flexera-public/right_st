@@ -122,10 +122,10 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | Description | String | Description field for the ServerTemplate. |
 | RightScripts | Hash of String -> Array of RightScripts| The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of RightScripts. Each RightScript can be specified in one of two ways, as a locally managed RightScript and a "published" or "external" RightScript. A locally managed RightScript is specified as a pathname to a file on disk. Published RightScripts are links to RightScripts shared in the MultiCloud marketplace and consist of a hash specifying a Name/Revision/Publisher to look up.|
 | Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overridden in a ServerTemplate. |
-| MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash of fields taking a few different formats.See section below for further details. |
+| MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash of fields taking a few different formats. See section below for further details. |
 | Alerts | Array of Alerts | An array of Alert definitions, defined below. |
 
-A MultiCloudImage definition allows you to specify an MCI four different ways by supplying different hash keys. The first three combinations specified below allow you to use pre-existing MCIs. The fourth one allows you to fully manage an MCI in your local account:
+A MultiCloudImage definition allows you to specify an MCI in four different ways by supplying different hash keys. The first three combinations specified below allow you to use pre-existing MCIs. The fourth one allows you to fully manage an MCI in your local account:
 
 1. 'Name' and 'Revision' and 'Publisher': Name/Revision/Publisher of MCI available in the MultiCloud Marketplace. The MCI will be automatically imported into the account if it's not already there. Preferred.
 2. 'Name' and 'Revision'.: Name/Revision of MCI in your local account. It will not attempt to be autoimported from the MultiCloud Marketplace.
@@ -181,7 +181,7 @@ MultiCloudImages:
 # Format 4: Fully Managed MCI object specifying all clouds/images:
 - Name: MyUbuntu_14.04_x64
 - Description: My companies custom MCI
-- Tags
+- Tags:
   - rs_agent:type=right_link_lite
   - rs_agent:mime_shellscript=https://rightlink.rightscale.com/rll/10/rightlink.boot.sh
 - Settings:
