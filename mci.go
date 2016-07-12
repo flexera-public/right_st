@@ -297,12 +297,13 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 					return fmt.Errorf("API call to create MultiCloudImage '%s' failed: %s", mciName, err.Error())
 				}
 				href = string(loc.Href)
+				fmt.Printf("  Created MultiCloudImage with name '%s': %s\n", mciName, href)
 			} else {
 				mci, err := client.MultiCloudImageLocator(href).Show()
 				if err != nil {
 					return fmt.Errorf("API call failed: %s", err.Error())
 				}
-
+				fmt.Printf("  Updating MultiCloudImage '%s'\n", mciName)
 				if mci.Description != mciDef.Description {
 					err := mci.Locator(client).Update(&cm15.MultiCloudImageParam{Description: mciDef.Description})
 					if err != nil {
