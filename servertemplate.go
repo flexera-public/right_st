@@ -93,6 +93,13 @@ func doServerTemplateUpload(stDef *ServerTemplate, prefix string) error {
 			fatalError("Failed to refetch ServerTemplate '%s': %s", stLoc.Href, err.Error())
 		}
 		stVerb = "Creating"
+	} else {
+		if st.Description != stDef.Description {
+			err := st.Locator(client).Update(&cm15.ServerTemplateParam{Description: stDef.Description})
+			if err != nil {
+				fatalError("Failed to update ServerTemplate '%s' description: %s", stName, err.Error())
+			}
+		}
 	}
 	stDef.href = getLink(st.Links, "self")
 	fmt.Printf("%s ServerTemplate with HREF %s\n", stVerb, stDef.href)

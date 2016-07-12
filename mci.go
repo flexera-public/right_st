@@ -212,7 +212,7 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 
 	existingMcis, err := stMciLocator.Index(rsapi.APIParams{"filter": []string{"server_template_href==" + stDef.href}})
 	if err != nil {
-		fatalError("Could not find MCIs with href %s: %s", stMciLocator.Href, err.Error())
+		return fmt.Errorf("Could not find MCIs with href %s: %s", stMciLocator.Href, err.Error())
 	}
 
 	// Algorithm for linking Publications:
@@ -225,10 +225,10 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 			pub, err := findPublication("MultiCloudImage", mciDef.Name, mciDef.Revision,
 				map[string]string{`Publisher`: mciDef.Publisher})
 			if err != nil {
-				fatalError("Could not lookup publication %s", err.Error())
+				return fmt.Errorf("Could not lookup publication %s", err.Error())
 			}
 			if pub == nil {
-				fatalError("Could not find a publication in the MultiCloud Marketplace for MultiCloudImage '%s' Revision %d Publisher '%s'",
+				return fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for MultiCloudImage '%s' Revision %d Publisher '%s'",
 					mciDef.Name, mciDef.Revision, mciDef.Publisher)
 			}
 
@@ -239,7 +239,7 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 
 			mciUnfiltered, err := mciLocator.Index(rsapi.APIParams{"filter": filters})
 			if err != nil {
-				fatalError("Error looking up MCI: %s", err.Error())
+				return fmt.Errorf("Error looking up MCI: %s", err.Error())
 			}
 			for _, mci := range mciUnfiltered {
 				// Recheck the name here, filter does a partial match and we need an exact one.
@@ -262,7 +262,7 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 
 				mciUnfiltered, err := mciLocator.Index(rsapi.APIParams{"filter": filters})
 				if err != nil {
-					fatalError("Error looking up MCI: %s", err.Error())
+					return fmt.Errorf("Error looking up MCI: %s", err.Error())
 				}
 				for _, mci := range mciUnfiltered {
 					if mci.Name == mciDef.Name && mci.Revision == mciDef.Revision && mci.Description == pub.Description {
@@ -296,6 +296,18 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 					return fmt.Errorf("API call to create MultiCloudImage '%s' failed: %s", mciName, err.Error())
 				}
 				href = string(loc.Href)
+			} else {
+				mci, err := client.MultiCloudImageLocator(href).Show()
+				if err != nil {
+					return fmt.Errorf("API call failed: %s", err.Error())
+				}
+
+				if mci.Description != mciDef.Description {
+					err := mci.Locator(client).Update(&cm15.MultiCloudImageParam{Description: mciDef.Description})
+					if err != nil {
+						return fmt.Errorf("Failed to update MultiCloudImage '%s' description: %s", mciName, err.Error())
+					}
+				}
 			}
 			mciDef.Href = href
 
