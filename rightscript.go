@@ -447,7 +447,7 @@ func (r *RightScript) PushRemote() error {
 		return err
 	}
 	if pub == nil {
-		return fmt.Errorf("Could not find a publication in library for RightScript '%s' Revision %d Publisher '%s'\n", r.Name, r.Revision, r.Publisher)
+		return fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for RightScript '%s' Revision %d Publisher '%s'", r.Name, r.Revision, r.Publisher)
 	}
 
 	rsLocator := client.RightScriptLocator("/api/right_scripts")
@@ -483,10 +483,7 @@ func (r *RightScript) PushRemote() error {
 			return err
 		}
 		for _, rs := range rsUnfiltered {
-			// Recheck the name here, filter does a partial match and we need an exact one.
-			// Matching the descriptions helps to disambiguate if we have multiple publications
-			// with that same name/revision pair.
-			if rs.Name == r.Name && rs.Description == pub.Description {
+			if rs.Name == r.Name && rs.Revision == r.Revision && rs.Description == pub.Description {
 				r.Href = getLink(rs.Links, "self")
 			}
 		}
