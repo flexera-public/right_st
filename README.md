@@ -183,6 +183,14 @@ right_st st download <name|href|id> [<path>]
     -p, --published: When downloading RightScripts, first check if it's published in
                      the MultiCloud marketplace and insert a link to the published
                      script if so.
+        --rs_path=RS_PATH  Download location for rightscripts and attachments
+
+                         Note: The rightscript path is always relative to the server template path.
+
+                         Example: right_st st download --rs_path rightscripts "My Server Template"
+
+                         This would download the server template yml file in the current directory and create a
+                         rightscripts directory in the current directory.
 
 right_st st validate <path>...
   Validate a ServerTemplate YAML document

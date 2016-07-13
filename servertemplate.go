@@ -493,7 +493,7 @@ func stShow(href string) {
 	}
 }
 
-func stDownload(href, downloadTo string, published bool) {
+func stDownload(href, downloadTo string, rsPath string, published bool) {
 	client, err := Config.Account.Client15()
 	if err != nil {
 		fatalError("Could not find ServerTemplate with href %s: %s", href, err.Error())
@@ -580,8 +580,20 @@ func stDownload(href, downloadTo string, published bool) {
 		rightScripts[strings.Title(rb.Sequence)][rb.Position-1] = &newScript
 
 		if newScript.Type == LocalRightScript {
-			downloadedTo := rightScriptDownload(rsHref, filepath.Dir(downloadTo))
-			newScript.Path = strings.TrimPrefix(downloadedTo, filepath.Dir(downloadTo)+string(filepath.Separator))
+			if rsPath == "" {
+				downloadedTo := rightScriptDownload(rsHref, filepath.Dir(downloadTo))
+				newScript.Path = strings.TrimPrefix(downloadedTo, filepath.Dir(downloadTo)+string(filepath.Separator))
+			} else {
+                  		// Create parent directory
+                  		err := os.MkdirAll(filepath.Join(filepath.Dir(downloadTo), rsPath), 0755)
+                  		if err != nil {
+                        		fatalError("Error creating directory: %s", err.Error())
+                  		}
+				//downloadedTo := rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo),  rsPath))
+				rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo),  rsPath))
+				// newScript.Path = strings.TrimPrefix(downloadedTo, filepath.Join(filepath.Dir(downloadTo), rsPath)+string(filepath.Separator))
+				newScript.Path = rsPath + "/" + cleanFileName(rb.RightScript.Name)
+			}
 		}
 	}
 
