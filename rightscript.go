@@ -209,6 +209,7 @@ func rightScriptDownload(href, downloadTo string) string {
 	apiMetadata := RightScriptMetadata{
 		Name:        rightscript.Name,
 		Description: rightscript.Description,
+		Packages:    rightscript.Packages,
 		Inputs:      inputs,
 		Attachments: attachmentNames,
 	}
@@ -524,6 +525,7 @@ func (r *RightScript) PushLocal(prefix string) error {
 		params := cm15.RightScriptParam2{
 			Name:        scriptName,
 			Description: r.Metadata.Description,
+			Packages:    r.Metadata.Packages,
 			Source:      string(fileSrc),
 		}
 		rightscriptLocator, err = createLocator.Create(&params)
@@ -540,6 +542,7 @@ func (r *RightScript) PushLocal(prefix string) error {
 		params := cm15.RightScriptParam3{
 			Name:        scriptName,
 			Description: r.Metadata.Description,
+			Packages:    r.Metadata.Packages,
 			Source:      string(fileSrc),
 		}
 		rightscriptLocator = client.RightScriptLocator(href)
