@@ -1,9 +1,10 @@
-unreleased changes
+v1.3.0 / 2016-07-15
 -------------------
 * Support for "published" or "external" MCIs. right_st will attempt to check for
   and use MultiCloudImages from the MultiCloud Marketplace if they exist ([#10])
 * Support for full definition of MCIs in the ServerTemplate YAML file, including
   managing MCI settings and tags ([#11])
+* Support specifying Packages field in RightScript comment metadata
 
 [#10]: https://github.com/rightscale/right_st/issues/10
 [#11]: https://github.com/rightscale/right_st/issues/11
