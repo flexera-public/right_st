@@ -44,7 +44,7 @@ var (
 	stDownloadCmd        = stCmd.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
 	stDownloadNameOrHref = stDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
 	stDownloadTo         = stDownloadCmd.Arg("path", "Download location").String()
-        stDownloadRsPath     = stDownloadCmd.Flag("rs_path", "Download location for rightscripts and attachments\n\nNote: The rightscript path is always relative to the server template path.\n\nExample: right_st st download --rs_path rightscripts \"My Server Template\"\n\nThis would download the server template yml file in the current directory and create a rightscripts directory in the current directory.").String()
+	stDownloadRsPath     = stDownloadCmd.Flag("rs_path", "Download location for rightscripts and attachments\n\nNote: The rightscript path is always relative to the server template path.\n\nExample: right_st st download --rs_path rightscripts \"My Server Template\"\n\nThis would download the server template yml file in the current directory and create a rightscripts directory in the current directory.").Short('r').String()
 	stDownloadPublished  = stDownloadCmd.Flag("published", "Insert links to published RightScripts instead of downloading to disk.").Bool()
 
 	stValidateCmd   = stCmd.Command("validate", "Validate a ServerTemplate YAML document")

@@ -584,13 +584,13 @@ func stDownload(href, downloadTo string, rsPath string, published bool) {
 				downloadedTo := rightScriptDownload(rsHref, filepath.Dir(downloadTo))
 				newScript.Path = strings.TrimPrefix(downloadedTo, filepath.Dir(downloadTo)+string(filepath.Separator))
 			} else {
-                  		// Create parent directory
-                  		err := os.MkdirAll(filepath.Join(filepath.Dir(downloadTo), rsPath), 0755)
-                  		if err != nil {
-                        		fatalError("Error creating directory: %s", err.Error())
-                  		}
+				// Create parent directory
+				err := os.MkdirAll(filepath.Join(filepath.Dir(downloadTo), rsPath), 0755)
+				if err != nil {
+					fatalError("Error creating directory: %s", err.Error())
+				}
 				//downloadedTo := rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo),  rsPath))
-				rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo),  rsPath))
+				rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo), rsPath))
 				// newScript.Path = strings.TrimPrefix(downloadedTo, filepath.Join(filepath.Dir(downloadTo), rsPath)+string(filepath.Separator))
 				newScript.Path = rsPath + "/" + cleanFileName(rb.RightScript.Name)
 			}
