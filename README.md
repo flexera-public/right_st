@@ -183,7 +183,7 @@ right_st st download <name|href|id> [<path>]
     -p, --published: When downloading RightScripts, first check if it's published in
                      the MultiCloud marketplace and insert a link to the published
                      script if so.
-    -r, --rs_path=RS_PATH  Download location for rightscripts and attachments
+    -r, --rs_pathr <rs_path>  Download location for rightscripts and attachments
 
                          Note: The rightscript path is always relative to the server template path.
 
