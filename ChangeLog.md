@@ -1,3 +1,10 @@
+unreleased changes
+-------------------
+* Add `--script-path` argument to specify where to download RightScripts relative
+  to the ServerTemplate download location ([#28])
+
+[#28]: https://github.com/rightscale/right_st/pull/28
+
 v1.3.0 / 2016-07-15
 -------------------
 * Support for "published" or "external" MCIs. right_st will attempt to check for
