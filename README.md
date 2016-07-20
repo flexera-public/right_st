@@ -223,6 +223,8 @@ right_st st download <name|href|id> [<path>]
     -m, --mci-settings: When specifying MultiCloudImages, use Format 4. This fully specifies
                         all cloud/image/instance type settings combinations to completely
                         manage the MultiCloudImage in the YAML.
+    -s, --script-path <script-path> Download RightScripts and their attachments
+                                    to a subdirectory relative to the download location.
 
 right_st st validate <path>...
   Validate a ServerTemplate YAML document
