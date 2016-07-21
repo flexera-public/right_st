@@ -1,5 +1,5 @@
-hash: be0e3f241742f856a873053a29ca23a82c532ceb82cf5848f6cc8f265d89f987
-updated: 2016-07-15T15:12:39.2125176-07:00
+hash: e5625cd23ff5e4f4a782c882cf301f51a64a9d489f197d66c2e79134c99198fd
+updated: 2016-07-21T15:43:40.2992599-07:00
 imports:
 - name: bitbucket.org/pkg/inflect
   version: 8961c3750a47
@@ -115,7 +115,7 @@ imports:
 - name: github.com/rightscale/go-jsonselect
   version: d04eebe26072b09f780b43c72c6df71b12b8d105
 - name: github.com/rightscale/rsc
-  version: 7c5da3d8df3f8e0ecb7041ebe2145c1efb883338
+  version: e2add1ac61cbe02373a7e6510251b8ecfcd998d9
   vcs: git
   subpackages:
   - ca
