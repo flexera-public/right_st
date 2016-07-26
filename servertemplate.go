@@ -431,8 +431,8 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 				if err != nil {
 					fatalError("Error creating directory: %s", err.Error())
 				}
-				rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo), scriptPath))
-				newScript.Path = scriptPath + "/" + cleanFileName(rb.RightScript.Name)
+				downloadedTo := rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo), scriptPath))
+				newScript.Path = strings.TrimPrefix(downloadedTo, filepath.Dir(downloadTo)+string(filepath.Separator))
 			}
 		}
 	}
