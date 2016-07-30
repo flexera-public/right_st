@@ -552,7 +552,11 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 			} else if rs.Type == LocalRightScript {
 				rsNew, err := validateRightScript(filepath.Join(filepath.Dir(file), rs.Path), false)
 				if err != nil {
-					rsError := fmt.Errorf("RightScript error: %s - %s: %s", sequence, rsNew.Name, err.Error())
+					rsName := rs.Path
+					if rsNew != nil {
+						rsName = rsNew.Name
+					}
+					rsError := fmt.Errorf("RightScript error: %s - %s: %s", sequence, rsName, err.Error())
 					errors = append(errors, rsError)
 				}
 				scripts[i] = rsNew

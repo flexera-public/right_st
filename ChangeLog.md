@@ -2,6 +2,7 @@ unreleased changes
 -------------------
 * Add `--script-path` argument to specify where to download RightScripts relative
   to the ServerTemplate download location ([#28])
+* Fix a panic in ServerTemplate validate when the RightScript name is not known yet
 
 [#28]: https://github.com/rightscale/right_st/pull/28
 
