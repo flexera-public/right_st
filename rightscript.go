@@ -186,25 +186,72 @@ func rightScriptDownload(href, downloadTo string) string {
 	}
 	fmt.Printf("Downloading '%s' to '%s'\n", rightscript.Name, downloadTo)
 
-	attachmentNames := make([]string, len(attachments))
 	for i, attachment := range attachments {
-		filename := attachment.Filename
-		// API attachments are always just plain names. SourceMetadata attachment names may have path components describing
-		// where to put the file on disk, thus are truthier, so we merge those in.
+		// API attachments are always just plain names without path information.
+		// SourceMetadata attachment names may have path components describing where
+		// to put the file on disk, thus are truthier, so we merge those in.
 		if sourceMetadata != nil {
 			for _, aSrc := range sourceMetadata.Attachments {
-				if path.Base(filename) == path.Base(aSrc) {
-					filename = aSrc
+				if path.Base(attachment.Filename) == path.Base(aSrc) {
+					attachments[i].Filename = aSrc
 				}
 			}
 		}
-		attachments[i].Filename = filename
-		attachmentNames[i] = filename
+	}
+	downloadItems := []*downloadItem{}
+	pathPrepend := filepath.Join(filepath.Dir(downloadTo), "attachments")
+	for _, attachment := range attachments {
+		var downloadLocations []string
+
+		if filepath.IsAbs(attachment.Filename) {
+			downloadLocations = []string{attachment.Filename}
+		} else {
+			// We have a primary filename and a backup filename to try in case there's
+			// a conflict. Conflicts will arise when you have multiple RightScripts
+			// attached to the same ServerTemplate with the same attachment name, i.e.
+			// something generic like 'config.xml'
+			downloadLocations = []string{
+				filepath.Join(pathPrepend, attachment.Filename),
+				filepath.Join(pathPrepend, cleanFileName(rightscript.Name), attachment.Filename),
+			}
+		}
+
+		downloadUrl, err := url.Parse(attachment.DownloadUrl)
+		if err != nil {
+			fatalError("Could not parse URL of attachment: %s", err.Error())
+		}
+		downloadItem := downloadItem{
+			url:       *downloadUrl,
+			locations: downloadLocations,
+			md5:       attachment.Digest,
+		}
+		downloadItems = append(downloadItems, &downloadItem)
+	}
+	if len(downloadItems) == 0 {
+		fmt.Println("No attachments to download")
+	} else {
+		fmt.Printf("Download %d attachments:\n", len(downloadItems))
+		err = downloadManager(downloadItems)
+		if err != nil {
+			fatalError("Failed to download all attachments: %s", err.Error())
+		}
+		for _, d := range downloadItems {
+			fmt.Printf("DLITEM\n  %#v\n", d)
+			for i, attachment := range attachments {
+				if filepath.Base(attachment.Filename) == filepath.Base(d.downloadedTo) {
+					attachments[i].Filename = strings.TrimLeft(d.downloadedTo, pathPrepend)
+				}
+			}
+		}
 	}
 
 	inputs := InputMap{}
 	for _, input := range rightscript.Inputs {
 		inputs = append(inputs, jsonMapToInput(input))
+	}
+	attachmentNames := make([]string, len(attachments))
+	for i, a := range attachments {
+		attachmentNames[i] = a.Filename
 	}
 	apiMetadata := RightScriptMetadata{
 		Name:        rightscript.Name,
@@ -229,28 +276,6 @@ func rightScriptDownload(href, downloadTo string) string {
 	}
 	if err != nil {
 		fatalError("Could not create file: %s", err.Error())
-	}
-	downloadItems := []*downloadItem{}
-	for _, attachment := range attachments {
-		attachmentPath := filepath.Join(filepath.Dir(downloadTo), "attachments", attachment.Filename)
-		if filepath.IsAbs(attachment.Filename) {
-			attachmentPath = attachment.Filename
-		}
-
-		downloadUrl, err := url.Parse(attachment.DownloadUrl)
-		if err != nil {
-			fatalError("Could not parse URL of attachment: %s", err.Error())
-		}
-		downloadItems = append(downloadItems, &downloadItem{url: *downloadUrl, filename: attachmentPath, md5: attachment.Digest})
-	}
-	if len(downloadItems) == 0 {
-		fmt.Println("No attachments to download")
-	} else {
-		fmt.Printf("Download %d attachments:\n", len(downloadItems))
-		err = downloadManager(downloadItems)
-		if err != nil {
-			fatalError("Failed to download all attachments: %s", err.Error())
-		}
 	}
 
 	return downloadTo

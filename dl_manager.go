@@ -12,14 +12,18 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
 
 type downloadItem struct {
-	url      url.URL
-	filename string
-	md5      string
+	url url.URL
+	// try and download the file to the following locations. we allow multiple locations in case the first one is taken
+	locations    []string
+	md5          string
+	downloadedTo string // which of the locations did we use when we downloaded the file?
+	size         int64  // size if bytes that were downloaded
 }
 
 // Limit concurrency of downloads
@@ -52,7 +56,7 @@ func downloadManager(items []*downloadItem) error {
 	sumSize := func(sz int64) {
 		defer lock.Unlock()
 		lock.Lock()
-		size = sz
+		size += sz
 	}
 
 	t := time.Now()
@@ -75,10 +79,9 @@ func downloadManager(items []*downloadItem) error {
 					return
 				}
 				var retry bool
-				var size int64
-				retry, size, e = downloadOneItem(i)
+				retry, e = downloadOneItem(i)
 				if e == nil {
-					sumSize(size)
+					sumSize(i.size)
 					return
 				}
 				// fmt.Printf("        Error downloading %s:", filepath.Base(i.filename))
@@ -100,66 +103,75 @@ func downloadManager(items []*downloadItem) error {
 	return err
 }
 
-// downloadItem downloads an individual item into the cache directory. It returns
-// a boolean that is true if an error occurred that is retryable; also returns an int, which
-// is the size of the item.
-func downloadOneItem(item *downloadItem) (bool, int64, error) {
-	// Check existence
-	if _, err := os.Stat(item.filename); err == nil {
-		// file already exists, don't re-download
-		existingMd5sum, err := fmd5sum(item.filename)
-		if err != nil {
-			return false, 0, err
-		}
-		if item.md5 == existingMd5sum {
-			fmt.Printf("    Skipping attachment '%s', already downloaded\n", filepath.Base(item.filename))
-			return false, 0, nil
+// downloadItem downloads an individual item to disk. It returns a boolean that
+// is true if an error occurred that is retryable
+func downloadOneItem(item *downloadItem) (bool, error) {
+	effectiveName := ""
+	for _, filename := range item.locations {
+		md5sum, err := fmd5sum(filename)
+		if err == nil {
+			// File already exists. If the md5sum matches, we're golden. else do nothing and try the next location
+			if item.md5 == md5sum {
+				fmt.Printf("    Skipping attachment '%s', already downloaded\n", filepath.Base(filename))
+				item.downloadedTo = filename
+				return false, nil
+			}
 		} else {
-			return false, 0, fmt.Errorf("File %s already exists", item.filename)
+			// File doesn't exist, so we can use this filename
+			effectiveName = filename
+			break
 		}
 	}
+
+	if effectiveName == "" {
+		return false, fmt.Errorf("File '%s' already exists with a different md5sum at locations [%s]",
+			filepath.Base(item.locations[0]), strings.Join(item.locations, ", "))
+	}
+
 	// Create parent directory
-	err := os.MkdirAll(filepath.Dir(item.filename), 0755)
+	err := os.MkdirAll(filepath.Dir(effectiveName), 0755)
 	if err != nil {
-		return false, 0, fmt.Errorf("Erroring creating directory: %s", err.Error())
+		return false, fmt.Errorf("Erroring creating directory: %s", err.Error())
 	}
 
 	// Open the file
-	f, err := os.Create(item.filename)
+	f, err := os.Create(effectiveName)
 	if err != nil {
-		return false, 0, fmt.Errorf("Error creating: %s", err.Error())
+		return false, fmt.Errorf("Error creating: %s", err.Error())
 	}
 	defer f.Close()
 
 	// Do the download
 	startAt := time.Now()
-	fmt.Printf("    Downloading attachment '%s' to '%s'\n", filepath.Base(item.filename), item.filename)
+	fmt.Printf("    Downloading attachment '%s' to '%s'\n", filepath.Base(effectiveName), effectiveName)
 	resp, err := http.Get(item.url.String())
 	if err != nil {
 		f.Close() // on Windows you cannot remove a file that has an open file handle
-		os.Remove(item.filename)
+		os.Remove(effectiveName)
 		retry := false
 		if netErr, ok := err.(net.Error); ok {
 			retry = netErr.Timeout() || netErr.Temporary()
 		}
-		return retry, 0, fmt.Errorf("%s -- URL=%s", err.Error(), item.url.String())
+		return retry, fmt.Errorf("%s -- URL=%s", err.Error(), item.url.String())
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		f.Close() // on Windows you cannot remove a file that has an open file handle
-		os.Remove(item.filename)
-		return resp.StatusCode >= 500, 0, fmt.Errorf("%s -- URL=%s", resp.Status, item.url.String())
+		os.Remove(effectiveName)
+		return resp.StatusCode >= 500, fmt.Errorf("%s -- URL=%s", resp.Status, item.url.String())
 	}
 	// read the attachment body
 	size, err := io.Copy(f, resp.Body)
 	if err != nil {
 		f.Close() // on Windows you cannot remove a file that has an open file handle
-		os.Remove(item.filename)
-		return true, 0, fmt.Errorf("%s -- Reading %s", err.Error(), filepath.Base(item.filename))
+		os.Remove(effectiveName)
+		return true, fmt.Errorf("%s -- Reading %s", err.Error(), filepath.Base(effectiveName))
 	}
 	if *debug {
 		fmt.Printf("    %.1fKB in %.1fs for %s", float32(size)/1024,
-			time.Since(startAt).Seconds(), filepath.Base(item.filename))
+			time.Since(startAt).Seconds(), filepath.Base(effectiveName))
 	}
-	return false, size, nil
+	item.size = size
+	item.downloadedTo = effectiveName
+	return false, nil
 }
