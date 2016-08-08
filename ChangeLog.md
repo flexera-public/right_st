@@ -5,7 +5,7 @@ unreleased changes
 * Fix a panic in ServerTemplate validate when the RightScript name is not known
   yet
 * If multiple RightScripts in a ServerTemplate contain an attachment with the
-  same name, now download those attachments to different directories ([#19])
+  same name, download those attachments to different subdirectories ([#19])
 
 [#28]: https://github.com/rightscale/right_st/pull/28
 [#19]: https://github.com/rightscale/right_st/pull/19
