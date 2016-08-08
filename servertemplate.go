@@ -378,17 +378,24 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 	}
 	rightScripts := make(map[string][]*RightScript)
 	countBySequence := make(map[string]int)
+	seenRightscript := make(map[string]*RightScript)
 	for _, rb := range rbs {
 		countBySequence[strings.Title(rb.Sequence)] += 1
+		seenRightscript[getLink(rb.Links, "right_script")] = nil
 	}
 	for sequenceType, count := range countBySequence {
 		rightScripts[sequenceType] = make([]*RightScript, count)
 	}
-	fmt.Printf("Downloading %d attached RightScripts:\n", len(rbs))
+	fmt.Printf("Downloading %d attached RightScripts:\n", len(seenRightscript))
 	for _, rb := range rbs {
 		rsHref := getLink(rb.Links, "right_script")
 		if rsHref == "" {
 			fatalError("Could not download ServerTemplate, it has attached cookbook recipes, which are not supported by this tool.\n")
+		}
+
+		if scr, ok := seenRightscript[rsHref]; ok && scr != nil {
+			rightScripts[strings.Title(rb.Sequence)][rb.Position-1] = scr
+			continue
 		}
 
 		newScript := RightScript{
@@ -435,6 +442,7 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 				newScript.Path = strings.TrimPrefix(downloadedTo, filepath.Dir(downloadTo)+string(filepath.Separator))
 			}
 		}
+		seenRightscript[rsHref] = &newScript
 	}
 
 	//-------------------------------------
