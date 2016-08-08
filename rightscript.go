@@ -236,7 +236,6 @@ func rightScriptDownload(href, downloadTo string) string {
 			fatalError("Failed to download all attachments: %s", err.Error())
 		}
 		for _, d := range downloadItems {
-			fmt.Printf("DLITEM\n  %#v\n", d)
 			for i, attachment := range attachments {
 				if filepath.Base(attachment.Filename) == filepath.Base(d.downloadedTo) {
 					attachments[i].Filename = strings.TrimLeft(d.downloadedTo, pathPrepend)
