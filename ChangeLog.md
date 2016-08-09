@@ -1,4 +1,4 @@
-unreleased changes
+v1.4.0 / 2016-08--8
 -------------------
 * Add `--script-path` argument to specify where to download RightScripts relative
   to the ServerTemplate download location ([#28])
