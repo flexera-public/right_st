@@ -1,4 +1,9 @@
-v1.4.0 / 2016-08--8
+v1.4.1 / 2016-08-08
+-------------------
+* Allow the update commands to work without a config file; this is useful if you
+  need to use sudo to update since root probably does not have a config file.
+
+v1.4.0 / 2016-08-08
 -------------------
 * Add `--script-path` argument to specify where to download RightScripts relative
   to the ServerTemplate download location ([#28])

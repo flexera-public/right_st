@@ -100,7 +100,7 @@ func main() {
 	command := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	err := ReadConfig(*configFile, *account)
-	if err != nil && !strings.HasPrefix(command, "config") {
+	if err != nil && !strings.HasPrefix(command, "config") && !strings.HasPrefix(command, "update") {
 		fatalError("%s: Error reading config file: %s\n", filepath.Base(os.Args[0]), err.Error())
 	}
 
