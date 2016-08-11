@@ -1,3 +1,7 @@
+v1.4.3 / 2016-08-11
+-------------------
+* Fix panic when using --mci-settings introduced in v1.4.2
+
 v1.4.2 / 2016-08-11
 -------------------
 * Improve error messages, get rid of Description field showing up downloaded

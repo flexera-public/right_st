@@ -155,11 +155,11 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool)
 				if err != nil {
 					if strings.Contains(err.Error(), "ResourceNotFound") {
 						fmt.Printf("WARNING: For MCI '%s', skipping setting for cloud %s: cloud isn't registered in this account.\n",
-							mci.Name, cloud.Name)
+							mci.Name, getLink(s.Links, "cloud"))
 						continue
 					} else {
 						return nil, fmt.Errorf("Could not complete API call for MCI '%s' cloud %s: %s\n",
-							mci.Name, cloud.Name, err.Error())
+							mci.Name, getLink(s.Links, "cloud"), err.Error())
 					}
 				}
 				if getLink(s.Links, "instance_type") == "" {
