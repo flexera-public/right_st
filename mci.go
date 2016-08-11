@@ -131,7 +131,10 @@ func validateMultiCloudImage(mciDef *MultiCloudImage) (errors []error) {
 func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool) ([]*MultiCloudImage, error) {
 	client, _ := Config.Account.Client15()
 
+	defaultMciHref := getLink(st.Links, "default_multi_cloud_image")
+
 	mciLocator := client.MultiCloudImageLocator(getLink(st.Links, "multi_cloud_images"))
+
 	apiMcis, err := mciLocator.Index(rsapi.APIParams{})
 	if err != nil {
 		return nil, fmt.Errorf("Could not find MCIs with href %s: %s", mciLocator.Href, err.Error())
@@ -181,7 +184,13 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool)
 				mciSettings = append(mciSettings, &mciSetting)
 			}
 			if len(mciSettings) > 0 {
-				mciImages = append(mciImages, &MultiCloudImage{Name: mci.Name, Tags: tags, Description: mci.Description, Settings: mciSettings})
+				// Default MCI is the first in the list
+				mciImage := MultiCloudImage{Name: mci.Name, Tags: tags, Description: mci.Description, Settings: mciSettings}
+				if getLink(mci.Links, "self") == defaultMciHref {
+					mciImages = append([]*MultiCloudImage{&mciImage}, mciImages...)
+				} else {
+					mciImages = append(mciImages, &mciImage)
+				}
 			} else {
 				fmt.Printf("WARNING: skipping MCI '%s', contains no usable settings\n", mci.Name)
 			}
@@ -201,10 +210,16 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool)
 			if pub != nil {
 				mciImage.Publisher = pub.Publisher
 			}
-			mciImages = append(mciImages, &mciImage)
+			// Default MCI is the first in the list
+			if getLink(mci.Links, "self") == defaultMciHref {
+				mciImages = append([]*MultiCloudImage{&mciImage}, mciImages...)
+			} else {
+				mciImages = append(mciImages, &mciImage)
+			}
 		}
 
 	}
+
 	return mciImages, nil
 }
 
