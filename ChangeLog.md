@@ -1,3 +1,8 @@
+v1.4.2 / 2016-08-11
+-------------------
+* Improve error messages, get rid of Description field showing up downloaded
+  ServerTemplate yaml files for fixed revisions
+
 v1.4.1 / 2016-08-08
 -------------------
 * Allow the update commands to work without a config file; this is useful if you

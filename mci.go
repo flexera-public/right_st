@@ -87,18 +87,19 @@ func validateMultiCloudImage(mciDef *MultiCloudImage) (errors []error) {
 				}
 			}
 			if mciDef.Settings[i].instanceTypeHref == "" {
-				errors = append(errors, fmt.Errorf("Cannot find instance type %s for MCI '%s' Setting #%d",
-					s.InstanceType, mciDef.Name, i+1))
+				errors = append(errors, fmt.Errorf("Cannot find instance type %s for MCI '%s' cloud %s",
+					s.InstanceType, mciDef.Name, mciDef.Settings[i].Cloud))
 			}
 
 			apiParams := rsapi.APIParams{"filter": []string{"resource_uid==" + s.Image}}
 			images, err := client.ImageLocator(mciDef.Settings[i].cloudHref + "/images").Index(apiParams)
 			if err != nil {
-				errors = append(errors, fmt.Errorf("WARNING: Could not complete API call: %s\n", err.Error()))
+				errors = append(errors, fmt.Errorf("WARNING: Could not complete API call for MCI '%s' cloud %s: : %s\n",
+					err.Error(), mciDef.Name, mciDef.Settings[i].Cloud))
 			}
 			if len(images) < 1 {
-				errors = append(errors, fmt.Errorf("Cannot find image with resource_uid %s for MCI '%s' Setting #%d",
-					s.Image, mciDef.Name, i+1))
+				errors = append(errors, fmt.Errorf("Cannot find image with resource_uid %s for MCI '%s' cloud %s",
+					s.Image, mciDef.Name, mciDef.Settings[i].Cloud))
 			} else {
 				mciDef.Settings[i].imageHref = getLink(images[0].Links, "self")
 			}
@@ -154,24 +155,25 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool)
 				if err != nil {
 					if strings.Contains(err.Error(), "ResourceNotFound") {
 						fmt.Printf("WARNING: For MCI '%s', skipping setting for cloud %s: cloud isn't registered in this account.\n",
-							mci.Name, getLink(s.Links, "cloud"))
+							mci.Name, cloud.Name)
 						continue
 					} else {
-						return nil, fmt.Errorf("Could not complete API call: %s\n", err.Error())
+						return nil, fmt.Errorf("Could not complete API call for MCI '%s' cloud %s: %s\n",
+							mci.Name, cloud.Name, err.Error())
 					}
 				}
 				if getLink(s.Links, "instance_type") == "" {
 					fmt.Printf("WARNING: For MCI '%s', skipping setting for cloud %s: fingerprinted MCIs not supported by this tool.\n",
-						mci.Name, getLink(s.Links, "cloud"))
+						mci.Name, cloud.Name)
 					continue
 				}
 				instanceType, err := client.InstanceTypeLocator(getLink(s.Links, "instance_type")).Show(rsapi.APIParams{})
 				if err != nil {
-					return nil, fmt.Errorf("Could not complete API call: %s\n", err.Error())
+					return nil, fmt.Errorf("Could not complete API call for MCI '%s' cloud %s: %s\n", mci.Name, cloud.Name, err.Error())
 				}
 				image, err := client.ImageLocator(getLink(s.Links, "image")).Show(rsapi.APIParams{})
 				if err != nil {
-					fmt.Printf("WARNING: Could not complete API call: %s\n", err.Error())
+					fmt.Printf("WARNING: Could not complete API call for MCI '%s' cloud %s: %s\n", mci.Name, cloud.Name, err.Error())
 					continue
 				}
 
@@ -195,7 +197,7 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool)
 			if err != nil {
 				return nil, fmt.Errorf("Error finding publication: %s\n", err.Error())
 			}
-			mciImage := MultiCloudImage{Name: mci.Name, Revision: mci.Revision, Description: mci.Description}
+			mciImage := MultiCloudImage{Name: mci.Name, Revision: mci.Revision}
 			if pub != nil {
 				mciImage.Publisher = pub.Publisher
 			}
@@ -365,7 +367,7 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 				if !seenSettings[getLink(s.Links, "cloud")] {
 					err := s.Locator(client).Destroy()
 					if err != nil {
-						fatalError("  Could not Remove MCI Setting for MCI '%s' with Cloud '%s': %s",
+						fatalError("  Could not Remove MCI Setting for MCI '%s' with cloud %s: %s",
 							mciName, getLink(s.Links, "cloud"), err.Error())
 					}
 				}
