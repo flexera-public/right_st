@@ -1,4 +1,4 @@
-unreleased changes
+v1.4.4 / 2016-08-11
 -------------------
 * Fix bug, introduced in v1.4.0, where attachment names were getting mangled
 * Correctly set default MCI for ServerTemplates on download
