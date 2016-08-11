@@ -121,7 +121,7 @@ func downloadAlerts(st *cm15.ServerTemplate) ([]*Alert, error) {
 	for i, alertSpec := range alertSpecs {
 		alerts[i] = &Alert{
 			Name:        alertSpec.Name,
-			Description: alertSpec.Description,
+			Description: removeCarriageReturns(alertSpec.Description),
 			Clause:      printAlertClause(*alertSpec),
 		}
 	}

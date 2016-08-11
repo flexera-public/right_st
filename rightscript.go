@@ -254,7 +254,7 @@ func rightScriptDownload(href, downloadTo string) string {
 	}
 	apiMetadata := RightScriptMetadata{
 		Name:        rightscript.Name,
-		Description: rightscript.Description,
+		Description: removeCarriageReturns(rightscript.Description),
 		Packages:    rightscript.Packages,
 		Inputs:      inputs,
 		Attachments: attachmentNames,

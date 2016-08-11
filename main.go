@@ -454,3 +454,8 @@ func setTagsByHref(href string, tags []string) error {
 	}
 	return nil
 }
+
+// Carriage returns get inserted by the API and mess up formatting of the YAML file.
+func removeCarriageReturns(s string) string {
+	return strings.Replace(s, "\r", "", -1)
+}

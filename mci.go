@@ -185,7 +185,12 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool)
 			}
 			if len(mciSettings) > 0 {
 				// Default MCI is the first in the list
-				mciImage := MultiCloudImage{Name: mci.Name, Tags: tags, Description: mci.Description, Settings: mciSettings}
+				mciImage := MultiCloudImage{
+					Name:        mci.Name,
+					Tags:        tags,
+					Description: removeCarriageReturns(mci.Description),
+					Settings:    mciSettings,
+				}
 				if getLink(mci.Links, "self") == defaultMciHref {
 					mciImages = append([]*MultiCloudImage{&mciImage}, mciImages...)
 				} else {

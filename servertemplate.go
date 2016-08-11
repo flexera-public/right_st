@@ -470,7 +470,7 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 	//-------------------------------------
 	stDef := ServerTemplate{
 		Name:             st.Name,
-		Description:      st.Description,
+		Description:      removeCarriageReturns(st.Description),
 		Inputs:           stInputs,
 		MultiCloudImages: mcis,
 		RightScripts:     rightScripts,
