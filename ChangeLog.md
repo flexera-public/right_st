@@ -1,3 +1,7 @@
+unreleased changes
+-------------------
+* Fix bug, introduced in v1.4.0, where attachment names were getting mangled
+
 v1.4.3 / 2016-08-11
 -------------------
 * Fix panic when using --mci-settings introduced in v1.4.2

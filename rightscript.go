@@ -199,7 +199,7 @@ func rightScriptDownload(href, downloadTo string) string {
 		}
 	}
 	downloadItems := []*downloadItem{}
-	pathPrepend := filepath.Join(filepath.Dir(downloadTo), "attachments")
+	pathPrepend := filepath.Join(filepath.Dir(downloadTo), "attachments") + string(os.PathSeparator)
 	for _, attachment := range attachments {
 		var downloadLocations []string
 
@@ -238,7 +238,7 @@ func rightScriptDownload(href, downloadTo string) string {
 		for _, d := range downloadItems {
 			for i, attachment := range attachments {
 				if filepath.Base(attachment.Filename) == filepath.Base(d.downloadedTo) {
-					attachments[i].Filename = strings.TrimLeft(d.downloadedTo, pathPrepend)
+					attachments[i].Filename = strings.Replace(d.downloadedTo, pathPrepend, ``, 1)
 				}
 			}
 		}
