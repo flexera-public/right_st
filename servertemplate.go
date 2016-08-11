@@ -459,10 +459,22 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 	stInputs := make(map[string]*InputValue)
 	for _, inputHash := range st.Inputs {
 		iv, err := parseInputValue(inputHash["value"])
+
 		if err != nil {
 			fatalError("Error parsing input value from API:", err.Error())
 		}
-		stInputs[inputHash["name"]] = iv
+		// The API returns "inherit" values as "blank" values. Blank really means an
+		// empty text string, which is usually not what was meant -- usually people
+		// didn't mean to set the input at the ST level, in which case the
+		// RightScript sets the value. Note that the user can still set the input to
+		// blank at the RightScript level so it isn't much of a limitation this
+		// occassionally doesn't always get set correctly on download
+		// TBD: this can be improved slightly -- we can cross check the input with
+		// the rightscript it came form. If its the same, we inherit. If we can
+		// assume the ST overrides and use that value.
+		if iv.Type != "blank" {
+			stInputs[inputHash["name"]] = iv
+		}
 	}
 
 	//-------------------------------------
