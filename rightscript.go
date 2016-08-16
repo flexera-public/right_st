@@ -433,7 +433,7 @@ func rightScriptIdByName(name string) (string, error) {
 	foundId := ""
 	for _, rs := range rightscripts {
 		// Recheck the name here, filter does a partial match and we need an exact one
-		if rs.Name == name && rs.Revision == 0 {
+		if rs.Name == name && rs.Revision == 0 && strings.Contains(rs.Lineage, strconv.Itoa(Config.Account.Id)) {
 			if foundId != "" {
 				return "", fmt.Errorf("Error, matched multiple RightScripts with the same name, please delete one: %s %s", rs.Id, foundId)
 			} else {
