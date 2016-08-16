@@ -17,7 +17,7 @@ script:
   # Deploy build result to s3
   - export AWS_ACCESS_KEY_ID=AKIAIX3L4RHHIREAHABQ
   - export AWS_SECRET_ACCESS_KEY=${RSBIN_KEY}
-  - [[ -z $AWS_SECRET_ACCESS_KEY ]] || make upload
+  - "[[ -z $AWS_SECRET_ACCESS_KEY ]] || make upload"
 notifications:
   slack:
     secure: ES+/jcX/8qvbko6FoK991JO8nz/kmuMTJ1YuKog6Qyhnr177lCufxkxnC3JG+BN8Ny4zAjQgJUINdgnzccl0yMafwPSpRd7T9mMQMdFFte+DK3zYEIztTpqHrK2YfGFiFmI0dAW+XXZV2bvWWIAvbnJ2Bwq6sKZ5Ihv4ctLfyHnRzYVtsEvcUVw9d4Sd8vpHuWWGXPsFXRGEm5CC7WHl7noto81bm3i3mHOdJ9qcAtzrvr/87P5ioBuNjAbTosnzl323NV+XxFuC3FBV46pzPETIBjZ+Z4xWsAkz63FxzZpns35hNCmq+OFmAQHj0JzhxB7ZVUkDKSnxTkkxA/agJ/e/6sChIwV7rEuEmIvYuMYRlUI+ZDLmHb1aQDGqf6JXnbLqwKwUzkO3h9QlU7L5VQ+odWRj6CSXz0YzLgsmYJcrb08wMzhRUT3OUPbcf+qXcMBu3Ze+GBdvn97JkCB8txWNEUCoj9uPqFiaEa/NJqS1Eu1wmkV0S8ZMikJ2VUywUglN/5rw+/E+ghjTx/TjyoL8zRSYnl3KkxgohJPAx+kIO6arm65G1RvjEFW41vtbXus6JgUS8N3b9yxs73nle8nnY91vOw6k3/rm9spaMcvw0ImyuAyD/NTSQpS8AR5V9fGxlxtaF9ySD8q3/MaePOmXOAlCGKQ4qiOCGpg+gmI=
