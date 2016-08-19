@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -42,6 +43,10 @@ type RightScript struct {
 	Publisher string // Needed for remote case
 	Metadata  RightScriptMetadata
 }
+
+var (
+	lineage = regexp.MustCompile(`/api/acct/(\d+)/right_scripts/.+$`)
+)
 
 func rightScriptShow(href string) {
 	client, err := Config.Account.Client15()
@@ -434,6 +439,18 @@ func rightScriptIdByName(name string) (string, error) {
 	for _, rs := range rightscripts {
 		// Recheck the name here, filter does a partial match and we need an exact one
 		if rs.Name == name && rs.Revision == 0 {
+			// Only consider our own RightScripts when uploading
+			submatches := lineage.FindStringSubmatch(rs.Lineage)
+			if submatches == nil {
+				panic(fmt.Errorf("Unexpected RightScript lineage format: %s", rs.Lineage))
+			}
+			accountId, err := strconv.Atoi(submatches[1])
+			if err != nil {
+				panic(err)
+			}
+			if accountId != Config.Account.Id {
+				continue
+			}
 			if foundId != "" {
 				return "", fmt.Errorf("Error, matched multiple RightScripts with the same name, please delete one: %s %s", rs.Id, foundId)
 			} else {
