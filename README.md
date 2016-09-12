@@ -180,11 +180,11 @@ MultiCloudImages:
 - Href: /api/multi_cloud_images/403042003
 # Format 4: Fully Managed MCI object specifying all clouds/images:
 - Name: MyUbuntu_14.04_x64
-- Description: My companies custom MCI
-- Tags:
+  Description: My companies custom MCI
+  Tags:
   - rs_agent:type=right_link_lite
   - rs_agent:mime_shellscript=https://rightlink.rightscale.com/rll/10/rightlink.boot.sh
-- Settings:
+  Settings:
   - Cloud: EC2 us-east-1
     Instance Type: m3.medium
     Image: ami-5e91b936
