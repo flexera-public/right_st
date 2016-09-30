@@ -145,16 +145,36 @@ func doServerTemplateUpload(stDef *ServerTemplate, prefix string) error {
 	fmt.Println("Setting order of RightScripts:")
 	rbLoc := client.RunnableBindingLocator(getLink(st.Links, "runnable_bindings"))
 	existingRbs, _ := rbLoc.Index(rsapi.APIParams{})
-	seenExistingRbs := make([]bool, len(existingRbs), len(existingRbs))
+	// Remove RightScripts that don't belong from the sequence list. We must remove first else we might get an
+	// error adding the same revision to a ST.
+	for _, rb := range existingRbs {
+		seenExistingRb := false
+		for _, sequenceType := range sequenceTypes {
+			for _, script := range stDef.RightScripts[sequenceType] {
+				scriptHref := hrefByName[script.Metadata.Name]
+				rbHref := getLink(rb.Links, "right_script")
+				if rb.Sequence == strings.ToLower(sequenceType) && rbHref == scriptHref {
+					seenExistingRb = true
+				}
+			}
+		}
+		if !seenExistingRb {
+			fmt.Printf("  Removing %s from ServerTemplate %s bundle\n", getLink(rb.Links, "right_script"), rb.Sequence)
+			err := rb.Locator(client).Destroy()
+			if err != nil {
+				fatalError("  Could not destroy RunnableBinding %s: %s", getLink(rb.Links, "right_script"), err.Error())
+			}
+		}
+	}
+	// Add RightScripts to the sequence list, if they're not there.
 	for _, sequenceType := range sequenceTypes {
 		for _, script := range stDef.RightScripts[sequenceType] {
 			seenScript := false
 			scriptHref := hrefByName[script.Metadata.Name]
-			for i, rb := range existingRbs {
+			for _, rb := range existingRbs {
 				rbHref := getLink(rb.Links, "right_script")
 				if rb.Sequence == strings.ToLower(sequenceType) && rbHref == scriptHref {
 					seenScript = true
-					seenExistingRbs[i] = true
 				}
 			}
 			if !seenScript {
@@ -162,21 +182,11 @@ func doServerTemplateUpload(stDef *ServerTemplate, prefix string) error {
 					RightScriptHref: scriptHref,
 					Sequence:        strings.ToLower(sequenceType),
 				}
-				fmt.Printf("  Adding %s to ServerTemplate %s bundle\n", scriptHref, sequenceType)
+				fmt.Printf("  Adding %s to ServerTemplate %s bundle\n", scriptHref, strings.ToLower(sequenceType))
 				_, err := rbLoc.Create(&params)
 				if err != nil {
 					fatalError("  Could not create %s RunnableBinding for HREF %s: %s", sequenceType, scriptHref, err.Error())
 				}
-			}
-		}
-	}
-	// Remove RightScripts that don't belong from the sequence list
-	for i, rb := range existingRbs {
-		if !seenExistingRbs[i] {
-			fmt.Printf("  Removing %s from ServerTemplate\n", getLink(rb.Links, "right_script"))
-			err := rb.Locator(client).Destroy()
-			if err != nil {
-				fatalError("  Could not destroy RunnableBinding %s: %s", getLink(rb.Links, "right_script"), err.Error())
 			}
 		}
 	}

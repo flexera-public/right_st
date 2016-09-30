@@ -1,3 +1,7 @@
+unreleased changes
+-------------------
+* Fix bug when changing revision of imported RightScript
+
 v1.4.4 / 2016-08-11
 -------------------
 * Fix bug, introduced in v1.4.0, where attachment names were getting mangled
