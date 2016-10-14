@@ -1,6 +1,7 @@
 unreleased changes
 -------------------
 * Fix bug when changing revision of imported RightScript
+* Allow ServerTemplate YAML to reference fixed revisions of RightScripts not imported from the MultiCloudMarketplace.
 
 v1.4.4 / 2016-08-11
 -------------------

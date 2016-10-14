@@ -120,7 +120,7 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | ----- | ------ | ----------- |
 | Name | String | Name of the ServerTemplate. Name must be unique for your account. |
 | Description | String | Description field for the ServerTemplate. |
-| RightScripts | Hash of String -> Array of RightScripts| The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of RightScripts. Each RightScript can be specified in one of two ways, as a locally managed RightScript and a "published" or "external" RightScript. A locally managed RightScript is specified as a pathname to a file on disk. Published RightScripts are links to RightScripts shared in the MultiCloud marketplace and consist of a hash specifying a Name/Revision/Publisher to look up.|
+| RightScripts | Hash of String -> Array of RightScripts| The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of RightScripts. Each RightScript can be specified in one of two ways, as a "locally" managed RightScript, "published" or "external" RightScript. A locally managed RightScript is specified as a pathname to a file on disk. Published RightScripts are links to RightScripts shared in the MultiCloud marketplace and consist of a hash specifying a Name/Revision/Publisher to look up. External RightScript consist of a Name/Revision pair and will not search the MultiCloud marketplace. |
 | Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overridden in a ServerTemplate. |
 | MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash of fields taking a few different formats. See section below for further details. |
 | Alerts | Array of Alerts | An array of Alert definitions, defined below. |
@@ -162,6 +162,8 @@ RightScripts:
   - Name: RL10 Linux Setup Hostname
     Revision: 6
     Publisher: RightScale
+  - Name: My Local RightScript
+    Revision: 3
   - path/to/script1.sh
   - path/to/script2.sh
   Operational:

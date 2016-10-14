@@ -475,23 +475,25 @@ func (r *RightScript) PushRemote() error {
 		return err
 	}
 	// Algorithm:
-	//   1. Find the RightScript in publications first. Get the name/description/publisher
-	//   2. If we don't find it, throw an error
-	//   3. Get the imported RightScript. If it doesn't exist, import it then get the href
-	//   4. Insert HREF into r struct for later use.
-	matchers := map[string]string{}
+	//   1. If a publisher is specified, find the RightScript in publications. Error if not found
+	//     a. Get the imported RightScript. If it doesn't exist, import it then get the href
+	//   2. If a publisher is not specified, check Local account. Error if not found
+	//   3. Insert HREF into r struct for later use.
+	// If this first part is changed, copy it to servertemplate.go validation section as well.
+	var pub *cm15.Publication
 	if r.Publisher != "" {
+		matchers := map[string]string{}
+
 		matchers[`Publisher`] = r.Publisher
-	}
 
-	pub, err := findPublication("RightScript", r.Name, r.Revision, matchers)
-	if err != nil {
-		return err
+		pub, err = findPublication("RightScript", r.Name, r.Revision, matchers)
+		if err != nil {
+			return err
+		}
+		if pub == nil {
+			return fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for RightScript '%s' Revision %d Publisher '%s'", r.Name, r.Revision, r.Publisher)
+		}
 	}
-	if pub == nil {
-		return fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for RightScript '%s' Revision %d Publisher '%s'", r.Name, r.Revision, r.Publisher)
-	}
-
 	rsLocator := client.RightScriptLocator("/api/right_scripts")
 	filters := []string{
 		"name==" + r.Name,
@@ -505,32 +507,42 @@ func (r *RightScript) PushRemote() error {
 		// Recheck the name here, filter does a partial match and we need an exact one.
 		// Matching the descriptions helps to disambiguate if we have multiple publications
 		// with that same name/revision pair.
-		if rs.Name == r.Name && rs.Revision == r.Revision && rs.Description == pub.Description {
-			r.Href = getLink(rs.Links, "self")
+		if rs.Name == r.Name && rs.Revision == r.Revision {
+			if pub == nil {
+				r.Href = getLink(rs.Links, "self")
+			} else {
+				if rs.Description == pub.Description {
+					r.Href = getLink(rs.Links, "self")
+				}
+			}
 		}
 	}
 
 	if r.Href == "" {
-		loc := pub.Locator(client)
+		if pub == nil {
+			return fmt.Errorf("Could not find RightScript '%s' Revision %d in local account. Add a 'Publisher' to also search the MultiCloud Marketplace", r.Name, r.Revision)
+		} else {
+			loc := pub.Locator(client)
 
-		err = loc.Import()
+			err = loc.Import()
 
-		if err != nil {
-			return fmt.Errorf("Failed to import publication %s for RightScript '%s' Revision %d Publisher %s\n",
-				getLink(pub.Links, "self"), r.Name, r.Revision, r.Publisher)
-		}
-
-		rsUnfiltered, err := rsLocator.Index(rsapi.APIParams{"filter": filters})
-		if err != nil {
-			return err
-		}
-		for _, rs := range rsUnfiltered {
-			if rs.Name == r.Name && rs.Revision == r.Revision && rs.Description == pub.Description {
-				r.Href = getLink(rs.Links, "self")
+			if err != nil {
+				return fmt.Errorf("Failed to import publication %s for RightScript '%s' Revision %d Publisher %s\n",
+					getLink(pub.Links, "self"), r.Name, r.Revision, r.Publisher)
 			}
-		}
-		if r.Href == "" {
-			return fmt.Errorf("Could not refind RightScript '%s' Revision %d after import!", r.Name, r.Revision)
+
+			rsUnfiltered, err := rsLocator.Index(rsapi.APIParams{"filter": filters})
+			if err != nil {
+				return err
+			}
+			for _, rs := range rsUnfiltered {
+				if rs.Name == r.Name && rs.Revision == r.Revision && rs.Description == pub.Description {
+					r.Href = getLink(rs.Links, "self")
+				}
+			}
+			if r.Href == "" {
+				return fmt.Errorf("Could not refind RightScript '%s' Revision %d after import!", r.Name, r.Revision)
+			}
 		}
 	}
 
@@ -750,7 +762,7 @@ func (rs RightScript) MarshalYAML() (interface{}, error) {
 func (rs *RightScript) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var pathType string
 	var mapType map[string]string
-	errorMsg := "Could not unmarshal RightScript. Must be either a path to file on disk or a hash with a Name/Revision keys"
+	errorMsg := "Could not unmarshal RightScript. Must be either a path to file on disk or a hash with Publisher/Name/Revision or Name/Revision keys"
 	err := unmarshal(&pathType)
 	if err == nil {
 		rs.Type = LocalRightScript
@@ -771,7 +783,7 @@ func (rs *RightScript) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		}
 		revStr, ok := mapType["Revision"]
 		if !ok {
-			return fmt.Errorf(errorMsg)
+			revStr = "0"
 		}
 		rev, err := strconv.Atoi(revStr)
 		if err != nil {

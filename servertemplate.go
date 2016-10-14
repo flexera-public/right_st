@@ -543,7 +543,7 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 		return nil, []error{err}
 	}
 
-	_, err = Config.Account.Client15()
+	client, err := Config.Account.Client15()
 	if err != nil {
 		return nil, []error{err}
 	}
@@ -563,21 +563,44 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 	for sequence, scripts := range st.RightScripts {
 		for i, rs := range scripts {
 			if rs.Type == PublishedRightScript {
-				matchers := map[string]string{}
 				if rs.Publisher != "" {
+					matchers := map[string]string{}
+
 					matchers[`Publisher`] = rs.Publisher
+
+					pub, err := findPublication("RightScript", rs.Name, rs.Revision, matchers)
+					if err != nil {
+						errors = append(errors, fmt.Errorf("Error finding publication for RightScript: %s\n", err.Error()))
+					}
+					if pub == nil {
+						errors = append(errors, fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for RightScript '%s' Revision %d Publisher '%s'", rs.Name, rs.Revision, rs.Publisher))
+					} else {
+						rs.Metadata.Description = pub.Description
+					}
+				} else {
+					rsLocator := client.RightScriptLocator("/api/right_scripts")
+					filters := []string{
+						"name==" + rs.Name,
+					}
+
+					rsUnfiltered, err := rsLocator.Index(rsapi.APIParams{"filter": filters})
+					if err != nil {
+						errors = append(errors, fmt.Errorf("Error finding RightScript: %s\n", err.Error()))
+					}
+					found := false
+					for _, rsu := range rsUnfiltered {
+						// Recheck the name here, filter does a partial match and we need an exact one.
+						// Matching the descriptions helps to disambiguate if we have multiple publications
+						// with that same name/revision pair.
+						if rs.Name == rsu.Name && rs.Revision == rsu.Revision {
+							found = true
+						}
+					}
+					if !found {
+						errors = append(errors, fmt.Errorf("Error finding RightScript '%s' Revision %d in account. Maybe add a Publisher?\n", rs.Name, rs.Revision))
+					}
 				}
 
-				pub, err := findPublication("RightScript", rs.Name, rs.Revision, matchers)
-				if err != nil {
-					errors = append(errors, fmt.Errorf("Error finding publication for RightScript: %s\n", err.Error()))
-				}
-				if pub == nil {
-					errors = append(errors, fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for RightScript '%s' Revision %d Publisher '%s'",
-						rs.Name, rs.Revision, rs.Publisher))
-				} else {
-					rs.Metadata.Description = pub.Description
-				}
 				rs.Metadata.Name = rs.Name
 			} else if rs.Type == LocalRightScript {
 				rsNew, err := validateRightScript(filepath.Join(filepath.Dir(file), rs.Path), false)
