@@ -29,7 +29,7 @@ Right ST interfaces with the [RightScale API](http://reference.rightscale.com/ap
 1. YAML-based configuration file -  Run `right_st config account <name>`, where name is a nickname for the account, to interactively write the configuration file into `$HOME/.right_st.yml` for the first time. You will be prompted for the following fields:
     * Account ID - Numeric account number, such as `60073`
     * API endpoint host - Hostname, typically `my.rightscale.com`
-    * Refresh Token - Your personal OAuth token available from **Settings > Account Settings > Refresh Token** in the RightScale Cloud Management dashboard
+    * Refresh Token - Your personal OAuth token available from **Settings > Account Settings > API Credentials** in the RightScale Cloud Management dashboard
 2. Environment variables - These are meant to be used by build systems such as Travis CI. The following vars must be set: `RIGHT_ST_LOGIN_ACCOUNT_ID`, `RIGHT_ST_LOGIN_ACCOUNT_HOST`, `RIGHT_ST_LOGIN_ACCOUNT_REFRESH_TOKEN`. These variables are equivalent to the ones described in the YAML section above.
 
 ## Managing RightScripts
