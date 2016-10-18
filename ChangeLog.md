@@ -1,7 +1,11 @@
-unreleased changes
+v1.4.5 / 2016-10-18
 -------------------
 * Fix bug when changing revision of imported RightScript
-* Allow ServerTemplate YAML to reference fixed revisions of RightScripts not imported from the MultiCloudMarketplace.
+* Allow ServerTemplate YAML to reference fixed revisions of RightScripts not
+  imported from the MultiCloudMarketplace.
+* Allow referring to RightScripts and MCIs as 'latest' in YAML, which means to
+  use/import the latest revision of a published RightScript or MCI from the
+  marketplace.
 
 v1.4.4 / 2016-08-11
 -------------------

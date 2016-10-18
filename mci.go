@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/rightscale/rsc/cm15"
@@ -19,15 +20,17 @@ type Setting struct {
 }
 
 type MultiCloudImage struct {
-	Href        string   `yaml:"Href,omitempty"`
-	Name        string   `yaml:"Name,omitempty"`
-	Description string   `yaml:"Description,omitempty"`
-	Revision    int      `yaml:"Revision,omitempty"`
-	Publisher   string   `yaml:"Publisher,omitempty"`
-	Tags        []string `yaml:"Tags,omitempty"`
+	Href        string     `yaml:"Href,omitempty"`
+	Name        string     `yaml:"Name,omitempty"`
+	Description string     `yaml:"Description,omitempty"`
+	Revision    RsRevision `yaml:"Revision,omitempty"`
+	Publisher   string     `yaml:"Publisher,omitempty"`
+	Tags        []string   `yaml:"Tags,omitempty"`
 	// Settings are like MultiCloudImageSettings, defining cloud/resource_uid sets
 	Settings []*Setting `yaml:"Settings,omitempty"`
 }
+
+type RsRevision int
 
 // Cache lookups for below
 var cloudsLookup []*cm15.Cloud
@@ -57,7 +60,7 @@ func validateMultiCloudImage(mciDef *MultiCloudImage) (errors []error) {
 			errors = append(errors, fmt.Errorf("Could not find MCI HREF %s in account", mciDef.Href))
 		}
 		mciDef.Name = mci.Name
-		mciDef.Revision = mci.Revision
+		mciDef.Revision = RsRevision(mci.Revision)
 	} else if len(mciDef.Settings) > 0 {
 		for i, s := range mciDef.Settings {
 			if s.Cloud == "" || s.InstanceType == "" || s.Image == "" {
@@ -106,20 +109,20 @@ func validateMultiCloudImage(mciDef *MultiCloudImage) (errors []error) {
 
 		}
 	} else if mciDef.Publisher != "" {
-		pub, err := findPublication("MultiCloudImage", mciDef.Name, mciDef.Revision,
+		pub, err := findPublication("MultiCloudImage", mciDef.Name, int(mciDef.Revision),
 			map[string]string{`Publisher`: mciDef.Publisher})
 		if err != nil {
 			errors = append(errors, fmt.Errorf("Error finding publication for MultiCloudImage: %s\n", err.Error()))
 		}
 		if pub == nil {
-			errors = append(errors, fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for MultiCloudImage '%s' Revision %d Publisher '%s'",
-				mciDef.Name, mciDef.Revision, mciDef.Publisher))
+			errors = append(errors, fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for MultiCloudImage '%s' Revision %s Publisher '%s'",
+				mciDef.Name, formatRev(int(mciDef.Revision)), mciDef.Publisher))
 		}
 	} else if mciDef.Name != "" {
-		href, err := paramToHref("multi_cloud_images", mciDef.Name, mciDef.Revision)
+		href, err := paramToHref("multi_cloud_images", mciDef.Name, int(mciDef.Revision))
 		if err != nil {
-			errors = append(errors, fmt.Errorf("Could not find MCI named '%s' with revision %d in account",
-				mciDef.Name, mciDef.Revision))
+			errors = append(errors, fmt.Errorf("Could not find MCI named '%s' with revision %s in account",
+				mciDef.Name, formatRev(int(mciDef.Revision))))
 		}
 		mciDef.Href = href
 	} else {
@@ -211,7 +214,7 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool)
 			if err != nil {
 				return nil, fmt.Errorf("Error finding publication: %s\n", err.Error())
 			}
-			mciImage := MultiCloudImage{Name: mci.Name, Revision: mci.Revision}
+			mciImage := MultiCloudImage{Name: mci.Name, Revision: RsRevision(mci.Revision)}
 			if pub != nil {
 				mciImage.Publisher = pub.Publisher
 			}
@@ -245,14 +248,14 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 	//   4. Insert HREF into r struct for later use.
 	for _, mciDef := range stDef.MultiCloudImages {
 		if mciDef.Publisher != "" {
-			pub, err := findPublication("MultiCloudImage", mciDef.Name, mciDef.Revision,
+			pub, err := findPublication("MultiCloudImage", mciDef.Name, int(mciDef.Revision),
 				map[string]string{`Publisher`: mciDef.Publisher})
 			if err != nil {
 				return fmt.Errorf("Could not lookup publication %s", err.Error())
 			}
 			if pub == nil {
-				return fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for MultiCloudImage '%s' Revision %d Publisher '%s'",
-					mciDef.Name, mciDef.Revision, mciDef.Publisher)
+				return fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for MultiCloudImage '%s' Revision %s Publisher '%s'",
+					mciDef.Name, formatRev(int(mciDef.Revision)), mciDef.Publisher)
 			}
 
 			mciLocator := client.MultiCloudImageLocator("/api/multi_cloud_images")
@@ -268,7 +271,7 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 				// Recheck the name here, filter does a partial match and we need an exact one.
 				// Matching the descriptions helps to disambiguate if we have multiple publications
 				// with that same name/revision pair.
-				if mci.Name == mciDef.Name && mci.Revision == mciDef.Revision && mci.Description == pub.Description {
+				if mci.Name == mciDef.Name && mci.Revision == pub.Revision && mci.Description == pub.Description {
 					mciDef.Href = getLink(mci.Links, "self")
 				}
 			}
@@ -279,8 +282,8 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 				err = loc.Import()
 
 				if err != nil {
-					return fmt.Errorf("Failed to import publication %s for MultiCloudImage '%s' Revision %d Publisher %s\n",
-						getLink(pub.Links, "self"), mciDef.Name, mciDef.Revision, mciDef.Publisher)
+					return fmt.Errorf("Failed to import publication %s for MultiCloudImage '%s' Revision %s Publisher %s\n",
+						getLink(pub.Links, "self"), mciDef.Name, formatRev(int(mciDef.Revision)), mciDef.Publisher)
 				}
 
 				mciUnfiltered, err := mciLocator.Index(rsapi.APIParams{"filter": filters})
@@ -288,12 +291,12 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 					return fmt.Errorf("Error looking up MCI: %s", err.Error())
 				}
 				for _, mci := range mciUnfiltered {
-					if mci.Name == mciDef.Name && mci.Revision == mciDef.Revision && mci.Description == pub.Description {
+					if mci.Name == mciDef.Name && mci.Revision == pub.Revision && mci.Description == pub.Description {
 						mciDef.Href = getLink(mci.Links, "self")
 					}
 				}
 				if mciDef.Href == "" {
-					return fmt.Errorf("Could not refind MultiCloudImage '%s' Revision %d after import!", mciDef.Name, mciDef.Revision)
+					return fmt.Errorf("Could not refind MultiCloudImage '%s' Revision %s after import!", mciDef.Name, formatRev(pub.Revision))
 				}
 			}
 		}
@@ -472,7 +475,7 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 			if prefix != "" {
 				mciName = fmt.Sprintf("%s_%s", prefix, mciName)
 			}
-			fmt.Printf("  Adding MCI '%s' revision '%d' (%s)\n", mciName, mciDef.Revision, mciDef.Href)
+			fmt.Printf("  Adding MCI '%s' revision %s (%s)\n", mciName, formatRev(int(mciDef.Revision)), mciDef.Href)
 			loc, err := stMciLocator.Create(&params)
 			if err != nil {
 				fatalError("  Failed to associate MCI '%s' with ServerTemplate '%s': %s", mciDef.Href, stDef.href, err.Error())
@@ -482,5 +485,44 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (rev RsRevision) MarshalYAML() (interface{}, error) {
+	if rev == -1 {
+		return "latest", nil
+	} else if rev == 0 {
+		return "head", nil
+	} else {
+		revInt := int(rev)
+		return revInt, nil
+	}
+}
+
+func (rev *RsRevision) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var strType string
+	var intType int
+	errorMsg := "Revision must be 'head', 'latest', or an integer"
+	err := unmarshal(&strType)
+	if err == nil {
+		if strType == "latest" {
+			*rev = -1
+		} else if strType == "head" {
+			*rev = 0
+		} else {
+			revInt, err := strconv.Atoi(strType)
+			if err != nil {
+				return fmt.Errorf(errorMsg)
+			}
+			*rev = RsRevision(revInt)
+		}
+	} else {
+		err = unmarshal(&intType)
+		if err != nil {
+			return fmt.Errorf(errorMsg)
+		}
+		*rev = RsRevision(intType)
+	}
+
 	return nil
 }

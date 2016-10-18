@@ -340,7 +340,7 @@ func isDirectory(path string) bool {
 // Params:
 //   kind: one of RightScript, MultiCloudImage, ServerTemplate
 //   name: name of publication to search for
-//   revision: revision of the publication to search for
+//   revision: revision of the publication to search for. -1 means "latest"
 //   matchers: Hash of string (field name) -> string (match value). additional matching criteria in case there are
 //     multiple publications with the same name and revision. Usually `Publisher` is used as a tie breaker.
 // Returns:
@@ -354,17 +354,14 @@ func findPublication(kind string, name string, revision int, matchers map[string
 		return nil, fmt.Errorf("No Name given when looking up %s publication", kind)
 	}
 
-	filters := []string{
-		"name==" + name,
-		"revision==" + fmt.Sprintf("%d", revision),
-	}
 	if *debug {
 		fmt.Printf("DEBUG: looking for publication with KIND:%s NAME:%s REVISION:%d MATCHERS:%v\n", kind, name, revision, matchers)
 	}
-	pubsUnfiltered, err := pubLocator.Index(rsapi.APIParams{"filter": filters})
+	pubsUnfiltered, err := pubLocator.Index(rsapi.APIParams{"filter": []string{"name==" + name}})
 	if err != nil {
 		return nil, fmt.Errorf("Call to /api/publications failed: %s", err.Error())
 	}
+	maxRevision := -1
 	var pubs []*cm15.Publication
 	for _, pub := range pubsUnfiltered {
 		// Recheck the name here, filter does a partial match and we need an exact one.
@@ -382,7 +379,15 @@ func findPublication(kind string, name string, revision int, matchers map[string
 				}
 			}
 			if matched_all_matchers {
-				pubs = append(pubs, pub)
+				// revision -1 means latest revision. We replace our list of found pubs with only the highest rev.
+				if revision == -1 {
+					if pub.Revision > maxRevision {
+						maxRevision = pub.Revision
+						pubs = []*cm15.Publication{pub}
+					}
+				} else if pub.Revision == revision {
+					pubs = append(pubs, pub)
+				}
 			}
 		}
 	}
@@ -390,7 +395,7 @@ func findPublication(kind string, name string, revision int, matchers map[string
 	if len(pubs) == 0 {
 		return nil, nil
 	} else if len(pubs) == 2 {
-		fmt.Printf("Too many %s publications matching %s with revision %d\n", kind, name, revision)
+		fmt.Printf("Too many %s publications matching %s with revision %s\n", kind, name, formatRev(revision))
 		for _, pub := range pubs {
 			pubHref := getLink(pub.Links, "self")
 			fmt.Printf("  Publisher:%s Revision:%d Href:%s\n", pub.Publisher, pub.Revision, pubHref)
@@ -458,4 +463,14 @@ func setTagsByHref(href string, tags []string) error {
 // Carriage returns get inserted by the API and mess up formatting of the YAML file.
 func removeCarriageReturns(s string) string {
 	return strings.Replace(s, "\r", "", -1)
+}
+
+func formatRev(rev int) string {
+	if rev == -1 {
+		return "latest"
+	} else if rev == 0 {
+		return "head"
+	} else {
+		return fmt.Sprintf("%d", rev)
+	}
 }

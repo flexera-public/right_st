@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -461,6 +462,83 @@ func rightScriptIdByName(name string) (string, error) {
 	return foundId, nil
 }
 
+// Finds a RightScript in the local account
+// Params:
+//   name: name of RightScript to search for
+//   revision: revision of the RightScript to search for. -1 means "latest"
+//   matchers: Hash of string (field name) -> string (match value). additional matching criteria in case there are
+//     multiple RightScripts with the same name and revision. Usually `Description` is used as a tie breaker.
+// Returns:
+//   RightScript if found. nil if not found. errors fatally if multiple RightScripts are found.
+func findRightScript(name string, revision int, matchers map[string]string) (*cm15.RightScript, error) {
+	client, _ := Config.Account.Client15()
+
+	rsLocator := client.RightScriptLocator("/api/right_scripts")
+	unfiltered, err := rsLocator.Index(rsapi.APIParams{"filter": []string{"name==" + name}})
+	if err != nil {
+		return nil, err
+	}
+	// Publisher handled a bit specially. Unfortunately, there is no Publisher field for a RightScript. We have a lineage
+	// field has account ids in it. We have limited ability to match account ids to lineages unfortunately :(
+	publisher, ok := matchers[`Publisher`]
+	if ok {
+		delete(matchers, `Publisher`)
+	}
+	publishers := map[string]string{
+		"RightScale":      "/2901/",
+		"RightLink Agent": "/67972/",
+	}
+	publisher, _ = publishers[publisher]
+
+	maxRevision := -1
+	var scripts []*cm15.RightScript
+	for _, rs := range unfiltered {
+		// Recheck the name here, filter does a partial match and we need an exact one.
+		// Matching the descriptions helps to disambiguate if we have multiple publications
+		// with that same name/revision pair.
+		if rs.Name == name {
+			matched_all_matchers := true
+			for fieldName, value := range matchers {
+				v := reflect.Indirect(reflect.ValueOf(rs)).FieldByName(fieldName)
+				if v.IsValid() {
+					if v.String() != value {
+						matched_all_matchers = false
+					}
+				}
+			}
+			if publisher != "" {
+				if !strings.Contains(rs.Lineage, publisher) {
+					matched_all_matchers = false
+				}
+			}
+			if matched_all_matchers {
+				// revision -1 means latest revision. We replace our list of found pubs with only the highest rev.
+				if revision == -1 {
+					if rs.Revision > maxRevision {
+						maxRevision = rs.Revision
+						scripts = []*cm15.RightScript{rs}
+					}
+				} else if rs.Revision == revision {
+					scripts = append(scripts, rs)
+				}
+			}
+		}
+	}
+	if len(scripts) == 0 {
+		return nil, nil
+	} else if len(scripts) == 2 {
+		errMsg := fmt.Sprintf("Too many RightScripts matching %s with revision %s", name, formatRev(revision))
+		fmt.Println(errMsg)
+		for _, script := range scripts {
+			href := getLink(script.Links, "self")
+			fmt.Printf("  Script Href: %s\n", href)
+		}
+		return nil, fmt.Errorf("%s", errMsg)
+	} else {
+		return scripts[0], nil
+	}
+}
+
 func (r *RightScript) Push(prefix string) error {
 	if r.Type == PublishedRightScript {
 		return r.PushRemote()
@@ -481,69 +559,38 @@ func (r *RightScript) PushRemote() error {
 	//   3. Insert HREF into r struct for later use.
 	// If this first part is changed, copy it to servertemplate.go validation section as well.
 	var pub *cm15.Publication
+	pubMatcher := map[string]string{}
 	if r.Publisher != "" {
-		matchers := map[string]string{}
-
-		matchers[`Publisher`] = r.Publisher
-
-		pub, err = findPublication("RightScript", r.Name, r.Revision, matchers)
+		pub, err = findPublication("RightScript", r.Name, r.Revision, map[string]string{`Publisher`: r.Publisher})
 		if err != nil {
 			return err
 		}
 		if pub == nil {
-			return fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for RightScript '%s' Revision %d Publisher '%s'", r.Name, r.Revision, r.Publisher)
+			return fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for RightScript '%s' Revision %s Publisher '%s'", r.Name, formatRev(r.Revision), r.Publisher)
 		}
+		pubMatcher[`Description`] = pub.Description
+		pubMatcher[`Publisher`] = r.Publisher
 	}
-	rsLocator := client.RightScriptLocator("/api/right_scripts")
-	filters := []string{
-		"name==" + r.Name,
-	}
-
-	rsUnfiltered, err := rsLocator.Index(rsapi.APIParams{"filter": filters})
-	if err != nil {
-		return err
-	}
-	for _, rs := range rsUnfiltered {
-		// Recheck the name here, filter does a partial match and we need an exact one.
-		// Matching the descriptions helps to disambiguate if we have multiple publications
-		// with that same name/revision pair.
-		if rs.Name == r.Name && rs.Revision == r.Revision {
-			if pub == nil {
-				r.Href = getLink(rs.Links, "self")
-			} else {
-				if rs.Description == pub.Description {
-					r.Href = getLink(rs.Links, "self")
-				}
-			}
-		}
-	}
-
-	if r.Href == "" {
+	script, err := findRightScript(r.Name, r.Revision, pubMatcher)
+	if script == nil {
 		if pub == nil {
-			return fmt.Errorf("Could not find RightScript '%s' Revision %d in local account. Add a 'Publisher' to also search the MultiCloud Marketplace", r.Name, r.Revision)
+			return fmt.Errorf("Could not find RightScript '%s' Revision %s in local account. Add a 'Publisher' to also search the MultiCloud Marketplace", r.Name, formatRev(r.Revision))
 		} else {
 			loc := pub.Locator(client)
-
 			err = loc.Import()
-
 			if err != nil {
-				return fmt.Errorf("Failed to import publication %s for RightScript '%s' Revision %d Publisher %s\n",
-					getLink(pub.Links, "self"), r.Name, r.Revision, r.Publisher)
+				return fmt.Errorf("Failed to import publication %s for RightScript '%s' Revision %s Publisher %s\n",
+					getLink(pub.Links, "self"), r.Name, formatRev(r.Revision), r.Publisher)
 			}
-
-			rsUnfiltered, err := rsLocator.Index(rsapi.APIParams{"filter": filters})
-			if err != nil {
-				return err
-			}
-			for _, rs := range rsUnfiltered {
-				if rs.Name == r.Name && rs.Revision == r.Revision && rs.Description == pub.Description {
-					r.Href = getLink(rs.Links, "self")
-				}
-			}
-			if r.Href == "" {
-				return fmt.Errorf("Could not refind RightScript '%s' Revision %d after import!", r.Name, r.Revision)
+			script, err = findRightScript(r.Name, r.Revision, pubMatcher)
+			if script == nil {
+				return fmt.Errorf("Could not refind RightScript '%s' Revision %s after import!", r.Name, formatRev(r.Revision))
+			} else {
+				r.Href = getLink(script.Links, "self")
 			}
 		}
+	} else {
+		r.Href = getLink(script.Links, "self")
 	}
 
 	return nil
@@ -753,7 +800,11 @@ func (rs RightScript) MarshalYAML() (interface{}, error) {
 	} else {
 		destMap := make(map[string]interface{})
 		destMap["Name"] = rs.Name
-		destMap["Revision"] = rs.Revision
+		if rs.Revision == -1 {
+			destMap["Revision"] = "latest"
+		} else {
+			destMap["Revision"] = rs.Revision
+		}
 		destMap["Publisher"] = rs.Publisher
 		return destMap, nil
 	}
@@ -768,6 +819,7 @@ func (rs *RightScript) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		rs.Type = LocalRightScript
 		rs.Path = pathType
 	} else {
+		rs.Type = PublishedRightScript
 		err = unmarshal(&mapType)
 		if err != nil {
 			return fmt.Errorf(errorMsg)
@@ -785,12 +837,17 @@ func (rs *RightScript) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		if !ok {
 			revStr = "0"
 		}
-		rev, err := strconv.Atoi(revStr)
-		if err != nil {
-			return fmt.Errorf("Revision must be an integer")
+		if revStr == "latest" {
+			rs.Revision = -1
+		} else if revStr == "head" {
+			rs.Revision = 0
+		} else {
+			rev, err := strconv.Atoi(revStr)
+			if err != nil {
+				return fmt.Errorf("Revision must be an integer")
+			}
+			rs.Revision = rev
 		}
-		rs.Type = PublishedRightScript
-		rs.Revision = rev
 	}
 
 	return nil

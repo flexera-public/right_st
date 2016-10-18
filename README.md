@@ -120,15 +120,15 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | ----- | ------ | ----------- |
 | Name | String | Name of the ServerTemplate. Name must be unique for your account. |
 | Description | String | Description field for the ServerTemplate. |
-| RightScripts | Hash of String -> Array of RightScripts| The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of RightScripts. Each RightScript can be specified in one of two ways, as a "locally" managed RightScript, "published" or "external" RightScript. A locally managed RightScript is specified as a pathname to a file on disk. Published RightScripts are links to RightScripts shared in the MultiCloud marketplace and consist of a hash specifying a Name/Revision/Publisher to look up. External RightScript consist of a Name/Revision pair and will not search the MultiCloud marketplace. |
+| RightScripts | Hash of String -> Array of RightScripts| The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of RightScripts. Each RightScript can be specified in one of three ways, as a 1. "local" managed 2. "published", or 3. "external" RightScript. A locally managed RightScript is specified as a pathname to a file on disk and the file contents are synchonized to the HEAD revision of a RightScript in your local account. Published RightScripts are links to pre-existing RightScripts shared in the MultiCloud marketplace and consist of a hash specifying a Name/Revision/Publisher to look up. External RightScripts are pre-existing RightScripts consisting of a Name/Revision pair and will not search the MultiCloud marketplace. |
 | Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overridden in a ServerTemplate. |
 | MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash of fields taking a few different formats. See section below for further details. |
 | Alerts | Array of Alerts | An array of Alert definitions, defined below. |
 
 A MultiCloudImage definition allows you to specify an MCI in four different ways by supplying different hash keys. The first three combinations specified below allow you to use pre-existing MCIs. The fourth one allows you to fully manage an MCI in your local account:
 
-1. 'Name' and 'Revision' and 'Publisher': Name/Revision/Publisher of MCI available in the MultiCloud Marketplace. The MCI will be automatically imported into the account if it's not already there. Preferred.
-2. 'Name' and 'Revision'.: Name/Revision of MCI in your local account. It will not attempt to be autoimported from the MultiCloud Marketplace.
+1. 'Name' and 'Revision' and 'Publisher': Name/Revision/Publisher of MCI available in the MultiCloud Marketplace. The MCI will be automatically imported into the account if it's not already there. Preferred. "latest" may be specified for the revision to get the latest revision.
+2. 'Name' and 'Revision'.: Name/Revision of MCI in your local account. It will not attempt to be autoimported from the MultiCloud Marketplace. "latest" or "head" may be specified to get the latest committed revision and "head" revision respectively.
 3. 'Href': Href of the MCI in the account being uploaded. This is a fallback in case 1 or 2 doesn't work.
 4. Fully specified. The following keys are supported:
     * 'Name' - String - Name of the MCI
@@ -159,11 +159,18 @@ Inputs:
   SECOND_INPUT: "env:RS_UUID"
 RightScripts:
   Boot:
+# Format 3: Name/Revision/Publisher: This specifies a RightScript from the Marketplace
   - Name: RL10 Linux Setup Hostname
     Revision: 6
     Publisher: RightScale
+# Format 3: Name/Revision/Publisher: This specifies a RightScript from the Marketplace, latest revision
+  - Name: RL10 Enable Monitoring
+    Revision: latest
+    Publisher: RightScale
+# Format 2: Name/Revision: A RightScript in your local account
   - Name: My Local RightScript
     Revision: 3
+# Format 1: Locally managed scripts on disk, synced to RightScripts in your local account
   - path/to/script1.sh
   - path/to/script2.sh
   Operational:
@@ -174,6 +181,10 @@ MultiCloudImages:
 # Format 1: Name/Revision/Publisher pair: This specifies a MCI from the Marketplace
 - Name: Ubuntu_12.04_x64
   Revision: 18
+  Publisher: RightScale
+# Format 1 again: Name/Revision/Publisher pair: This specifies a latest MCI from the Marketplace
+- Name: Ubuntu_14.04_x64
+  Revision: latest
   Publisher: RightScale
 # Format 2: Name/Revision pair: This specifies a account-specific MCI, such as one cloned from a Marketplace MCI
 - Name: Ubuntu_14.04_x64_cloned

@@ -425,8 +425,8 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 				fatalError("Error finding publication: %s\n", err.Error())
 			}
 			if pub != nil {
-				fmt.Printf("Not downloading '%s' to disk, using Revision %d, Publisher '%s' from the MultiCloud Marketplace\n",
-					rs.Name, rs.Revision, pub.Publisher)
+				fmt.Printf("Not downloading '%s' to disk, using Revision %s, Publisher '%s' from the MultiCloud Marketplace\n",
+					rs.Name, formatRev(rs.Revision), pub.Publisher)
 				newScript = RightScript{
 					Type:      PublishedRightScript,
 					Name:      pub.Name,
@@ -543,7 +543,7 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 		return nil, []error{err}
 	}
 
-	client, err := Config.Account.Client15()
+	_, err = Config.Account.Client15()
 	if err != nil {
 		return nil, []error{err}
 	}
@@ -564,40 +564,23 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 		for i, rs := range scripts {
 			if rs.Type == PublishedRightScript {
 				if rs.Publisher != "" {
-					matchers := map[string]string{}
+					pub, err := findPublication("RightScript", rs.Name, rs.Revision, map[string]string{`Publisher`: rs.Publisher})
 
-					matchers[`Publisher`] = rs.Publisher
-
-					pub, err := findPublication("RightScript", rs.Name, rs.Revision, matchers)
 					if err != nil {
 						errors = append(errors, fmt.Errorf("Error finding publication for RightScript: %s\n", err.Error()))
 					}
 					if pub == nil {
-						errors = append(errors, fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for RightScript '%s' Revision %d Publisher '%s'", rs.Name, rs.Revision, rs.Publisher))
+						errors = append(errors, fmt.Errorf("Could not find a publication in the MultiCloud Marketplace for RightScript '%s' Revision %s Publisher '%s'", rs.Name, formatRev(rs.Revision), rs.Publisher))
 					} else {
 						rs.Metadata.Description = pub.Description
 					}
 				} else {
-					rsLocator := client.RightScriptLocator("/api/right_scripts")
-					filters := []string{
-						"name==" + rs.Name,
-					}
-
-					rsUnfiltered, err := rsLocator.Index(rsapi.APIParams{"filter": filters})
+					script, err := findRightScript(rs.Name, rs.Revision, map[string]string{})
 					if err != nil {
 						errors = append(errors, fmt.Errorf("Error finding RightScript: %s\n", err.Error()))
 					}
-					found := false
-					for _, rsu := range rsUnfiltered {
-						// Recheck the name here, filter does a partial match and we need an exact one.
-						// Matching the descriptions helps to disambiguate if we have multiple publications
-						// with that same name/revision pair.
-						if rs.Name == rsu.Name && rs.Revision == rsu.Revision {
-							found = true
-						}
-					}
-					if !found {
-						errors = append(errors, fmt.Errorf("Error finding RightScript '%s' Revision %d in account. Maybe add a Publisher?\n", rs.Name, rs.Revision))
+					if script == nil {
+						errors = append(errors, fmt.Errorf("Error finding RightScript '%s' Revision %s in account. Maybe add a Publisher?\n", rs.Name, formatRev(rs.Revision)))
 					}
 				}
 
