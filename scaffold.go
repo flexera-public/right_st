@@ -13,13 +13,17 @@ import (
 )
 
 var (
-	shebang            = regexp.MustCompile(`(?m)^#!.*$`)
-	separator          = regexp.MustCompile(`[-_]`)
-	rubyVariable       = regexp.MustCompile(`ENV\[["']([A-Z][A-Z0-9_]*)["']\]`)
-	perlVariable       = regexp.MustCompile(`\$ENV\{["']?([A-Z][A-Z0-9_]*)["']?\}`)
-	powershellVariable = regexp.MustCompile(`\$\{?(?i:ENV):([A-Z][A-Z0-9_]*)\}?`)
-	shellVariable      = regexp.MustCompile(`\$\{?([A-Z][A-Z0-9_]*)(?::=([^}]*))?\}?`)
-	ignoreVariables    = regexp.MustCompile(`^(?:ATTACH_DIR|SHELL|TERM|USER|PATH|MAIL|PWD|HOME|RS_.*|INSTANCE_ID|PRIVATE_ID|DATACENTER|EC2_.*)$`)
+	shebang              = regexp.MustCompile(`(?m)^#!.*$`)
+	separator            = regexp.MustCompile(`[-_]`)
+	rubyVariable         = regexp.MustCompile(`ENV\[["']([A-Z][A-Z0-9_]*)["']\]`)
+	rubyAttachment       = regexp.MustCompile(`#\{ENV\[["']RS_ATTACH_DIR["']\]\}[/\\]([^\t\n\f\r "]+)`)
+	perlVariable         = regexp.MustCompile(`\$ENV\{["']?([A-Z][A-Z0-9_]*)["']?\}`)
+	perlAttachment       = regexp.MustCompile(`\$ENV\{["']?RS_ATTACH_DIR["']?\}[/\\]([^\t\n\f\r "]+)`)
+	powershellVariable   = regexp.MustCompile(`\$\{?(?i:ENV):([A-Z][A-Z0-9_]*)\}?`)
+	powershellAttachment = regexp.MustCompile(`\$\{?(?i:ENV):RS_ATTACH_DIR\}?[/\\]([^\t\n\f\r "]+)`)
+	shellVariable        = regexp.MustCompile(`\$\{?([A-Z][A-Z0-9_]*)(?::=([^}]*))?\}?`)
+	shellAttachment      = regexp.MustCompile(`\$\{?RS_ATTACH_DIR(?::=[^}]*)?\}?[/\\]([^\t\n\f\r "]+)`)
+	ignoreVariables      = regexp.MustCompile(`^(?:ATTACH_DIR|SHELL|TERM|USER|PATH|MAIL|PWD|HOME|RS_.*|INSTANCE_ID|PRIVATE_ID|DATACENTER|EC2_.*)$`)
 )
 
 const (
@@ -84,18 +88,22 @@ func ScaffoldRightScript(path string, backup bool, stdout io.Writer, force bool)
 //   err error - error value
 func scaffoldBuffer(source []byte, defaults RightScriptMetadata, filename string, detectInputs bool) ([]byte, error) {
 	// We simply start with the defaults passed in as our base set of metadata.
-	// Merging of defaults with exisiting metadata items happens before this function as strategies willl be different
+	// Merging of defaults with exisiting metadata items happens before this function as strategies will be different
 	// based on the source.
 	metadata := &defaults
 
 	variable := shellVariable
+	attachment := shellAttachment
 	switch strings.ToLower(filepath.Ext(filename)) {
 	case ".rb":
 		variable = rubyVariable
+		attachment = rubyAttachment
 	case ".pl":
 		variable = perlVariable
+		attachment = perlAttachment
 	case ".ps1":
 		variable = powershellVariable
+		attachment = powershellAttachment
 	}
 
 	// Pass 1: We remove any existing metadata comments and record the line at which we
@@ -136,8 +144,10 @@ func scaffoldBuffer(source []byte, defaults RightScriptMetadata, filename string
 				switch {
 				case strings.Contains(line, "ruby"):
 					variable = rubyVariable
+					attachment = rubyAttachment
 				case strings.Contains(line, "perl"):
 					variable = perlVariable
+					attachment = perlAttachment
 				}
 				if metadataStartLine == 0 {
 					metadataStartLine = 1
@@ -203,6 +213,17 @@ func scaffoldBuffer(source []byte, defaults RightScriptMetadata, filename string
 				inputItem.InputType = inputType
 				inputItem.Default = &inputValue
 			}
+		}
+
+	ATTACHMENTS:
+		for _, submatches := range attachment.FindAllStringSubmatch(line, -1) {
+			attachmentName := submatches[1]
+			for _, attachment := range metadata.Attachments {
+				if attachment == attachmentName {
+					continue ATTACHMENTS
+				}
+			}
+			metadata.Attachments = append(metadata.Attachments, attachmentName)
 		}
 	}
 	if detectInputs {
