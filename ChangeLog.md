@@ -1,3 +1,7 @@
+Unreleased changes
+------------------
+* Add attachment detection to RightScript scaffold command
+
 v1.4.5 / 2016-10-18
 -------------------
 * Fix bug when changing revision of imported RightScript
