@@ -203,6 +203,7 @@ echo $BAZ
 : ${ARRAY:=hello,world}
 
 echo "$STRING $ARRAY $PATH"
+echo $RS_ATTACH_DIR/attachment.txt
 `
 			shellScriptMetadata = shebang + `# ---
 # RightScript Name: Shell
@@ -224,7 +225,8 @@ echo "$STRING $ARRAY $PATH"
 #     Required: false
 #     Advanced: false
 #     Default: array:["text:hello","text:world"]
-# Attachments: []
+# Attachments:
+# - attachment.txt
 # ...
 ` + shellScriptContents
 			shellScriptContents = shebang + shellScriptContents
@@ -249,6 +251,7 @@ echo "$STRING $ARRAY $PATH"
 			shebang := "#!/usr/bin/env ruby\n"
 			rubyScriptContents = `
 puts "#{ENV['INPUT']} #{ENV["PATH"]}"
+puts "#{ENV['RS_ATTACH_DIR']}/attachment.txt"
 `
 			rubyScriptMetadata = shebang + `# ---
 # RightScript Name: Ruby
@@ -261,7 +264,8 @@ puts "#{ENV['INPUT']} #{ENV["PATH"]}"
 #     Input Type: single
 #     Required: false
 #     Advanced: false
-# Attachments: []
+# Attachments:
+# - attachment.txt
 # ...
 ` + rubyScriptContents
 			rubyScriptContents = shebang + rubyScriptContents
@@ -286,6 +290,7 @@ puts "#{ENV['INPUT']} #{ENV["PATH"]}"
 			shebang := "#!/usr/bin/env perl\n"
 			perlScriptContents = `
 print "$ENV{INPUT} $ENV{PATH}\n";
+print "$ENV{RS_ATTACH_DIR}/attachment.txt" . "\n";
 `
 			perlScriptMetadata = shebang + `# ---
 # RightScript Name: Perl
@@ -298,7 +303,8 @@ print "$ENV{INPUT} $ENV{PATH}\n";
 #     Input Type: single
 #     Required: false
 #     Advanced: false
-# Attachments: []
+# Attachments:
+# - attachment.txt
 # ...
 ` + perlScriptContents
 			perlScriptContents = shebang + perlScriptContents
@@ -322,6 +328,7 @@ print "$ENV{INPUT} $ENV{PATH}\n";
 		BeforeEach(func() {
 			powershellScriptContents = `
 Write-Output "${env:INPUT} $env:PATH"
+Write-Output "${env:RS_ATTACH_DIR}/attachment.txt"
 `
 			powershellScriptMetadata = `# ---
 # RightScript Name: Powershell
@@ -334,7 +341,8 @@ Write-Output "${env:INPUT} $env:PATH"
 #     Input Type: single
 #     Required: false
 #     Advanced: false
-# Attachments: []
+# Attachments:
+# - attachment.txt
 # ...
 ` + powershellScriptContents
 			if err := ioutil.WriteFile(powershellScript, []byte(powershellScriptContents), 0600); err != nil {
