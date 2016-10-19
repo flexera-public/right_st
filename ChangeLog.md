@@ -1,6 +1,8 @@
 Unreleased changes
 ------------------
 * Add attachment detection to RightScript scaffold command
+* Check for updates with an OS and architecture specific YAML file so that MacOS
+  builds taking longer do not result in update errors
 
 v1.4.5 / 2016-10-18
 -------------------

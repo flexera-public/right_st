@@ -57,7 +57,7 @@ func UpdateGetCurrentVersion(vv string) *Version {
 
 // UpdateGetVersionUrl gets the URL for the version.yml file for right_st from the rsbin bucket.
 func UpdateGetVersionUrl() string {
-	return UpdateBaseUrl + "/version.yml"
+	return UpdateBaseUrl + "/version-" + runtime.GOOS + "-" + runtime.GOARCH + ".yml"
 }
 
 // UpdateGetLatestVersions gets the latest versions struct by downloading and parsing the version.yml file for right_st

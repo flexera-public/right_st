@@ -53,7 +53,7 @@ var _ = Describe("Update", func() {
 				`\.zip$`)
 			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch {
-				case r.URL.Path == "/version.yml":
+				case r.URL.Path == "/version-"+runtime.GOOS+"-"+runtime.GOARCH+".yml":
 					w.Write([]byte(`# Latest right_st versions by major version (this file is used by right_st's update check mechanism)
 ---
 versions:

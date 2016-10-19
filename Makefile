@@ -121,17 +121,21 @@ upload:
 	@which gof3r >/dev/null || (echo 'Please "make depend"'; false)
 	(cd build; set -ex; shopt -s nullglob; \
 	  re='^(v[0-9]+)\.[0-9]+\.[0-9]+$$' ;\
+	  if [[ "$(TRAVIS_TAG)" =~ $$re ]]; then \
+	    ../version.sh > version.yml; \
+	  fi; \
 	  for f in *.tgz *.zip; do \
 	    gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/$(TRAVIS_COMMIT)/$$f <$$f; \
 	    if [ "$(TRAVIS_PULL_REQUEST)" = "false" ]; then \
 	      gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/$(TRAVIS_BRANCH)/$$f <$$f; \
 	      if [[ "$(TRAVIS_TAG)" =~ $$re ]]; then \
 	        gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/$${BASH_REMATCH[1]}/$$f <$$f; \
+		os_arch=$${f#$(NAME)-}; os_arch=$${os_arch%.*}; \
+		gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/version-$$os_arch.yml <version.yml; \
 	      fi; \
 	    fi; \
 	  done; \
 	  if [[ $(GOOS) == linux ]] && [[ "$(TRAVIS_TAG)" =~ $$re ]]; then \
-	    ../version.sh > version.yml; \
 	    gof3r put --no-md5 --acl=$(ACL) -b ${BUCKET} -k rsbin/$(NAME)/version.yml <version.yml; \
 	  fi)
 
