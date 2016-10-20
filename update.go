@@ -120,13 +120,15 @@ func UpdateCheck(vv string, output io.Writer) {
 		return
 	}
 
+	// ignore more errors and continue since it will still return the right_st command name anyway
+	sudoCommand, _ := updateSudoCommand()
 	updateAvailable := false
 
 	// check if there is a new version for our major version and output a message if there is
 	if latestForMajor, ok := latest.Versions[currentVersion.Major]; ok {
 		if latestForMajor.GreaterThan(currentVersion) {
 			fmt.Fprintf(output, "There is a new v%d version of %s (%s), to upgrade run:\n    %s update apply\n",
-				latestForMajor.Major, app.Name, latestForMajor, app.Name)
+				latestForMajor.Major, app.Name, latestForMajor, sudoCommand)
 			updateAvailable = true
 		}
 	}
@@ -134,7 +136,7 @@ func UpdateCheck(vv string, output io.Writer) {
 	// check if there is a new major version and output a message if there is
 	if latest.MajorVersion() > currentVersion.Major {
 		fmt.Fprintf(output, "There is a new major version of %s (%s), to upgrade run:\n    %s update apply -m %d\n",
-			app.Name, latest.Versions[latest.MajorVersion()], app.Name, latest.MajorVersion())
+			app.Name, latest.Versions[latest.MajorVersion()], sudoCommand, latest.MajorVersion())
 		updateAvailable = true
 	}
 
@@ -162,6 +164,11 @@ func UpdateList(vv string, output io.Writer) error {
 	}
 	sort.Ints(majors)
 
+	sudoCommand, err := updateSudoCommand()
+	if err != nil {
+		return err
+	}
+
 	// print out the latest version for each major version
 	for _, major := range majors {
 		version := latest.Versions[major]
@@ -182,10 +189,11 @@ func UpdateList(vv string, output io.Writer) error {
 		case currentVersionEqual:
 			fmt.Fprintf(output, "; this is the version you are using!\n")
 		case latestForMajorGreater:
-			fmt.Fprintf(output, "; you are using %s, to upgrade run:\n    %s update apply\n", currentVersion, app.Name)
+			fmt.Fprintf(output, "; you are using %s, to upgrade run:\n    %s update apply\n", currentVersion,
+				sudoCommand)
 		case latestGreater:
 			fmt.Fprintf(output, "; you are using %s, to upgrade run:\n    %s update apply -m %d\n", currentVersion,
-				app.Name, major)
+				sudoCommand, major)
 		default:
 			fmt.Fprintf(output, ".\n")
 		}

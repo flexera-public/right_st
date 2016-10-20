@@ -35,6 +35,7 @@ bin/glide-*
 version.yml
 *.bak
 *.old
+.glide
 
 # vim
 .*.sw[nmop]

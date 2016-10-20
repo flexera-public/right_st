@@ -17,12 +17,12 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kingpin"
+	"github.com/inconshreveable/log15"
 	"github.com/mattn/go-colorable"
 	"github.com/rightscale/rsc/cm15"
 	"github.com/rightscale/rsc/httpclient"
 	"github.com/rightscale/rsc/log"
 	"github.com/rightscale/rsc/rsapi"
-	"gopkg.in/inconshreveable/log15.v2"
 )
 
 var (
