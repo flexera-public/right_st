@@ -472,7 +472,7 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 				ServerTemplateHref:  stDef.href,
 			}
 			mciName := mciDef.Name
-			if prefix != "" {
+			if prefix != "" && len(mciDef.Settings) > 0 {
 				mciName = fmt.Sprintf("%s_%s", prefix, mciName)
 			}
 			fmt.Printf("  Adding MCI '%s' revision %s (%s)\n", mciName, formatRev(int(mciDef.Revision)), mciDef.Href)
@@ -483,6 +483,27 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 			if i == 0 {
 				_ = loc.MakeDefault()
 			}
+		}
+	}
+	return nil
+}
+
+func deleteMultiCloudImage(mciName string) error {
+	client, _ := Config.Account.Client15()
+
+	hrefs, err := paramToHrefs("multi_cloud_images", mciName, 0)
+	if err != nil {
+		return err
+	}
+	if len(hrefs) == 0 {
+		fmt.Printf("MultiCloudImage '%s' does not exist, no need to delete\n", mciName)
+	}
+	for _, href := range hrefs {
+		loc := client.MultiCloudImageLocator(href)
+		fmt.Printf("Deleting MultiCloudImage '%s' HREF %s\n", mciName, href)
+		err := loc.Destroy()
+		if err != nil {
+			return err
 		}
 	}
 	return nil

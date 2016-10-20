@@ -54,13 +54,76 @@ func stUpload(files []string, prefix string) {
 	}
 }
 
+func stDelete(files []string, prefix string) {
+	client, _ := Config.Account.Client15()
+
+	if prefix == "" {
+		fatalError("Prefix must be supplied along with cleanup flag")
+	}
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			fatalError("Cannot open file: %s", err.Error())
+		}
+		defer f.Close()
+
+		st, err := ParseServerTemplate(f)
+		if err != nil {
+			fatalError("Cannot parse file: %s", err.Error())
+		}
+
+		// ServerTemplate first, then dependent parts
+		stName := fmt.Sprintf("%s_%s", prefix, st.Name)
+		hrefs, err := paramToHrefs("server_templates", stName, 0)
+		if err != nil {
+			fatalError("Could not query for ServerTemplates to delete: %s", err.Error())
+		}
+		if len(hrefs) == 0 {
+			fmt.Printf("ServerTemplate '%s' does not exist, no need to delete\n", stName)
+		}
+		for _, href := range hrefs {
+			loc := client.ServerTemplateLocator(href)
+			fmt.Printf("Deleting ServerTemplate '%s' HREF %s\n", stName, href)
+			err := loc.Destroy()
+			if err != nil {
+				fatalError("Failed to delete ServerTemplate %s: %s\n", stName, err.Error())
+			}
+		}
+
+		// MultiCloudImages. Only delete ones managed by us and not simply ones we link to.
+		for _, mciDef := range st.MultiCloudImages {
+			if len(mciDef.Settings) > 0 {
+				mciName := fmt.Sprintf("%s_%s", prefix, mciDef.Name)
+				err := deleteMultiCloudImage(mciName)
+				if err != nil {
+					fmt.Printf("Failed to delete MultiCloudImage %s: %s\n", mciName, err.Error())
+				}
+			}
+		}
+
+		// RightScripts. Only delete ones managed by use and not simple ones we link to.
+		seen := map[string]bool{}
+		for _, scripts := range st.RightScripts {
+			for _, rs := range scripts {
+				if rs.Type == LocalRightScript {
+					if !seen[rs.Path] {
+						seen[rs.Path] = true
+						err := deleteRightScript(filepath.Join(filepath.Dir(file), rs.Path), prefix)
+						if err != nil {
+							fmt.Printf("Failed to delete RightScript %s: %s\n", rs.Path, err.Error())
+						}
+					}
+				}
+			}
+		}
+	}
+
+}
+
 // Options:
 //   -- commit
 func doServerTemplateUpload(stDef *ServerTemplate, prefix string) error {
-	client, err := Config.Account.Client15()
-	if err != nil {
-		return err
-	}
+	client, _ := Config.Account.Client15()
 
 	// Check if ST with same name (HEAD revisions only) exists. If it does, update the head
 	stName := stDef.Name
@@ -182,7 +245,7 @@ func doServerTemplateUpload(stDef *ServerTemplate, prefix string) error {
 					RightScriptHref: scriptHref,
 					Sequence:        strings.ToLower(sequenceType),
 				}
-				fmt.Printf("  Adding %s to ServerTemplate %s bundle\n", scriptHref, strings.ToLower(sequenceType))
+				fmt.Printf("  Adding %s to %s bundle\n", scriptHref, strings.ToLower(sequenceType))
 				_, err := rbLoc.Create(&params)
 				if err != nil {
 					fatalError("  Could not create %s RunnableBinding for HREF %s: %s", sequenceType, scriptHref, err.Error())
@@ -270,10 +333,7 @@ func doServerTemplateUpload(stDef *ServerTemplate, prefix string) error {
 //   Show a list of previous revisions?
 //   If we're not head, show a link to the head revision/lineage?
 func stShow(href string) {
-	client, err := Config.Account.Client15()
-	if err != nil {
-		fatalError("Could not find ServerTemplate with href %s: %s", href, err.Error())
-	}
+	client, _ := Config.Account.Client15()
 
 	stLocator := client.ServerTemplateLocator(href)
 	st, err := stLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
@@ -351,10 +411,7 @@ func stShow(href string) {
 }
 
 func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings bool, scriptPath string) {
-	client, err := Config.Account.Client15()
-	if err != nil {
-		fatalError("Could not find ServerTemplate with href %s: %s", href, err.Error())
-	}
+	client, _ := Config.Account.Client15()
 
 	stLocator := client.ServerTemplateLocator(href)
 	st, err := stLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
@@ -543,11 +600,6 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 		return nil, []error{err}
 	}
 
-	_, err = Config.Account.Client15()
-	if err != nil {
-		return nil, []error{err}
-	}
-
 	var errors []error
 
 	//-------------------------------------
@@ -633,10 +685,7 @@ func ParseServerTemplate(ymlData io.Reader) (*ServerTemplate, error) {
 }
 
 func getServerTemplateByName(name string) (*cm15.ServerTemplate, error) {
-	client, err := Config.Account.Client15()
-	if err != nil {
-		return nil, err
-	}
+	client, _ := Config.Account.Client15()
 
 	stLocator := client.ServerTemplateLocator("/api/server_templates")
 	apiParams := rsapi.APIParams{"filter": []string{"name==" + name}}

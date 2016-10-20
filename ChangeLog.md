@@ -4,6 +4,8 @@ Unreleased changes
 * Check for updates with an OS and architecture specific YAML file so that MacOS
   builds taking longer do not result in update errors
 * Update command instructions now include sudo if it is necessary
+* Add --cleanup flag to rightscript and st commands. Cleans up development/test
+  assets generating after with the --prefix flag.
 
 v1.4.5 / 2016-10-18
 -------------------
