@@ -94,9 +94,10 @@ right_st rightscript show <name|href|id>
 right_st rightscript upload [<flags>] <path>...
   Upload a RightScript
   Flags:
-    -f, --force: Force upload of RightScript despite lack of Metadata comments
-    -x, --prefix: Append a prefix to RightScript's name when uploading. For 
-                  creating dev/test versions of scripts.
+    -f, --force:  Force upload of RightScript despite lack of Metadata comments
+    -x, --prefix <prefix>: Create dev/test version by adding prefix to name of all
+                           RightScripts uploaded
+    -D, --delete: Delete dev/test ServerTemplates and RightScripts with a prefix
 
 right_st rightscript download <name|href|id> [<path>]
   Download a RightScript to a file. Metadata comments will automatically be 
@@ -224,8 +225,9 @@ right_st st show <name|href|id>
 right_st st upload <path>...
   Upload a ServerTemplate specified by a YAML document
   Flags:
-    -x, --prefix: Append a prefix to ServerTemplate and RightScript names when
-                  uploading. For creating dev/test versions of ServerTemplates.
+    -x, --prefix <prefix>:  Create dev/test version by adding prefix to name of all
+                            RightScripts uploaded
+    -D, --delete: Delete dev/test ServerTemplates and RightScripts with a prefix
 
 right_st st download <name|href|id> [<path>]
   Download a ServerTemplate and all associated RightScripts/Attachments to disk
@@ -236,8 +238,8 @@ right_st st download <name|href|id> [<path>]
     -m, --mci-settings: When specifying MultiCloudImages, use Format 4. This fully specifies
                         all cloud/image/instance type settings combinations to completely
                         manage the MultiCloudImage in the YAML.
-    -s, --script-path <script-path> Download RightScripts and their attachments
-                                    to a subdirectory relative to the download location.
+    -s, --script-path <script-path>: Download RightScripts and their attachments
+                                     to a subdirectory relative to the download location.
 
 right_st st validate <path>...
   Validate a ServerTemplate YAML document

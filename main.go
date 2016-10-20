@@ -39,7 +39,8 @@ var (
 
 	stUploadCmd    = stCmd.Command("upload", "Upload a ServerTemplate specified by a YAML document")
 	stUploadPaths  = stUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
-	stUploadPrefix = stUploadCmd.Flag("prefix", "Add prefix to name all ServerTemplate and RightScripts uploaded (for testing purposes)").Short('x').String()
+	stUploadPrefix = stUploadCmd.Flag("prefix", "Create dev/test version by adding prefix to name of all ServerTemplate and RightScripts uploaded").Short('x').String()
+	stUploadDelete = stUploadCmd.Flag("delete", "Delete dev/test ServerTemplates and RightScripts with a prefix").Short('D').Bool()
 
 	stDownloadCmd         = stCmd.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
 	stDownloadNameOrHref  = stDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
@@ -59,7 +60,8 @@ var (
 
 	rightScriptUploadCmd    = rightScriptCmd.Command("upload", "Upload a RightScript")
 	rightScriptUploadPaths  = rightScriptUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
-	rightScriptUploadPrefix = rightScriptUploadCmd.Flag("prefix", "Add prefix to name all RightScripts uploaded (for testing purposes)").Short('x').String()
+	rightScriptUploadPrefix = rightScriptUploadCmd.Flag("prefix", "Create dev/test version by adding prefix to name of all RightScripts uploaded").Short('x').String()
+	rightScriptUploadDelete = rightScriptUploadCmd.Flag("delete", "Delete dev/test RightScripts with a prefix.").Short('D').Bool()
 	rightScriptUploadForce  = rightScriptUploadCmd.Flag("force", "Force upload of file if metadata is not present").Short('f').Bool()
 
 	rightScriptDownloadCmd        = rightScriptCmd.Command("download", "Download a RightScript to a file or files")
@@ -100,8 +102,18 @@ func main() {
 	command := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	err := ReadConfig(*configFile, *account)
-	if err != nil && !strings.HasPrefix(command, "config") && !strings.HasPrefix(command, "update") {
-		fatalError("%s: Error reading config file: %s\n", filepath.Base(os.Args[0]), err.Error())
+	if !strings.HasPrefix(command, "config") && !strings.HasPrefix(command, "update") {
+		// Makes sure the config file structure is valid
+		if err != nil {
+			fatalError("%s: Error reading config file: %s\n", filepath.Base(os.Args[0]), err.Error())
+		}
+
+		// Make sure the config file auth token is valid. Check now so we don't have to
+		// keep rechecking in code.
+		_, err := Config.Account.Client15()
+		if err != nil {
+			fatalError("Authentication error: %s", err.Error())
+		}
 	}
 
 	// Handle logging
@@ -134,7 +146,11 @@ func main() {
 		if err != nil {
 			fatalError("%s\n", err.Error())
 		}
-		stUpload(files, *stUploadPrefix)
+		if *stUploadDelete {
+			stDelete(files, *stUploadPrefix)
+		} else {
+			stUpload(files, *stUploadPrefix)
+		}
 	case stDownloadCmd.FullCommand():
 		href, err := paramToHref("server_templates", *stDownloadNameOrHref, 0)
 		if err != nil {
@@ -154,7 +170,15 @@ func main() {
 		}
 		rightScriptShow(href)
 	case rightScriptUploadCmd.FullCommand():
-		rightScriptUpload(*rightScriptUploadPaths, *rightScriptUploadForce, *rightScriptUploadPrefix)
+		files, err := walkPaths(*rightScriptUploadPaths)
+		if err != nil {
+			fatalError("%s\n", err.Error())
+		}
+		if *rightScriptUploadDelete {
+			rightScriptDelete(files, *rightScriptUploadPrefix)
+		} else {
+			rightScriptUpload(files, *rightScriptUploadForce, *rightScriptUploadPrefix)
+		}
 	case rightScriptDownloadCmd.FullCommand():
 		href, err := paramToHref("right_scripts", *rightScriptDownloadNameOrHref, 0)
 		if err != nil {
@@ -196,20 +220,20 @@ func main() {
 	}
 }
 
-func paramToHref(resourceType, param string, revision int) (string, error) {
-	client, err := Config.Account.Client15()
-	if err != nil {
-		return "", err
-	}
+// Distill a passed in user parameter (id or href or name) to hrefs. A name
+// can correspond to multiple hrefs so an array of all matches is returned in
+// that case.
+func paramToHrefs(resourceType, param string, revision int) ([]string, error) {
+	client, _ := Config.Account.Client15()
 
 	idMatch := regexp.MustCompile(`^\d+$`)
 	hrefMatch := regexp.MustCompile(fmt.Sprintf("^/api/%s/\\d+$", resourceType))
 
-	var href string
+	var hrefs []string
 	if idMatch.Match([]byte(param)) {
-		href = fmt.Sprintf("/api/%s/%s", resourceType, param)
+		hrefs = append(hrefs, fmt.Sprintf("/api/%s/%s", resourceType, param))
 	} else if hrefMatch.Match([]byte(param)) {
-		href = param
+		hrefs = append(hrefs, param)
 	} else {
 		payload := rsapi.APIParams{}
 		params := rsapi.APIParams{"filter[]": []string{"name==" + param}}
@@ -217,42 +241,53 @@ func paramToHref(resourceType, param string, revision int) (string, error) {
 
 		req, err := client.BuildHTTPRequest("GET", uriPath, "1.5", params, payload)
 		if err != nil {
-			return "", err
+			return hrefs, err
 		}
 		resp, err := client.PerformRequest(req)
 		if err != nil {
-			return "", err
+			return hrefs, err
 		}
 		defer resp.Body.Close()
 		respBody, _ := ioutil.ReadAll(resp.Body)
 		if resp.StatusCode < 200 || resp.StatusCode > 299 {
-			return "", fmt.Errorf("invalid response %s: %s", resp.Status, string(respBody))
+			return hrefs, fmt.Errorf("invalid response %s: %s", resp.Status, string(respBody))
 		}
 		items := []Iterable{}
 		err = json.Unmarshal(respBody, &items)
 		if err != nil {
-			return "", err
+			return hrefs, err
 		}
-		count := 0
 		for _, item := range items {
 			if item.Name == param && item.Revision == revision {
-				href = getLink(item.Links, "self")
-				count = count + 1
+				hrefs = append(hrefs, getLink(item.Links, "self"))
 			}
 		}
-		revMessage := " and HEAD revision. "
-		if revision != 0 {
-			revMessage = " and revision " + strconv.Itoa(revision) + ". "
-		}
-		if count == 0 {
-			return "", fmt.Errorf("Found no %s matching '%s'%s", resourceType, param, revMessage)
-		} else if count > 1 {
-
-			return "", fmt.Errorf("Matched multiple %s with the name %s"+revMessage+
-				"Don't know which one to use. Please delete one or specify an HREF to use such as %s", resourceType, param, href)
-		}
 	}
-	return href, nil
+	return hrefs, nil
+}
+
+// Distill a passed in user parameter (id or href or name) to a single href or
+// else return an error.
+func paramToHref(resourceType, param string, revision int) (string, error) {
+	hrefs, err := paramToHrefs(resourceType, param, revision)
+	if err != nil {
+		return "", err
+	}
+	revMessage := "and HEAD revision"
+	if revision != 0 {
+		revMessage = "and revision " + strconv.Itoa(revision)
+	}
+
+	if len(hrefs) > 1 {
+		return "", fmt.Errorf("Matched multiple %ss with the name '%s' %s: %s."+
+			"Don't know which one to use. Please delete one or specify an href to use.",
+			resourceType, revMessage, strings.Join(hrefs, ", "), param)
+	} else if len(hrefs) == 0 {
+		return "", fmt.Errorf("Found no %s matching '%s' %s.", resourceType, param, revMessage)
+	} else {
+		return hrefs[0], nil
+	}
+
 }
 
 func getLink(links []map[string]string, name string) string {

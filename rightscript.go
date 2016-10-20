@@ -50,10 +50,7 @@ var (
 )
 
 func rightScriptShow(href string) {
-	client, err := Config.Account.Client15()
-	if err != nil {
-		fatalError("Could not find rightscript with href %s: %s", href, err.Error())
-	}
+	client, _ := Config.Account.Client15()
 
 	attachmentsHref := fmt.Sprintf("%s/attachments", href)
 	rightscriptLocator := client.RightScriptLocator(href)
@@ -110,12 +107,8 @@ func rightScriptShow(href string) {
 func rightScriptUpload(files []string, force bool, prefix string) {
 	// Pass 1, perform validations, gather up results
 	scripts := []*RightScript{}
-	files, err := walkPaths(files)
-	if err != nil {
-		fatalError("%s\n", err.Error())
-		os.Exit(1)
-	}
 
+	var err error
 	for _, p := range files {
 		fmt.Printf("Uploading %s\n", p)
 		f, err := os.Open(p)
@@ -156,10 +149,7 @@ func guessExtension(source string) string {
 }
 
 func rightScriptDownload(href, downloadTo string) string {
-	client, err := Config.Account.Client15()
-	if err != nil {
-		fatalError("Could not find RightScript with href %s: %s", href, err.Error())
-	}
+	client, _ := Config.Account.Client15()
 
 	attachmentsHref := fmt.Sprintf("%s/attachments", href)
 	rightscriptLocator := client.RightScriptLocator(href)
@@ -349,16 +339,67 @@ func rightScriptValidate(files []string) {
 	}
 }
 
+func rightScriptDelete(files []string, prefix string) {
+	if prefix == "" {
+		fatalError("Prefix must be supplied along with cleanup flag")
+	}
+
+	for _, file := range files {
+		err := deleteRightScript(file, prefix)
+		if err != nil {
+			fatalError("Could not delete RightScript %s: %s", err.Error())
+		}
+	}
+}
+
+func deleteRightScript(file string, prefix string) error {
+	client, _ := Config.Account.Client15()
+
+	f, err := os.Open(file)
+	if err != nil {
+		return fmt.Errorf("Cannot open file: %s", err.Error())
+	}
+	defer f.Close()
+
+	metadata, err := ParseRightScriptMetadata(f)
+	if err != nil {
+		return fmt.Errorf("Cannot parse RightScript metadata: %s", err.Error())
+	}
+
+	var scriptName string
+	if metadata == nil {
+		scriptName := path.Base(file)
+		scriptExt := path.Ext(scriptName)
+		scriptName = strings.TrimRight(scriptName, scriptExt)
+	} else {
+		scriptName = metadata.Name
+	}
+	scriptName = fmt.Sprintf("%s_%s", prefix, scriptName)
+	hrefs, err := paramToHrefs("right_scripts", scriptName, 0)
+	if err != nil {
+		return err
+	}
+	if len(hrefs) == 0 {
+		fmt.Printf("RightScript '%s' does not exist, no need to delete\n", scriptName)
+	}
+	for _, href := range hrefs {
+		loc := client.RightScriptLocator(href)
+		fmt.Printf("Deleting RightScript '%s' HREF %s\n", scriptName, href)
+		err := loc.Destroy()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Crappy workaround. RSC doesn't return the body of the http request which contains
 // the script source, so do the same lower level calls it does to get it.
 func getSource(loc *cm15.RightScriptLocator) (respBody []byte, err error) {
 	var params rsapi.APIParams
 	var p rsapi.APIParams
 	APIVersion := "1.5"
-	client, err := Config.Account.Client15()
-	if err != nil {
-		return nil, err
-	}
+	client, _ := Config.Account.Client15()
 
 	uri, err := loc.ActionPath("RightScript", "show_source")
 	if err != nil {
@@ -392,10 +433,7 @@ func uploadAttachment(loc *cm15.RightScriptAttachmentLocator,
 	var params rsapi.APIParams
 	var p rsapi.APIParams
 	APIVersion := "1.5"
-	client, err := Config.Account.Client15()
-	if err != nil {
-		return err
-	}
+	client, _ := Config.Account.Client15()
 
 	p_inner := rsapi.APIParams{
 		"content":  file,
@@ -425,10 +463,7 @@ func uploadAttachment(loc *cm15.RightScriptAttachmentLocator,
 }
 
 func rightScriptIdByName(name string) (string, error) {
-	client, err := Config.Account.Client15()
-	if err != nil {
-		return "", err
-	}
+	client, _ := Config.Account.Client15()
 
 	createLocator := client.RightScriptLocator("/api/right_scripts")
 	apiParams := rsapi.APIParams{"filter": []string{"name==" + name}}
@@ -548,10 +583,8 @@ func (r *RightScript) Push(prefix string) error {
 }
 
 func (r *RightScript) PushRemote() error {
-	client, err := Config.Account.Client15()
-	if err != nil {
-		return err
-	}
+	client, _ := Config.Account.Client15()
+
 	// Algorithm:
 	//   1. If a publisher is specified, find the RightScript in publications. Error if not found
 	//     a. Get the imported RightScript. If it doesn't exist, import it then get the href
@@ -559,6 +592,7 @@ func (r *RightScript) PushRemote() error {
 	//   3. Insert HREF into r struct for later use.
 	// If this first part is changed, copy it to servertemplate.go validation section as well.
 	var pub *cm15.Publication
+	var err error
 	pubMatcher := map[string]string{}
 	if r.Publisher != "" {
 		pub, err = findPublication("RightScript", r.Name, r.Revision, map[string]string{`Publisher`: r.Publisher})
@@ -597,10 +631,7 @@ func (r *RightScript) PushRemote() error {
 }
 
 func (r *RightScript) PushLocal(prefix string) error {
-	client, err := Config.Account.Client15()
-	if err != nil {
-		return err
-	}
+	client, _ := Config.Account.Client15()
 
 	createLocator := client.RightScriptLocator("/api/right_scripts")
 	scriptName := r.Metadata.Name
@@ -739,10 +770,10 @@ func validateRightScript(file string, ignoreMissingMetadata bool) (*RightScript,
 	if metadata == nil {
 		if ignoreMissingMetadata {
 			metadata = new(RightScriptMetadata)
-			scriptname := path.Base(file)
-			scriptext := path.Ext(scriptname)
-			scriptname = strings.TrimRight(scriptname, scriptext)
-			metadata.Name = scriptname
+			scriptName := path.Base(file)
+			scriptExt := path.Ext(scriptName)
+			scriptName = strings.TrimRight(scriptName, scriptExt)
+			metadata.Name = scriptName
 		} else {
 			return nil, fmt.Errorf("No embedded metadata for %s. Use --force to upload anyways.", file)
 		}
