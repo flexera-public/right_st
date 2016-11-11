@@ -1,5 +1,10 @@
-Unreleased changes
-------------------
+v1.6.0 / 2016-11-11
+-------------------
+* Fix bug where it would not always import the latest version of a publication
+  for RightScripts
+
+v1.5.0 / 2016-10-25
+-------------------
 * Add attachment detection to RightScript scaffold command
 * Check for updates with an OS and architecture specific YAML file so that MacOS
   builds taking longer do not result in update errors

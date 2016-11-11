@@ -515,10 +515,7 @@ func findRightScript(name string, revision int, matchers map[string]string) (*cm
 	}
 	// Publisher handled a bit specially. Unfortunately, there is no Publisher field for a RightScript. We have a lineage
 	// field has account ids in it. We have limited ability to match account ids to lineages unfortunately :(
-	publisher, ok := matchers[`Publisher`]
-	if ok {
-		delete(matchers, `Publisher`)
-	}
+	publisher, _ := matchers[`Publisher`]
 	publishers := map[string]string{
 		"RightScale":      "/2901/",
 		"RightLink Agent": "/67972/",
@@ -534,6 +531,9 @@ func findRightScript(name string, revision int, matchers map[string]string) (*cm
 		if rs.Name == name {
 			matched_all_matchers := true
 			for fieldName, value := range matchers {
+				if fieldName == `Publisher` {
+					continue
+				}
 				v := reflect.Indirect(reflect.ValueOf(rs)).FieldByName(fieldName)
 				if v.IsValid() {
 					if v.String() != value {
@@ -541,6 +541,8 @@ func findRightScript(name string, revision int, matchers map[string]string) (*cm
 					}
 				}
 			}
+			fmt.Println("DBEUG:", rs.Lineage, publisher, name)
+
 			if publisher != "" {
 				if !strings.Contains(rs.Lineage, publisher) {
 					matched_all_matchers = false
@@ -594,6 +596,7 @@ func (r *RightScript) PushRemote() error {
 	var pub *cm15.Publication
 	var err error
 	pubMatcher := map[string]string{}
+	rev := r.Revision
 	if r.Publisher != "" {
 		pub, err = findPublication("RightScript", r.Name, r.Revision, map[string]string{`Publisher`: r.Publisher})
 		if err != nil {
@@ -604,8 +607,9 @@ func (r *RightScript) PushRemote() error {
 		}
 		pubMatcher[`Description`] = pub.Description
 		pubMatcher[`Publisher`] = r.Publisher
+		rev = pub.Revision
 	}
-	script, err := findRightScript(r.Name, r.Revision, pubMatcher)
+	script, err := findRightScript(r.Name, rev, pubMatcher)
 	if script == nil {
 		if pub == nil {
 			return fmt.Errorf("Could not find RightScript '%s' Revision %s in local account. Add a 'Publisher' to also search the MultiCloud Marketplace", r.Name, formatRev(r.Revision))
@@ -614,11 +618,11 @@ func (r *RightScript) PushRemote() error {
 			err = loc.Import()
 			if err != nil {
 				return fmt.Errorf("Failed to import publication %s for RightScript '%s' Revision %s Publisher %s\n",
-					getLink(pub.Links, "self"), r.Name, formatRev(r.Revision), r.Publisher)
+					getLink(pub.Links, "self"), r.Name, formatRev(rev), r.Publisher)
 			}
-			script, err = findRightScript(r.Name, r.Revision, pubMatcher)
+			script, err = findRightScript(r.Name, rev, pubMatcher)
 			if script == nil {
-				return fmt.Errorf("Could not refind RightScript '%s' Revision %s after import!", r.Name, formatRev(r.Revision))
+				return fmt.Errorf("Could not refind RightScript '%s' Revision %s after import!", r.Name, formatRev(rev))
 			} else {
 				r.Href = getLink(script.Links, "self")
 			}
