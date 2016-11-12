@@ -340,10 +340,6 @@ func rightScriptValidate(files []string) {
 }
 
 func rightScriptDelete(files []string, prefix string) {
-	if prefix == "" {
-		fatalError("Prefix must be supplied along with cleanup flag")
-	}
-
 	for _, file := range files {
 		err := deleteRightScript(file, prefix)
 		if err != nil {
@@ -541,7 +537,6 @@ func findRightScript(name string, revision int, matchers map[string]string) (*cm
 					}
 				}
 			}
-			fmt.Println("DBEUG:", rs.Lineage, publisher, name)
 
 			if publisher != "" {
 				if !strings.Contains(rs.Lineage, publisher) {

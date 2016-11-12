@@ -97,7 +97,12 @@ right_st rightscript upload [<flags>] <path>...
     -f, --force:  Force upload of RightScript despite lack of Metadata comments
     -x, --prefix <prefix>: Create dev/test version by adding prefix to name of all
                            RightScripts uploaded
-    -D, --delete: Delete dev/test ServerTemplates and RightScripts with a prefix
+
+rightscript rightscript delete <path>...
+  Delete dev/test RightScripts with a prefix.
+  Flags:
+    -x, --prefix <prefix>: Delete rightscripts specified in file with a prefix. This
+                           command acts to cleanup scripts created with upload --prefix.
 
 right_st rightscript download <name|href|id> [<path>]
   Download a RightScript to a file. Metadata comments will automatically be 
@@ -227,7 +232,12 @@ right_st st upload <path>...
   Flags:
     -x, --prefix <prefix>:  Create dev/test version by adding prefix to name of all
                             RightScripts uploaded
-    -D, --delete: Delete dev/test ServerTemplates and RightScripts with a prefix
+
+right_st st delete <path>...
+  Delete dev/test ServerTemplates and RightScripts with a prefix
+  Flags:
+    -x, --prefix <prefix>:  Delete with this prefix. This commands acts as a cleanup
+                            for ServerTepmlates uploaded with --prefix.
 
 right_st st download <name|href|id> [<path>]
   Download a ServerTemplate and all associated RightScripts/Attachments to disk

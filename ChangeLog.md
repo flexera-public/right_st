@@ -2,6 +2,8 @@ v1.6.0 / 2016-11-11
 -------------------
 * Fix bug where it would not always import the latest version of a publication
   for RightScripts
+* Remove --delete/-D flag from 'st upload' and 'rightscript upload' in favor
+  of 'st delete' and 'rightscript delete'.
 
 v1.5.0 / 2016-10-25
 -------------------

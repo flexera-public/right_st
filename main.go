@@ -40,7 +40,10 @@ var (
 	stUploadCmd    = stCmd.Command("upload", "Upload a ServerTemplate specified by a YAML document")
 	stUploadPaths  = stUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
 	stUploadPrefix = stUploadCmd.Flag("prefix", "Create dev/test version by adding prefix to name of all ServerTemplate and RightScripts uploaded").Short('x').String()
-	stUploadDelete = stUploadCmd.Flag("delete", "Delete dev/test ServerTemplates and RightScripts with a prefix").Short('D').Bool()
+
+	stDeleteCmd    = stCmd.Command("delete", "Delete dev/test ServerTemplates and RightScripts with a prefix")
+	stDeletePaths  = stDeleteCmd.Arg("path", "File or directory containing script files").Required().ExistingFilesOrDirs()
+	stDeletePrefix = stDeleteCmd.Flag("prefix", "Prefix to delete").Required().Short('x').String()
 
 	stDownloadCmd         = stCmd.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
 	stDownloadNameOrHref  = stDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
@@ -61,8 +64,11 @@ var (
 	rightScriptUploadCmd    = rightScriptCmd.Command("upload", "Upload a RightScript")
 	rightScriptUploadPaths  = rightScriptUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
 	rightScriptUploadPrefix = rightScriptUploadCmd.Flag("prefix", "Create dev/test version by adding prefix to name of all RightScripts uploaded").Short('x').String()
-	rightScriptUploadDelete = rightScriptUploadCmd.Flag("delete", "Delete dev/test RightScripts with a prefix.").Short('D').Bool()
 	rightScriptUploadForce  = rightScriptUploadCmd.Flag("force", "Force upload of file if metadata is not present").Short('f').Bool()
+
+	rightScriptDeleteCmd    = rightScriptCmd.Command("delete", "Delete dev/test RightScripts with a prefix.")
+	rightScriptDeletePaths  = rightScriptDeleteCmd.Arg("path", "File or directory containing script files").Required().ExistingFilesOrDirs()
+	rightScriptDeletePrefix = rightScriptDeleteCmd.Flag("prefix", "Prefix to delete").Required().Short('x').String()
 
 	rightScriptDownloadCmd        = rightScriptCmd.Command("download", "Download a RightScript to a file or files")
 	rightScriptDownloadNameOrHref = rightScriptDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
@@ -146,11 +152,13 @@ func main() {
 		if err != nil {
 			fatalError("%s\n", err.Error())
 		}
-		if *stUploadDelete {
-			stDelete(files, *stUploadPrefix)
-		} else {
-			stUpload(files, *stUploadPrefix)
+		stUpload(files, *stUploadPrefix)
+	case stDeleteCmd.FullCommand():
+		files, err := walkPaths(*stDeletePaths)
+		if err != nil {
+			fatalError("%s\n", err.Error())
 		}
+		stDelete(files, *stDeletePrefix)
 	case stDownloadCmd.FullCommand():
 		href, err := paramToHref("server_templates", *stDownloadNameOrHref, 0)
 		if err != nil {
@@ -174,11 +182,13 @@ func main() {
 		if err != nil {
 			fatalError("%s\n", err.Error())
 		}
-		if *rightScriptUploadDelete {
-			rightScriptDelete(files, *rightScriptUploadPrefix)
-		} else {
-			rightScriptUpload(files, *rightScriptUploadForce, *rightScriptUploadPrefix)
+		rightScriptUpload(files, *rightScriptUploadForce, *rightScriptUploadPrefix)
+	case rightScriptDeleteCmd.FullCommand():
+		files, err := walkPaths(*rightScriptDeletePaths)
+		if err != nil {
+			fatalError("%s\n", err.Error())
 		}
+		rightScriptDelete(files, *rightScriptDeletePrefix)
 	case rightScriptDownloadCmd.FullCommand():
 		href, err := paramToHref("right_scripts", *rightScriptDownloadNameOrHref, 0)
 		if err != nil {

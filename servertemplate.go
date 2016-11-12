@@ -57,9 +57,6 @@ func stUpload(files []string, prefix string) {
 func stDelete(files []string, prefix string) {
 	client, _ := Config.Account.Client15()
 
-	if prefix == "" {
-		fatalError("Prefix must be supplied along with cleanup flag")
-	}
 	for _, file := range files {
 		f, err := os.Open(file)
 		if err != nil {
