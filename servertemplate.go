@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/go-yaml/yaml"
@@ -440,11 +441,20 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 	if err != nil {
 		fatalError("Could not find attached RightScripts with href %s: %s", rbLocator.Href, err.Error())
 	}
+	// sort runnable bindings by position
+	sort.SliceStable(rbs, func(i, j int) bool { return rbs[i].Position < rbs[j].Position })
 	rightScripts := make(map[string][]*RightScript)
 	countBySequence := make(map[string]int)
+	positionBySequence := make(map[string]map[int]int)
 	seenRightscript := make(map[string]*RightScript)
 	for _, rb := range rbs {
-		countBySequence[strings.Title(rb.Sequence)] += 1
+		sequence := strings.Title(rb.Sequence)
+		if _, ok := positionBySequence[sequence]; !ok {
+			positionBySequence[sequence] = make(map[int]int)
+		}
+		// map the RightScript's position number to the index in the corresponding rightScripts sequence slice
+		positionBySequence[sequence][rb.Position] = countBySequence[sequence]
+		countBySequence[sequence] += 1
 		seenRightscript[getLink(rb.Links, "right_script")] = nil
 	}
 	for sequenceType, count := range countBySequence {
@@ -457,8 +467,10 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 			fatalError("Could not download ServerTemplate, it has attached cookbook recipes, which are not supported by this tool.\n")
 		}
 
+		sequence := strings.Title(rb.Sequence)
+
 		if scr, ok := seenRightscript[rsHref]; ok && scr != nil {
-			rightScripts[strings.Title(rb.Sequence)][rb.Position-1] = scr
+			rightScripts[sequence][positionBySequence[sequence][rb.Position]] = scr
 			continue
 		}
 
@@ -490,7 +502,7 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 			}
 		}
 
-		rightScripts[strings.Title(rb.Sequence)][rb.Position-1] = &newScript
+		rightScripts[sequence][positionBySequence[sequence][rb.Position]] = &newScript
 
 		if newScript.Type == LocalRightScript {
 			if scriptPath == "" {
