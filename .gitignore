@@ -39,3 +39,6 @@ version.yml
 
 # vim
 .*.sw[nmop]
+
+# evil macOS
+.DS_Store
