@@ -10,7 +10,8 @@ cache:
   directories:
     - vendor
 before_install:
-  - "[[ $TRAVIS_OS_NAME != osx ]] || brew install bash coreutils"
+  - "[[ $TRAVIS_OS_NAME != osx ]] || brew list bash || brew install bash"
+  - "[[ $TRAVIS_OS_NAME != osx ]] || brew list coreutils || brew install coreutils"
 install:
   - make depend
 script:
