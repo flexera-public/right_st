@@ -1,7 +1,3 @@
-v1.6.2 / 2017-06-15
--------------------
-* Fix version YAML script so automatic upgrades work on macOS again.
-
 v1.6.1 / 2017-03-09
 -------------------
 * Fix bug where the RightScale API returns runnable binding sequence positions
