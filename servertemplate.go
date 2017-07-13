@@ -680,7 +680,7 @@ func ParseServerTemplate(ymlData io.Reader) (*ServerTemplate, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = yaml.Unmarshal(bytes, &st)
+	err = yaml.UnmarshalStrict(bytes, &st)
 	if err != nil {
 		return nil, err
 	}

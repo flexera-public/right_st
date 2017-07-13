@@ -43,7 +43,7 @@ var Config ConfigViper
 
 func init() {
 	Config.Viper = viper.New()
-	Config.SetDefault("login", map[interface{}]interface{}{"accounts": make(map[interface{}]interface{})})
+	Config.SetDefault("login", map[string]interface{}{"accounts": make(map[string]interface{})})
 	Config.SetDefault("update", map[string]interface{}{"check": true})
 	Config.SetEnvPrefix(app.Name)
 	Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -126,7 +126,10 @@ func (config *ConfigViper) SetAccount(name string, setDefault bool, input io.Rea
 	// get the settings and specifically the login settings into a map we can manipulate and marshal to YAML unhindered
 	// by the meddling of the Viper
 	settings := config.AllSettings()
-	loginSettings := settings["login"].(map[interface{}]interface{})
+	if _, ok := settings["login"]; !ok {
+		settings["login"] = map[string]interface{}{"accounts": make(map[string]interface{})}
+	}
+	loginSettings := settings["login"].(map[string]interface{})
 
 	// set the default account if we want or need to
 	if setDefault {
@@ -171,7 +174,7 @@ func (config *ConfigViper) SetAccount(name string, setDefault bool, input io.Rea
 	}
 
 	// add the new account to the map of accounts overwriting any old value
-	accounts := loginSettings["accounts"].(map[interface{}]interface{})
+	accounts := loginSettings["accounts"].(map[string]interface{})
 	accounts[name] = newAccount
 
 	// render the settings map as YAML

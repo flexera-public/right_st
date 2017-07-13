@@ -3,9 +3,6 @@ package: github.com/rightscale/right_st
 import:
 - package: github.com/tonnerre/golang-pretty
 - package: github.com/go-yaml/yaml
-  version: no_ignore_unspecified_fields
-  repo: https://github.com/douglaswth/yaml
-  vcs: git
 - package: github.com/stretchr/testify
 - package: github.com/inconshreveable/log15
 - package: github.com/BurntSushi/toml
@@ -40,3 +37,4 @@ import:
 - package: github.com/rlmcpherson/s3gof3r/gof3r
 - package: github.com/inconshreveable/go-update
 - package: golang.org/x/sys/unix
+- package: golang.org/x/net/html/charset

@@ -79,7 +79,7 @@ func UpdateGetLatestVersions() (*LatestVersions, error) {
 
 	// parse the version.yml file into a LatestVersions struct and return the result and any errors
 	var latest LatestVersions
-	err = yaml.Unmarshal(versions, &latest)
+	err = yaml.UnmarshalStrict(versions, &latest)
 	return &latest, err
 }
 
