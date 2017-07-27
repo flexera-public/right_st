@@ -127,7 +127,7 @@ var _ = Describe("Config", func() {
 						Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: API endpoint host: Refresh token: "))
 						config, err := ioutil.ReadFile(nonexistentConfigFile)
 						Expect(err).NotTo(HaveOccurred())
-						Expect(config).To(BeEquivalentTo(`login:
+						Expect(string(config)).To(BeEquivalentTo(`login:
   accounts:
     production:
       host: us-3.rightscale.com

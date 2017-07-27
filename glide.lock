@@ -1,30 +1,30 @@
-hash: 661b8d7cc4d33ab5e0cf917a3c751b3df4c36b6037422edaf2a588db61fde6f8
-updated: 2016-10-19T15:49:30.606317772-07:00
+hash: 6f5a6d4d91622cea1de6b9f505066c8c7972899df063e4602a95b8aecd5dce00
+updated: 2017-07-13T13:48:13.6644196-07:00
 imports:
 - name: github.com/alecthomas/kingpin
   version: aef28d186e59d39ed537473dfce4472108ea1045
   repo: https://github.com/alecthomas/kingpin
   vcs: git
 - name: github.com/alecthomas/template
-  version: b867cc6ab45cece8143cfcc6fc9c77cf3f2c23c0
+  version: a0175ee3bccc567396460bf5acd36800cb10c49c
   subpackages:
   - parse
 - name: github.com/alecthomas/units
-  version: 6b4e7dc5e3143b85ea77909c72caf89416fc2915
+  version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
 - name: github.com/BurntSushi/toml
-  version: a4eecd407cf4129fc902ece859a0114e4cf1a7f4
+  version: a368813c5e648fee92e5f6c30e3944ff9d5e8895
 - name: github.com/douglaswth/rsrdp
   version: 276cfcdf9e5215951fc37cea520b3a278a999cfb
   subpackages:
   - win32
+- name: github.com/fsnotify/fsnotify
+  version: 4da3e2cfbabc9f751898f250b49f2439785783a1
 - name: github.com/go-stack/stack
-  version: 100eb0c0a9c5b306ca2fb4f165df21d80ada4b82
+  version: 54be5f394ed2c3e19dac9134a40a95ba5a017f7b
 - name: github.com/go-yaml/yaml
-  version: d1ed510449924a57f7b6e3cac374691332141316
-  repo: https://github.com/douglaswth/yaml
-  vcs: git
+  version: 3b4ad1db5b2a649883ff3782f5f9f6fb52be71af
 - name: github.com/hashicorp/hcl
-  version: 1c284ec98f4b398443cbabb0d9197f7f4cc0077c
+  version: 392dba7d905ed5d04a5794ba89f558b27e2ba1ca
   subpackages:
   - hcl/ast
   - hcl/parser
@@ -40,29 +40,31 @@ imports:
   - internal/binarydist
   - internal/osext
 - name: github.com/inconshreveable/log15
-  version: 944cbfb97b448e4f63f0bdb69c2850e3de1aeae9
+  version: 74a0988b5f804e8ce9ff74fca4f16980776dff29
   subpackages:
   - term
 - name: github.com/kardianos/osext
-  version: 29ae4ffbc9a6fe9fb2bc5029050ce6996ea1d3bc
+  version: ae77be60afb1dcacde03767a8c37337fad28ac14
 - name: github.com/kr/pretty
-  version: e6ac2fc51e89a3249e82157fa0bb7a18ef9dd5bb
+  version: cfb55aafdaf3ec08f0db22699ab822c50091b1c4
 - name: github.com/kr/text
-  version: bb797dc4fb8320488f47bf11de07a733d7233e1f
+  version: 7cafcd837844e784b526369c9bce262804aebc60
 - name: github.com/magiconair/properties
-  version: 497d0afefddf378f9ffb3c89db6a326985908519
+  version: be5ece7dd465ab0765a9682137865547526d1dfb
 - name: github.com/mattn/go-colorable
-  version: 40e4aedc8fabf8c23e040057540867186712faa5
+  version: 3fa8c76f9daed4067e4a806fb7e4dc86455c6d6a
 - name: github.com/mattn/go-isatty
-  version: ae0b1f8f8004be68d791a576e3d8e7648ab41449
+  version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
 - name: github.com/mitchellh/mapstructure
-  version: d2dd0262208475919e1a362f675cfc0e7c10e905
+  version: d0303fe809921458f417bcf828397a65db30a7e4
 - name: github.com/onsi/ginkgo
-  version: 17ea479729ee427265ac1e913443018350946ddf
+  version: 1e72798a2620664d2ab32ffd4473c102fcd4894d
 - name: github.com/onsi/gomega
-  version: 82a02eccf12c018071eef42fbb701c0db6f1e3db
+  version: c990b8b3a34c8814a6657daebe8e19ff4d9647a1
+- name: github.com/pelletier/go-toml
+  version: 69d355db5304c0f7f809a2edc054553e7142f016
 - name: github.com/rightscale/rsc
-  version: dcb9fdc5ca05e315a8a5a731e254cabeef968c79
+  version: 9ad9991647c17c8f7a4400f5b724d80123063d4f
   vcs: git
   subpackages:
   - cm15
@@ -74,38 +76,46 @@ imports:
   - metadata
   - recording
 - name: github.com/rlmcpherson/s3gof3r
-  version: 39f5507f61031141057f3f880d9fb9eb97b8afd7
+  version: 864ae0bf7cf2e20c0002b7ea17f4d84fec1abc14
   subpackages:
   - gof3r
+- name: github.com/spf13/afero
+  version: 9be650865eab0c12963d8753212f4f9c66cdcf12
+  subpackages:
+  - mem
 - name: github.com/spf13/cast
-  version: ee7b3e0353166ab1f3a605294ac8cd2b77953778
+  version: acbeb36b902d72a7a4c18e8f3241075e7ab763e4
 - name: github.com/spf13/jwalterweatherman
-  version: d00654080cddbd2b082acaa74007cb94a2b40866
+  version: 0efa5202c04663c757d84f90f5219c1250baf94f
 - name: github.com/spf13/pflag
-  version: 7f60f83a2c81bc3c3c0d5297f61ddfa68da9d3b7
+  version: e57e3eeb33f795204c1ca35f56c44f83227c6e66
 - name: github.com/spf13/viper
-  version: c975dc1b4eacf4ec7fdbf0873638de5d090ba323
+  version: c1de95864d73a5465492829d7cb2dd422b19ac96
 - name: github.com/stretchr/testify
-  version: 1f4a1643a57e798696635ea4c126e9127adb7d3c
+  version: f6abca593680b2315d2075e0f5e2a9751e3f431a
 - name: github.com/tonnerre/golang-pretty
   version: e7fccc03e91bad289b96c21aa3312a220689bdd7
 - name: golang.org/x/net
-  version: 66f0418ca41253f8d1a024eb9754e9441a8e79b9
+  version: f01ecb60fe3835d80d9a0b7b2bf24b228c89260e
   subpackages:
-  - context
-  - context/ctxhttp
+  - html/charset
 - name: golang.org/x/sys
-  version: 002cbb5f952456d0c50e0d2aff17ea5eca716979
+  version: abf9c25f54453410d0c6668e519582a9e1115027
   subpackages:
   - unix
+- name: golang.org/x/text
+  version: cfdf022e86b4ecfb646e1efbd7db175dd623a8fa
+  subpackages:
+  - transform
+  - unicode/norm
 - name: golang.org/x/tools
-  version: e852fdd89f1a2f53b9538a99c21a44a9f199218b
+  version: 6f1996fdfe16ee1642cf6f4876ed3648e2f66969
   subpackages:
   - cmd/cover
 - name: gopkg.in/alecthomas/kingpin.v2
-  version: e9044be3ab2a8e11d4e1f418d12f0790d57e8d70
+  version: 7f0871f2e17818990e4eed73f9b5c2f429501228
 - name: gopkg.in/fsnotify.v1
-  version: 8611c35ab31c1c28aa903d33cf8b6e44a399b09e
+  version: 629574ca2a5df945712d3079857300b5e4da0236
 - name: gopkg.in/yaml.v2
-  version: f7716cbe52baa25d2e9b0d0da546fcf909fc16b4
+  version: 3b4ad1db5b2a649883ff3782f5f9f6fb52be71af
 testImports: []

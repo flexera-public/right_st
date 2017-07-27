@@ -98,7 +98,7 @@ func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error
 		return nil, nil
 	}
 
-	err := yaml.Unmarshal(buffer.Bytes(), &metadata)
+	err := yaml.UnmarshalStrict(buffer.Bytes(), &metadata)
 	if err != nil {
 		yamlLineReplace := func(line string) string {
 			submatches := yamlLineError.FindStringSubmatch(line)

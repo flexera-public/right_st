@@ -135,7 +135,7 @@ Some Bogus Field: Some bogus value
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(&yaml.TypeError{
 					Errors: []string{
-						"line 2: no such field 'Some Bogus Field' in struct 'main.ServerTemplate'",
+						"line 2: field Some Bogus Field not found in struct main.ServerTemplate",
 					},
 				}))
 			})

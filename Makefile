@@ -38,7 +38,7 @@ ACL=public-read
 GOPKG_VERS=v1
 # Dependencies handled by go+glide. Requires 1.5+
 export GO15VENDOREXPERIMENT=1
-GLIDE_VERSION?=v0.11.0
+GLIDE_VERSION?=v0.11.1
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
 GLIDE_TGZ=glide-$(GLIDE_VERSION)-$(GOOS)-$(GOARCH).tar.gz
