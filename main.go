@@ -48,8 +48,8 @@ var (
 	stDownloadCmd         = stCmd.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
 	stDownloadNameOrHref  = stDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
 	stDownloadTo          = stDownloadCmd.Arg("path", "Download location").String()
-	stDownloadPublished   = stDownloadCmd.Flag("published", "Insert links to published RightScripts instead of downloading to disk.").Bool()
-	stDownloadMciSettings = stDownloadCmd.Flag("mci-settings", "Download MCI settings data to recreate/manage an MCI.").Bool()
+	stDownloadPublished   = stDownloadCmd.Flag("published", "Insert links to published RightScripts instead of downloading to disk.").Short('p').Bool()
+	stDownloadMciSettings = stDownloadCmd.Flag("mci-settings", "Download MCI settings data to recreate/manage an MCI.").Short('m').Bool()
 	stDownloadScriptPath  = stDownloadCmd.Flag("script-path", "Download RightScripts and their attachments to a subdirectory relative to the download location.").Short('s').String()
 
 	stValidateCmd   = stCmd.Command("validate", "Validate a ServerTemplate YAML document")
