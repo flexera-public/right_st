@@ -1,3 +1,10 @@
+v1.6.2 / 2017-07-27
+-------------------
+* Add missing -m and -p short options to the `right_st st download` subcommand,
+  they were documented in `README.md`, but apparently missing from recent
+  versions.
+* Update Golang library dependencies.
+
 v1.6.1 / 2017-03-09
 -------------------
 * Fix bug where the RightScale API returns runnable binding sequence positions
