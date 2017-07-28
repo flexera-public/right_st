@@ -1,3 +1,8 @@
+unreleased changes
+-------------------
+* Add file extension guessing for PowerShell RightScript download using either a
+  shebang or some heuristics.
+
 v1.6.3 / 2017-08-03
 -------------------
 * Work around a bug with account selection due to [viper]'s case-insensitivity.

@@ -46,7 +46,9 @@ type RightScript struct {
 }
 
 var (
-	lineage = regexp.MustCompile(`/api/acct/(\d+)/right_scripts/.+$`)
+	lineage                = regexp.MustCompile(`/api/acct/(\d+)/right_scripts/.+$`)
+	powershellAssignment   = regexp.MustCompile(`(?i)^\s*\$[a-z0-9_:]+\s*=`)
+	powershellWriteCmdlets = regexp.MustCompile(`(?i)^\s*Write-(?:Debug|Error|EventLog|Host|Information|Output|Progress|Verbose|Warning)`)
 )
 
 func rightScriptShow(href string) {
@@ -134,15 +136,22 @@ func rightScriptUpload(files []string, force bool, prefix string) {
 }
 
 // This can be improved to look for bash'isms for older style scripts, powershellisms, etc.
-func guessExtension(source string) string {
+func GuessExtension(source string) string {
 	if matches := shebang.FindStringSubmatch(source); len(matches) > 0 {
-		if strings.Contains(matches[0], "ruby") {
+		match := strings.ToLower(matches[0])
+		if strings.Contains(match, "ruby") {
 			return ".rb"
-		} else if strings.Contains(matches[0], "perl") {
+		} else if strings.Contains(match, "perl") {
 			return ".pl"
-		} else if strings.Contains(matches[0], "sh") { // bash + sh
+		} else if strings.Contains(match, "powershell") {
+			return ".ps1"
+		} else if strings.Contains(match, "sh") { // bash + sh
 			return ".sh"
 		}
+	}
+
+	if powershellAssignment.MatchString(source) || powershellWriteCmdlets.MatchString(source) {
+		return ".ps1"
 	}
 
 	return ""
@@ -173,7 +182,7 @@ func rightScriptDownload(href, downloadTo string) string {
 		fatalError("Could get attachments for RightScript from href %s: %s", attachmentsHref, err.Error())
 	}
 
-	guessedExtension := guessExtension(string(source))
+	guessedExtension := GuessExtension(string(source))
 
 	if downloadTo == "" {
 		downloadTo = cleanFileName(rightscript.Name) + guessedExtension
