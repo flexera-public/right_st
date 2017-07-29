@@ -18,7 +18,7 @@ var _ = Describe("RightScript", func() {
 		Entry("perl shebang", "#!/usr/bin/perl\nprint \"Hello, world!\\n\"\n", ".pl"),
 		Entry("bash shebang", "#!/bin/bash\necho 'Hello, world!'\n", ".sh"),
 		Entry("PowerShell shebang", "#!PowerShell\necho 'Hello, world!'\n", ".ps1"),
-		Entry("PowerShell assignment", "$env:HELLO_WORLD = 'Hello, world!'\necho $env:HELLO_WORLD\n", ".ps1"),
-		Entry("PowerShell Write Cmdlets", "Write-Host 'Hello, world!'\n", ".ps1"),
+		Entry("PowerShell assignment", "# hello.ps1\n$env:HELLO_WORLD = 'Hello, world!'\necho $env:HELLO_WORLD\n", ".ps1"),
+		Entry("PowerShell Write Cmdlets", "# hello.ps1\nWrite-Host 'Hello, world!'\n", ".ps1"),
 	)
 })

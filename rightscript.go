@@ -47,8 +47,8 @@ type RightScript struct {
 
 var (
 	lineage                = regexp.MustCompile(`/api/acct/(\d+)/right_scripts/.+$`)
-	powershellAssignment   = regexp.MustCompile(`(?i)^\s*\$[a-z0-9_:]+\s*=`)
-	powershellWriteCmdlets = regexp.MustCompile(`(?i)^\s*Write-(?:Debug|Error|EventLog|Host|Information|Output|Progress|Verbose|Warning)`)
+	powershellAssignment   = regexp.MustCompile(`(?im)^\s*\$[a-z0-9_:]+\s*=`)
+	powershellWriteCmdlets = regexp.MustCompile(`(?im)^\s*Write-(?:Debug|Error|EventLog|Host|Information|Output|Progress|Verbose|Warning)`)
 )
 
 func rightScriptShow(href string) {
