@@ -79,12 +79,12 @@ func ReadConfig(configFile, account string) error {
 		var ok bool
 		if account == "" {
 			defaultAccount := Config.GetString("login.default_account")
-			Config.Account, ok = Config.Accounts[defaultAccount]
+			Config.Account, ok = Config.Accounts[strings.ToLower(defaultAccount)]
 			if !ok {
 				return fmt.Errorf("%s: could not find default account: %s", configFile, defaultAccount)
 			}
 		} else {
-			Config.Account, ok = Config.Accounts[account]
+			Config.Account, ok = Config.Accounts[strings.ToLower(account)]
 			if !ok {
 				return fmt.Errorf("%s: could not find account: %s", configFile, account)
 			}
