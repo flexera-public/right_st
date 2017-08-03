@@ -1,3 +1,9 @@
+v1.6.3 / 2017-08-03
+-------------------
+* Work around a bug with account selection due to [viper]'s case-insensitivity.
+
+[viper]: https://github.com/spf13/viper
+
 v1.6.2 / 2017-07-27
 -------------------
 * Add missing -m and -p short options to the `right_st st download` subcommand,
