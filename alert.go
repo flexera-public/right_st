@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/go-yaml/yaml"
 	"github.com/rightscale/rsc/cm15"
 	"github.com/rightscale/rsc/rsapi"
 )
@@ -13,6 +16,71 @@ type Alert struct {
 	Name        string `yaml:"Name"`
 	Description string `yaml:"Description,omitempty"`
 	Clause      string `yaml:"Clause"`
+	File        string `yaml:"-"`
+}
+
+type Alerts struct {
+	Alerts []*Alert `yaml:"Alerts"`
+}
+
+func (alert *Alert) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	err := unmarshal(&alert.File)
+	if err == nil {
+		return nil
+	}
+
+	var mapAlert struct {
+		Name        string `yaml:"Name"`
+		Description string `yaml:"Description,omitempty"`
+		Clause      string `yaml:"Clause"`
+	}
+	err = unmarshal(&mapAlert)
+	if err != nil {
+		return fmt.Errorf("Could not unmarshal Alert. Must be either a path to file on disk or a hash with Name/Description/Clause or Name/Clause keys")
+	}
+	alert.Name = mapAlert.Name
+	alert.Description = mapAlert.Description
+	alert.Clause = mapAlert.Clause
+	alert.File = ""
+	return nil
+}
+
+func ExpandAlerts(dir string, alerts []*Alert) ([]*Alert, error) {
+	return expandAlerts(dir, make(map[string]bool), alerts)
+}
+
+func expandAlerts(dir string, files map[string]bool, alerts []*Alert) ([]*Alert, error) {
+	expandedAlerts := make([]*Alert, 0, len(alerts))
+	for _, alert := range alerts {
+		if alert.File == "" {
+			expandedAlerts = append(expandedAlerts, alert)
+			continue
+		}
+		if files[alert.File] {
+			continue
+		} else {
+			files[alert.File] = true
+		}
+
+		bytes, err := ioutil.ReadFile(filepath.Join(dir, alert.File))
+		if err != nil {
+			return nil, err
+		}
+		var container Alerts
+		err = yaml.UnmarshalStrict(bytes, &container)
+		if err != nil {
+			return nil, err
+		}
+		if len(container.Alerts) == 0 {
+			return nil, fmt.Errorf("alerts file does not contain any alerts: %s", alert.File)
+		}
+		alerts, err := expandAlerts(dir, files, container.Alerts)
+		if err != nil {
+			return nil, err
+		}
+		expandedAlerts = append(expandedAlerts, alerts...)
+	}
+	return expandedAlerts, nil
 }
 
 // Expected Format with array index offsets into tokens array below:

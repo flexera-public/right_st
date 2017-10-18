@@ -99,7 +99,7 @@ func stDelete(files []string, prefix string) {
 			}
 		}
 
-		// RightScripts. Only delete ones managed by use and not simple ones we link to.
+		// RightScripts. Only delete ones managed by us and not simple ones we link to.
 		seen := map[string]bool{}
 		for _, scripts := range st.RightScripts {
 			for _, rs := range scripts {
@@ -605,6 +605,10 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 	defer f.Close()
 
 	st, err := ParseServerTemplate(f)
+	if err != nil {
+		return nil, []error{err}
+	}
+	st.Alerts, err = ExpandAlerts(filepath.Dir(file), st.Alerts)
 	if err != nil {
 		return nil, []error{err}
 	}

@@ -129,7 +129,7 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | RightScripts | Hash of String -> Array of RightScripts| The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of RightScripts. Each RightScript can be specified in one of three ways, as a 1. "local" managed 2. "published", or 3. "external" RightScript. A locally managed RightScript is specified as a pathname to a file on disk and the file contents are synchonized to the HEAD revision of a RightScript in your local account. Published RightScripts are links to pre-existing RightScripts shared in the MultiCloud marketplace and consist of a hash specifying a Name/Revision/Publisher to look up. External RightScripts are pre-existing RightScripts consisting of a Name/Revision pair and will not search the MultiCloud marketplace. |
 | Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overridden in a ServerTemplate. |
 | MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash of fields taking a few different formats. See section below for further details. |
-| Alerts | Array of Alerts | An array of Alert definitions, defined below. |
+| Alerts | Array of Alerts | An array of Alert definitions and/or Alert YAML file references, defined below. |
 
 A MultiCloudImage definition allows you to specify an MCI in four different ways by supplying different hash keys. The first three combinations specified below allow you to use pre-existing MCIs. The fourth one allows you to fully manage an MCI in your local account:
 
@@ -155,7 +155,9 @@ An Alert definition consists of three fields: a Name, Definition, and Clause (al
 * Duration is minutes and must be an integer greater than 0.
 * Action is either "escalate" in which case the ActionValue is the name of the escalation. Or Action is "grow" or "shrink" in which case ActionValue is the custom tag value to use as the voting tag.
 
-Here is an example ServerTemplate yaml file.
+An Alert YAML file is referenced as a normal string in the Alerts array which is the relative path to a YAML file containing just the Alerts field with the same format as in the ServerTemplate YAML file.
+
+Here is an example ServerTemplate YAML file:
 
 ```yaml
 Name: My ServerTemplate
@@ -211,9 +213,18 @@ MultiCloudImages:
     Instance Type: m3.medium
     Image: ami-b1841cc6
 Alerts:
+# Alert definition
 - Name: CPU Scale Down
   Description: Votes to shrink ServerArray by setting tag rs_vote:my_app_name=shrink
   Clause: If cpu-0/cpu-idle.value > '50' for 3 minutes Then shrink my_app_name
+# Alerts file reference
+- common-alerts.yml
+```
+
+Here is an example Alerts YAML file:
+
+```yaml
+Alerts:
 - Name: Low memory warning
   Description: Runs escalation named "warning" if free memory drops to < 100MB
   Clause: If memory/memory-free.value < 100000000 for 5 minutes Then escalate warning
