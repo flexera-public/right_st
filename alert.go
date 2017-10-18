@@ -36,7 +36,7 @@ func (alert *Alert) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 	err = unmarshal(&mapAlert)
 	if err != nil {
-		return fmt.Errorf("Could not unmarshal Alert. Must be either a path to file on disk or a hash with Name/Description/Clause or Name/Clause keys")
+		return err
 	}
 	alert.Name = mapAlert.Name
 	alert.Description = mapAlert.Description
