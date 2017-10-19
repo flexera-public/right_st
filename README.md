@@ -128,7 +128,7 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 | Description | String | Description field for the ServerTemplate. |
 | RightScripts | Hash of String -> Array of RightScripts| The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of RightScripts. Each RightScript can be specified in one of three ways, as a 1. "local" managed 2. "published", or 3. "external" RightScript. A locally managed RightScript is specified as a pathname to a file on disk and the file contents are synchonized to the HEAD revision of a RightScript in your local account. Published RightScripts are links to pre-existing RightScripts shared in the MultiCloud marketplace and consist of a hash specifying a Name/Revision/Publisher to look up. External RightScripts are pre-existing RightScripts consisting of a Name/Revision pair and will not search the MultiCloud marketplace. |
 | Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overridden in a ServerTemplate. |
-| MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions. A MultiCloudImage definition is a hash of fields taking a few different formats. See section below for further details. |
+| MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions and/or MultiCloudImage YAML file references. A MultiCloudImage definition is a hash of fields taking a few different formats. See section below for further details. |
 | Alerts | Array of Alerts | An array of Alert definitions and/or Alert YAML file references, defined below. |
 
 A MultiCloudImage definition allows you to specify an MCI in four different ways by supplying different hash keys. The first three combinations specified below allow you to use pre-existing MCIs. The fourth one allows you to fully manage an MCI in your local account:
@@ -146,10 +146,12 @@ A MultiCloudImage definition allows you to specify an MCI in four different ways
         * `Instance Type` - String - Required - Name of instance type.
         * `User Data` - String - Optional - User Data template for this cloud/image combination.
 
+A MultiCloudImage YAML file is referenced as a normal string in the MultiCloudImages array which is the realtaive path to a YAML file containing an individual MultiCloudImage definition.
+
 An Alert definition consists of three fields: a Name, Definition, and Clause (all strings). Clause is a text description of the Alert with this exact format: `If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Action> <ActionValue>`:
 
-* Metric is a collectd metric name such as `cpu-0/cpu-idle`. 
-* ValueType is the metric type (`value`, `count`, etc - allowable values differ for each metric so look in the dashboard!). 
+* Metric is a collectd metric name such as `cpu-0/cpu-idle`.
+* ValueType is the metric type (`value`, `count`, etc - allowable values differ for each metric so look in the dashboard!).
 * ComparisonOperator is `>`, `>=`, `<`, `<=`, `==`, or `!=`
 * Threshold is a numeric value such as `100` or `0.5` or `NaN` for all Metrics except for the RS/* ones. For the RS/* ones its a one of the following server states: `pending`, `booting`, `operational`, `decommission`, `shutting-down`, `terminated`
 * Duration is minutes and must be an integer greater than 0.
@@ -212,6 +214,8 @@ MultiCloudImages:
   - Cloud: EC2 eu-west-1
     Instance Type: m3.medium
     Image: ami-b1841cc6
+# MultiCloudImage file reference
+- ubuntu-1604-x64.yml
 Alerts:
 # Alert definition
 - Name: CPU Scale Down
@@ -219,6 +223,19 @@ Alerts:
   Clause: If cpu-0/cpu-idle.value > '50' for 3 minutes Then shrink my_app_name
 # Alerts file reference
 - common-alerts.yml
+```
+
+Here is an example MultiCloudImage YAML file:
+
+```yaml
+Name: Ubuntu 16.04 x64
+Tags:
+- rs_agent:type=right_link_lite
+- rs_agent:mime_shellscript=https://rightlink.rightscale.com/rll/10/rightlink.boot.sh
+Settings:
+- Cloud: EC2 us-west-2
+  Instance Type: m3.medium
+  Image: ami-45224425
 ```
 
 Here is an example Alerts YAML file:
