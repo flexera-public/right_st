@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/go-yaml/yaml"
 	"github.com/rightscale/rsc/cm15"
 	"github.com/rightscale/rsc/rsapi"
 )
@@ -28,6 +31,7 @@ type MultiCloudImage struct {
 	Tags        []string   `yaml:"Tags,omitempty"`
 	// Settings are like MultiCloudImageSettings, defining cloud/resource_uid sets
 	Settings []*Setting `yaml:"Settings,omitempty"`
+	File     string     `yaml:"-"`
 }
 
 type RsRevision int
@@ -35,6 +39,54 @@ type RsRevision int
 // Cache lookups for below
 var cloudsLookup []*cm15.Cloud
 var instanceTypesLookup map[string][]*cm15.InstanceType
+
+func (mci *MultiCloudImage) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	err := unmarshal(&mci.File)
+	if err == nil {
+		return nil
+	}
+
+	var mapMCI struct {
+		Href        string     `yaml:"Href,omitempty"`
+		Name        string     `yaml:"Name,omitempty"`
+		Description string     `yaml:"Description,omitempty"`
+		Revision    RsRevision `yaml:"Revision,omitempty"`
+		Publisher   string     `yaml:"Publisher,omitempty"`
+		Tags        []string   `yaml:"Tags,omitempty"`
+		Settings    []*Setting `yaml:"Settings,omitempty"`
+	}
+	err = unmarshal(&mapMCI)
+	if err != nil {
+		return err
+	}
+	mci.Href = mapMCI.Href
+	mci.Name = mapMCI.Name
+	mci.Description = mapMCI.Description
+	mci.Revision = mapMCI.Revision
+	mci.Publisher = mapMCI.Publisher
+	mci.Tags = mapMCI.Tags
+	mci.Settings = mapMCI.Settings
+	mci.File = ""
+	return nil
+}
+
+func ExpandMultiCloudImages(dir string, mcis []*MultiCloudImage) ([]*MultiCloudImage, error) {
+	expandedMCIs := make([]*MultiCloudImage, 0, len(mcis))
+	for _, mci := range mcis {
+		if mci.File != "" {
+			bytes, err := ioutil.ReadFile(filepath.Join(dir, mci.File))
+			if err != nil {
+				return nil, err
+			}
+			err = yaml.UnmarshalStrict(bytes, &mci)
+			if err != nil {
+				return nil, err
+			}
+		}
+		expandedMCIs = append(expandedMCIs, mci)
+	}
+	return expandedMCIs, nil
+}
 
 // Let people specify MCIs multiple ways:
 //   1. Href (Sort of there for completeness and to break ties for 2. may remove at some point)
@@ -126,7 +178,7 @@ func validateMultiCloudImage(mciDef *MultiCloudImage) (errors []error) {
 		}
 		mciDef.Href = href
 	} else {
-		errors = append(errors, fmt.Errorf("MultiCloudImage item must be a hash with Settings, Name/Revision, or Name/Revision/Publisher keys set to a valid values."))
+		errors = append(errors, fmt.Errorf("MultiCloudImage item must be a hash with Settings, Name/Revision, or Name/Revision/Publisher keys set to a valid value."))
 	}
 	return
 }
