@@ -1,5 +1,6 @@
 unreleased changes
 -------------------
+* Add support for specifying MultiCloudImages in separate YAML files.
 * Add support for specifying common Alerts for ServerTemplates in separate YAML files.
 * Add file extension guessing for PowerShell RightScript download using either a
   shebang or some heuristics.
