@@ -99,7 +99,7 @@ func stDelete(files []string, prefix string) {
 			}
 		}
 
-		// RightScripts. Only delete ones managed by use and not simple ones we link to.
+		// RightScripts. Only delete ones managed by us and not simple ones we link to.
 		seen := map[string]bool{}
 		for _, scripts := range st.RightScripts {
 			for _, rs := range scripts {
@@ -598,6 +598,7 @@ func stValidate(files []string) {
 // TBD
 //   Handle Cookbooks in some way (error out)
 func validateServerTemplate(file string) (*ServerTemplate, []error) {
+	root := filepath.Dir(file)
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, []error{err}
@@ -605,6 +606,14 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 	defer f.Close()
 
 	st, err := ParseServerTemplate(f)
+	if err != nil {
+		return nil, []error{err}
+	}
+	st.MultiCloudImages, err = ExpandMultiCloudImages(root, st.MultiCloudImages)
+	if err != nil {
+		return nil, []error{err}
+	}
+	st.Alerts, err = ExpandAlerts(root, st.Alerts)
 	if err != nil {
 		return nil, []error{err}
 	}
@@ -647,7 +656,7 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 
 				rs.Metadata.Name = rs.Name
 			} else if rs.Type == LocalRightScript {
-				rsNew, err := validateRightScript(filepath.Join(filepath.Dir(file), rs.Path), false)
+				rsNew, err := validateRightScript(filepath.Join(root, rs.Path), false)
 				if err != nil {
 					rsName := rs.Path
 					if rsNew != nil {
