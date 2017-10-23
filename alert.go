@@ -29,6 +29,7 @@ func (alert *Alert) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return nil
 	}
 
+	// make a dummy struct that will parse the same as Alert so we can unmarshall it without having UnmarshalYAML infinitely recursing
 	var mapAlert struct {
 		Name        string `yaml:"Name"`
 		Description string `yaml:"Description,omitempty"`
@@ -45,6 +46,9 @@ func (alert *Alert) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+// ExpandAlerts goes through a slice of Alert structs and for any that have a File reference, it reads in
+// Alert structs from the file and recurses through those to see if there are more File references and returns the new
+// slice. It keeps track of which files it opens so it does not read the same file twice.
 func ExpandAlerts(dir string, alerts []*Alert) ([]*Alert, error) {
 	return expandAlerts(dir, make(map[string]bool), alerts)
 }

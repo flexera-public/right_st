@@ -46,6 +46,7 @@ func (mci *MultiCloudImage) UnmarshalYAML(unmarshal func(interface{}) error) err
 		return nil
 	}
 
+	// make a dummy struct that will parse the same as MultiCloudImage so we can unmarshall it without having UnmarshalYAML infinitely recursing
 	var mapMCI struct {
 		Href        string     `yaml:"Href,omitempty"`
 		Name        string     `yaml:"Name,omitempty"`
@@ -70,6 +71,9 @@ func (mci *MultiCloudImage) UnmarshalYAML(unmarshal func(interface{}) error) err
 	return nil
 }
 
+// ExpandMultiCloudImages goes through a slice of MultiCloudImage structs and for any that have a File reference, it
+// reads in a MultiCloudImage struct from the file and returns the new slice. It is an error to specify a File reference
+// in an MCI YAML file.
 func ExpandMultiCloudImages(dir string, mcis []*MultiCloudImage) ([]*MultiCloudImage, error) {
 	expandedMCIs := make([]*MultiCloudImage, 0, len(mcis))
 	for _, mci := range mcis {
