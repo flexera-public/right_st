@@ -1,4 +1,4 @@
-unreleased changes
+v1.7.0 / 2017-10-23
 -------------------
 * Add support for specifying MultiCloudImages in separate YAML files.
 * Add support for specifying common Alerts for ServerTemplates in separate YAML files.
