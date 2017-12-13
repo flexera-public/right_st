@@ -1,3 +1,7 @@
+v1.7.1 / 2017-12-13
+-------------------
+* Make prefix an optional parameter for deleting ServerTemplates/RightScripts.
+
 v1.7.0 / 2017-10-23
 -------------------
 * Add support for specifying MultiCloudImages in separate YAML files.

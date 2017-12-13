@@ -379,7 +379,9 @@ func deleteRightScript(file string, prefix string) error {
 	} else {
 		scriptName = metadata.Name
 	}
-	scriptName = fmt.Sprintf("%s_%s", prefix, scriptName)
+	if prefix != "" {
+		scriptName = fmt.Sprintf("%s_%s", prefix, scriptName)
+	}
 	hrefs, err := paramToHrefs("right_scripts", scriptName, 0)
 	if err != nil {
 		return err
