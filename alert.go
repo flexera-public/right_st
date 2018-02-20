@@ -101,7 +101,7 @@ func parseAlertClause(alert string) (*cm15.AlertSpec, error) {
 		return nil, fmt.Errorf("Alert clause misformatted: missing If. Must be of format: '%s'", alertFmt)
 	}
 	metricValueTokens := strings.Split(tokens[1], "/")
-	metricTokens := strings.Split(metricValueTokens[2], ".")
+	metricTokens := strings.Split(metricValueTokens[1], ".")
 	if len(metricTokens) != 2 {
 		return nil, fmt.Errorf("Alert <Metric>.<ValueType> misformatted, should be like 'cpu-0/cpu-idle.value'.")
 	}
