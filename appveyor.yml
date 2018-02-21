@@ -6,6 +6,9 @@ environment:
 install:
   - appveyor SetVariable -Name PATH -Value "%GOPATH%\bin;%PATH%;C:\Ruby21-x64\DevKit\mingw\bin;C:\cygwin\bin"
   - make depend
+before_build:
+  - go version
+  - go env
 build_script:
   - make
 test_script:
