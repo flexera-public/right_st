@@ -100,17 +100,23 @@ func parseAlertClause(alert string) (*cm15.AlertSpec, error) {
 	if strings.ToLower(tokens[0]) != "if" {
 		return nil, fmt.Errorf("Alert clause misformatted: missing If. Must be of format: '%s'", alertFmt)
 	}
-	metricValueTokens := strings.Split(tokens[1], "/")
-	metricTokens := strings.Split(metricValueTokens[1], ".")
-	if len(metricTokens) != 2 {
-		return nil, fmt.Errorf("Alert <Metric>.<ValueType> misformatted, should be like 'cpu-0/cpu-idle.value'.")
+	// API1.5 expects alert_spec[file] == cpu0/cpu-idle and alert_spec[variable] == value [i.e. cpu-0/cpu-idle.value]
+	// We want to grab the value after the last . for variable and everything else is "file" [which can contain a .]
+	metric := tokens[1]
+	period := strings.LastIndex(metric, ".")
+	// Check to make sure there is a variable name
+	if period == -1 {
+	    return nil, fmt.Errorf("Alert <Metric>.<ValueType> misformatted, should be like 'cpu-0/cpu-idle.value'.")
 	}
 	// Check metricTokens[0] should contain a slash.
 	// Check metricTokens[1] can be numerous types: count, cumulative_requests, current_session, free
 	//   midterm, percent, processes, read, running, rx, tx, shortterm, state, status, threads,
 	//   used, users, value, write
-	alertSpec.File = metricTokens[0]
-	alertSpec.Variable = metricTokens[1]
+	alertSpec.File = metric[:period]
+	alertSpec.Variable = metric[period+1:]
+	if len(alertSpec.File) == 0 || len(alertSpec.Variable) == 0 {
+		return nil, fmt.Errorf("Alert <Metric>.<ValueType> misformatted, should be like 'cpu-0/cpu-idle.value'.")
+	}
 	comparisonValues := []string{">", ">=", "<", "<=", "==", "!="}
 	foundValue := false
 	for _, val := range comparisonValues {
