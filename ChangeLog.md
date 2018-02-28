@@ -1,6 +1,7 @@
-v1.7.2 / 2018-02-20
+v1.7.2 / 2018-03-06
 -------------------
 * Adding support for alert metrics that have multiple periods in the alert_spec [i.e. GenericJMX-logs-METRICSAPPENDER.error/gauge-OneMinuteRate.value]
+* Use Go 1.10.x and a newer version of Glide to build.
 
 v1.7.1 / 2017-12-13
 -------------------
