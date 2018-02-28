@@ -106,7 +106,7 @@ func parseAlertClause(alert string) (*cm15.AlertSpec, error) {
 	period := strings.LastIndex(metric, ".")
 	// Check to make sure there is a variable name
 	if period == -1 {
-	    return nil, fmt.Errorf("Alert <Metric>.<ValueType> misformatted, should be like 'cpu-0/cpu-idle.value'.")
+		return nil, fmt.Errorf("Alert <Metric>.<ValueType> misformatted, should be like 'cpu-0/cpu-idle.value'.")
 	}
 	// Check metricTokens[0] should contain a slash.
 	// Check metricTokens[1] can be numerous types: count, cumulative_requests, current_session, free
