@@ -43,7 +43,7 @@ var (
 
 	stDeleteCmd    = stCmd.Command("delete", "Delete dev/test ServerTemplates and RightScripts with a prefix")
 	stDeletePaths  = stDeleteCmd.Arg("path", "File or directory containing script files").Required().ExistingFilesOrDirs()
-	stDeletePrefix = stDeleteCmd.Flag("prefix", "Prefix to delete").Short('x').String()
+	stDeletePrefix = stDeleteCmd.Flag("prefix", "Prefix to delete").Required().Short('x').String()
 
 	stDownloadCmd         = stCmd.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
 	stDownloadNameOrHref  = stDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
@@ -68,7 +68,7 @@ var (
 
 	rightScriptDeleteCmd    = rightScriptCmd.Command("delete", "Delete dev/test RightScripts with a prefix.")
 	rightScriptDeletePaths  = rightScriptDeleteCmd.Arg("path", "File or directory containing script files").Required().ExistingFilesOrDirs()
-	rightScriptDeletePrefix = rightScriptDeleteCmd.Flag("prefix", "Prefix to delete").Short('x').String()
+	rightScriptDeletePrefix = rightScriptDeleteCmd.Flag("prefix", "Prefix to delete").Required().Short('x').String()
 
 	rightScriptDownloadCmd        = rightScriptCmd.Command("download", "Download a RightScript to a file or files")
 	rightScriptDownloadNameOrHref = rightScriptDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()

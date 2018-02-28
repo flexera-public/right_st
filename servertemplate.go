@@ -71,10 +71,7 @@ func stDelete(files []string, prefix string) {
 		}
 
 		// ServerTemplate first, then dependent parts
-		stName := st.Name
-		if prefix != "" {
-			stName = fmt.Sprintf("%s_%s", prefix, st.Name)
-		}
+		stName := fmt.Sprintf("%s_%s", prefix, st.Name)
 		hrefs, err := paramToHrefs("server_templates", stName, 0)
 		if err != nil {
 			fatalError("Could not query for ServerTemplates to delete: %s", err.Error())
@@ -94,10 +91,7 @@ func stDelete(files []string, prefix string) {
 		// MultiCloudImages. Only delete ones managed by us and not simply ones we link to.
 		for _, mciDef := range st.MultiCloudImages {
 			if len(mciDef.Settings) > 0 {
-				mciName := mciDef.Name
-				if prefix != "" {
-					mciName = fmt.Sprintf("%s_%s", prefix, mciDef.Name)
-				}
+				mciName := fmt.Sprintf("%s_%s", prefix, mciDef.Name)
 				err := deleteMultiCloudImage(mciName)
 				if err != nil {
 					fmt.Printf("Failed to delete MultiCloudImage %s: %s\n", mciName, err.Error())
