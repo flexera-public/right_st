@@ -1,3 +1,7 @@
+v1.7.2 / 2018-02-20
+-------------------
+* Adding support for alert metrics that have multiple periods in the alert_spec [i.e. GenericJMX-logs-METRICSAPPENDER.error/gauge-OneMinuteRate.value]
+
 v1.7.1 / 2017-12-13
 -------------------
 * Make prefix an optional parameter for deleting ServerTemplates/RightScripts.
