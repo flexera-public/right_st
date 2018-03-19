@@ -331,7 +331,7 @@ var _ = Describe("RightScript Metadata", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(&yaml.TypeError{
 					Errors: []string{
-						"line 4: field Some Bogus Field not found in struct main.RightScriptMetadata",
+						"line 6: field Some Bogus Field not found in type main.RightScriptMetadata",
 					},
 				}))
 			})

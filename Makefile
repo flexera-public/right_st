@@ -21,7 +21,7 @@
 # build: builds binaries for linux and darwin
 # test: runs unit tests recursively and produces code coverage stats and shows them
 # travis-test: just runs unit tests recursively
-# depend: calls glide up to install dependencies
+# depend: calls dep ensure to install dependencies
 # clean: removes build stuff
 #
 # the upload target is used in the .travis.yml file and pushes binary archives to
@@ -36,16 +36,17 @@ BUCKET=rightscale-binaries
 ACL=public-read
 # version for gopkg.in, e.g. v1, v2, ...
 GOPKG_VERS=v1
-# Dependencies handled by go+glide. Requires 1.5+
+# Dependencies handled by go+dep. Requires 1.5+
 export GO15VENDOREXPERIMENT=1
-GLIDE_VERSION?=v0.13.1
+DEP_VERSION?=v0.4.1
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
-GLIDE_TGZ=glide-$(GLIDE_VERSION)-$(GOOS)-$(GOARCH).tar.gz
 ifeq ($(GOOS),windows)
-GLIDE_EXEC=glide-$(GLIDE_VERSION).exe
+DEP_DL=dep-$(GOOS)-$(GOARCH).exe
+DEP_EXEC=dep-$(DEP_VERSION).exe
 else
-GLIDE_EXEC=glide-$(GLIDE_VERSION)
+DEP_DL=dep-$(GOOS)-$(GOARCH)
+DEP_EXEC=dep-$(DEP_VERSION)
 endif
 # Dependencies that need to be installed
 INSTALL_DEPEND=	github.com/onsi/ginkgo/ginkgo \
@@ -68,6 +69,13 @@ endif
 ifeq ($(GOOS),windows)
 export CC:=x86_64-w64-mingw32-gcc
 export CXX:=x86_64-w64-mingw32-g++
+endif
+
+# This works around an issue between dep and Cygwin git by using Windows git instead.
+ifeq ($(shell go env GOHOSTOS),windows)
+  ifeq ($(shell git version | grep windows),)
+    export PATH:=$(shell cygpath 'C:\Program Files\Git\cmd'):$(PATH)
+  endif
 endif
 
 # determine archives to make for the build job which determines what will be uploaded by the Travis CI job
@@ -111,7 +119,7 @@ build/$(NAME)-%.tgz: *.go version
 build/$(NAME)-%.zip: *.go version
 	rm -rf build/$(NAME)
 	mkdir -p build/$(NAME)
-	tgt=$*; GOOS=$${tgt%-*} GOARCH=$${tgt#*-} go build -tags right_st_make -o build/$(NAME)/$(NAME).exe .
+	tgt=$*; GOOS=$${tgt%-*} GOARCH=$${tgt#*-} go build -tags right_st_make -o build/$(NAME)/$(EXE).exe .
 	cd build; zip -r $(notdir $@) $(NAME)
 	rm -r build/$(NAME)
 
@@ -146,18 +154,25 @@ version:
 	  >version.go
 	@echo "version.go: `tail -1 version.go`"
 
-bin/$(GLIDE_EXEC):
-	mkdir -p bin tmp
-	cd tmp && curl -sSfL --tlsv1 --connect-timeout 30 --max-time 180 --retry 3 \
-	  -O https://github.com/Masterminds/glide/releases/download/$(GLIDE_VERSION)/$(GLIDE_TGZ)
-	cd tmp && tar xzvf $(GLIDE_TGZ)
-	mv tmp/$(GOOS)-$(GOARCH)/glide* bin/$(GLIDE_EXEC)
-	rm -rf tmp
+bin/$(DEP_EXEC):
+	mkdir -p bin
+	curl -sSfL --tlsv1 --connect-timeout 30 --max-time 180 --retry 3 \
+	  -O https://github.com/golang/dep/releases/download/$(DEP_VERSION)/$(DEP_DL)
+	mv $(DEP_DL) bin/$(DEP_EXEC)
+	rm -rf $(DEP_DL)
+	chmod a+x bin/$(DEP_EXEC)
 
 # Handled natively in GO now for 1.5! Use glide to manage!
-depend: bin/$(GLIDE_EXEC)
-	./bin/$(GLIDE_EXEC) --quiet install --cache
+depend: bin/$(DEP_EXEC)
+	./bin/$(DEP_EXEC) ensure
+	# Keep Windows dep from changing the permissions on Gopkg.lock
+	chmod a-x Gopkg.lock
 	for d in $(INSTALL_DEPEND); do (cd vendor/$$d && go install); done
+
+update: bin/$(DEP_EXEC)
+	./bin/$(DEP_EXEC) ensure -update
+	# Keep Windows dep from changing the permissions on Gopkg.lock
+	chmod a-x Gopkg.lock
 
 clean:
 	rm -rf build $(EXE)
@@ -173,7 +188,7 @@ lint:
 	go tool vet -composites=false *.go
 
 test: lint
-	ginkgo -cover -race $(shell ./bin/$(GLIDE_EXEC) novendor)
+	ginkgo -cover -race
 
 #===== SPECIAL TARGETS FOR right_st =====
 

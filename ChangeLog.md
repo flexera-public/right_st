@@ -1,3 +1,8 @@
+Unreleased Changes
+------------------
+* Use dep instead of glide.
+* Updated dependencies.
+
 v1.7.2 / 2018-03-06
 -------------------
 * Adding support for alert metrics that have multiple periods in the alert_spec [i.e. GenericJMX-logs-METRICSAPPENDER.error/gauge-OneMinuteRate.value]
