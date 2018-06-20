@@ -84,7 +84,7 @@ func ExpandMultiCloudImages(dir string, mcis []*MultiCloudImage) ([]*MultiCloudI
 			}
 			err = yaml.UnmarshalStrict(bytes, &mci)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%v: %v", mci.File, err)
 			}
 		}
 		expandedMCIs = append(expandedMCIs, mci)
