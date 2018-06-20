@@ -164,7 +164,7 @@ bin/$(DEP_EXEC):
 
 # Handled natively in GO now for 1.5! Use glide to manage!
 depend: bin/$(DEP_EXEC)
-	./bin/$(DEP_EXEC) ensure
+	./bin/$(DEP_EXEC) ensure -vendor-only
 	# Keep Windows dep from changing the permissions on Gopkg.lock
 	chmod a-x Gopkg.lock
 	for d in $(INSTALL_DEPEND); do (cd vendor/$$d && go install); done

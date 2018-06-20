@@ -73,7 +73,7 @@ func expandAlerts(dir string, files map[string]bool, alerts []*Alert) ([]*Alert,
 		var container Alerts
 		err = yaml.UnmarshalStrict(bytes, &container)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%v: %v", alert.File, err)
 		}
 		if len(container.Alerts) == 0 {
 			return nil, fmt.Errorf("alerts file does not contain any alerts: %s", alert.File)

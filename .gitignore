@@ -31,6 +31,7 @@ _testmain.go
 *.prof
 
 hello.sh
+bin/dep-*
 bin/glide-*
 version.yml
 *.bak

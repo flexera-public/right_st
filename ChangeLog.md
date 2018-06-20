@@ -1,11 +1,14 @@
-Unreleased Changes
-------------------
+v1.7.3 / 2018-06-19
+-------------------
+* Improve error messages when reading separate YAML files for Alerts and
+  MultiCloudImages.
 * Use dep instead of glide.
 * Updated dependencies.
 
 v1.7.2 / 2018-03-06
 -------------------
-* Adding support for alert metrics that have multiple periods in the alert_spec [i.e. GenericJMX-logs-METRICSAPPENDER.error/gauge-OneMinuteRate.value]
+* Adding support for alert metrics that have multiple periods in the alert\_spec
+ (i.e. GenericJMX-logs-METRICSAPPENDER.error/gauge-OneMinuteRate.value)
 * Use Go 1.10.x and a newer version of Glide to build.
 
 v1.7.1 / 2017-12-13
@@ -15,7 +18,8 @@ v1.7.1 / 2017-12-13
 v1.7.0 / 2017-10-23
 -------------------
 * Add support for specifying MultiCloudImages in separate YAML files.
-* Add support for specifying common Alerts for ServerTemplates in separate YAML files.
+* Add support for specifying common Alerts for ServerTemplates in separate YAML
+  files.
 * Add file extension guessing for PowerShell RightScript download using either a
   shebang or some heuristics.
 
