@@ -141,7 +141,7 @@ var _ = Describe("RightScript Metadata", func() {
 			It("should return an error", func() {
 				_, err := ParseRightScriptMetadata(invalidYamlSyntaxScript)
 				Expect(err).To(HaveOccurred())
-				Expect(err).To(MatchError("yaml: line 13: mapping values are not allowed in this context"))
+				Expect(err).To(MatchError("yaml: line 12: mapping values are not allowed in this context"))
 			})
 		})
 
@@ -162,7 +162,7 @@ var _ = Describe("RightScript Metadata", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(&yaml.TypeError{
 					Errors: []string{
-						"line 7: cannot unmarshal !!seq into map[string]main.InputMetadata",
+						"line 6: cannot unmarshal !!seq into map[string]main.InputMetadata",
 					},
 				}))
 			})
@@ -257,7 +257,40 @@ var _ = Describe("RightScript Metadata", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(&yaml.TypeError{
 					Errors: []string{
-						"line 6: field Some Bogus Field not found in type main.RightScriptMetadata",
+						"line 5: field Some Bogus Field not found in type main.RightScriptMetadata",
+					},
+				}))
+			})
+		})
+
+		Context("With a duplicate input in script metadata", func() {
+			var duplicateInputScript io.ReadSeeker
+			duplicateInputScript = strings.NewReader(`#!/bin/bash
+# ---
+# RightScript Name: Some RightScript Name
+# Description: Some description of stuff
+# Inputs:
+#  DUPLICATE_INPUT:
+#    Category: Uncategorized
+#    Description: The first duplicate input
+#    Input Type: single
+#    Required: true
+#    Advanced: false
+#  DUPLICATE_INPUT:
+#    Category: Uncategorized
+#    Description: The second duplicate input
+#    Input Type: single
+#    Required: true
+#    Advanced: false
+# ...
+`)
+
+			It("should return an error", func() {
+				_, err := ParseRightScriptMetadata(duplicateInputScript)
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(MatchError(&yaml.TypeError{
+					Errors: []string{
+						`line 13: key "DUPLICATE_INPUT" already set in map`,
 					},
 				}))
 			})

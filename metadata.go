@@ -85,7 +85,7 @@ func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error
 			metadata.Comment = submatches[1]
 			buffer.WriteString(submatches[2] + "\n")
 			inMetadata = true
-			offset = lineNumber
+			offset = lineNumber - 1
 		}
 	}
 	if err := scanner.Err(); err != nil {
