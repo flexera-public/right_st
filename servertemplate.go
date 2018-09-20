@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/go-yaml/yaml"
+	"gopkg.in/yaml.v2"
 	"github.com/rightscale/rsc/cm15"
 	"github.com/rightscale/rsc/rsapi"
 )
