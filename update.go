@@ -15,8 +15,8 @@ import (
 	"sort"
 	"strconv"
 
-	"gopkg.in/yaml.v2"
 	"github.com/inconshreveable/go-update"
+	"gopkg.in/yaml.v2"
 )
 
 type Version struct {

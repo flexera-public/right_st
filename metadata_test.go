@@ -285,7 +285,7 @@ var _ = Describe("RightScript Metadata", func() {
 			It("should return an error", func() {
 				_, err := ParseRightScriptMetadata(invalidYamlSyntaxScript)
 				Expect(err).To(HaveOccurred())
-				Expect(err).To(MatchError("yaml: line 12: mapping values are not allowed in this context"))
+				Expect(err).To(MatchError("yaml: line 13: mapping values are not allowed in this context"))
 			})
 		})
 

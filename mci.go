@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"gopkg.in/yaml.v2"
 	"github.com/rightscale/rsc/cm15"
 	"github.com/rightscale/rsc/rsapi"
+	"gopkg.in/yaml.v2"
 )
 
 type Setting struct {

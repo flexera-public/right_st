@@ -6,9 +6,9 @@ import (
 
 	. "github.com/rightscale/right_st"
 
-	"gopkg.in/yaml.v2"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"gopkg.in/yaml.v2"
 )
 
 var _ = Describe("ServerTemplate", func() {
