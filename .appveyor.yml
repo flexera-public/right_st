@@ -2,7 +2,9 @@ clone_folder: C:\projects\go\src\github.com\rightscale\right_st
 environment:
   CYGWIN: nodosfilewarning
   GOPATH: C:\projects\go
-  GO15VENDOREXPERIMENT: 1
+cache:
+  - '%LocalAppData%\go-build'
+  - C:\projects\go\pkg\mod
 install:
   - appveyor SetVariable -Name PATH -Value "%GOPATH%\bin;%PATH%;C:\Ruby21-x64\DevKit\mingw\bin;C:\cygwin\bin"
   - make depend

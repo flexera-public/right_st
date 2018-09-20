@@ -36,21 +36,12 @@ BUCKET=rightscale-binaries
 ACL=public-read
 # version for gopkg.in, e.g. v1, v2, ...
 GOPKG_VERS=v1
-# Dependencies handled by go+dep. Requires 1.5+
-export GO15VENDOREXPERIMENT=1
-DEP_VERSION?=v0.4.1
+# Dependencies handled by go modules. Requires 1.11+
+export GO111MODULE=on
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
-ifeq ($(GOOS),windows)
-DEP_DL=dep-$(GOOS)-$(GOARCH).exe
-DEP_EXEC=dep-$(DEP_VERSION).exe
-else
-DEP_DL=dep-$(GOOS)-$(GOARCH)
-DEP_EXEC=dep-$(DEP_VERSION)
-endif
 # Dependencies that need to be installed
-INSTALL_DEPEND=	github.com/onsi/ginkgo/ginkgo \
-		github.com/rlmcpherson/s3gof3r/gof3r
+INSTALL_DEPEND=	github.com/rlmcpherson/s3gof3r/gof3r
 # github.com/rogpeppe/gover requires auth?
 #=== below this line ideally remains unchanged, add new targets at the end  ===
 
@@ -154,25 +145,12 @@ version:
 	  >version.go
 	@echo "version.go: `tail -1 version.go`"
 
-bin/$(DEP_EXEC):
-	mkdir -p bin
-	curl -sSfL --tlsv1 --connect-timeout 30 --max-time 180 --retry 3 \
-	  -O https://github.com/golang/dep/releases/download/$(DEP_VERSION)/$(DEP_DL)
-	mv $(DEP_DL) bin/$(DEP_EXEC)
-	rm -rf $(DEP_DL)
-	chmod a+x bin/$(DEP_EXEC)
+# Handled natively in Go now for 1.11!
+depend:
+	for d in $(INSTALL_DEPEND); do go install $$d; done
 
-# Handled natively in GO now for 1.5! Use glide to manage!
-depend: bin/$(DEP_EXEC)
-	./bin/$(DEP_EXEC) ensure -vendor-only
-	# Keep Windows dep from changing the permissions on Gopkg.lock
-	chmod a-x Gopkg.lock
-	for d in $(INSTALL_DEPEND); do (cd vendor/$$d && go install); done
-
-update: bin/$(DEP_EXEC)
-	./bin/$(DEP_EXEC) ensure -update
-	# Keep Windows dep from changing the permissions on Gopkg.lock
-	chmod a-x Gopkg.lock
+update:
+	go get -u
 
 clean:
 	rm -rf build $(EXE)
@@ -188,7 +166,7 @@ lint:
 	go tool vet -composites=false *.go
 
 test: lint
-	ginkgo -cover -race
+	go test -cover -race
 
 #===== SPECIAL TARGETS FOR right_st =====
 

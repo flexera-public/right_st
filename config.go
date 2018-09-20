@@ -29,8 +29,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/go-yaml/yaml"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 )
 
 type ConfigViper struct {

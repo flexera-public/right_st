@@ -1,14 +1,13 @@
 language: go
-env:
-  - GO15VENDOREXPERIMENT=1
 go:
-  - 1.10.x
+  - 1.11.x
 os:
   - linux
   - osx
 cache:
   directories:
-    - vendor
+    - $HOME/.cache/go-build
+    - $HOME/gopath/pkg/mod
 before_install:
   - "[[ $TRAVIS_OS_NAME != osx ]] || brew list bash || brew install bash"
   - "[[ $TRAVIS_OS_NAME != osx ]] || brew list coreutils || brew install coreutils"

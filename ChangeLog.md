@@ -1,3 +1,10 @@
+Unreleased Changes
+-------------------
+* Use Go 1.11.x modules instead of dep.
+* Fix [#57] by correcting line number offset calculation.
+
+[#57]: https://github.com/rightscale/right_st/issues/57
+
 v1.7.3 / 2018-06-19
 -------------------
 * Improve error messages when reading separate YAML files for Alerts and
