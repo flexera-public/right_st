@@ -6,7 +6,8 @@ os:
   - osx
 cache:
   directories:
-    - vendor
+    - $HOME/.cache/go-build
+    - $HOME/gopath/pkg/mod
 before_install:
   - "[[ $TRAVIS_OS_NAME != osx ]] || brew list bash || brew install bash"
   - "[[ $TRAVIS_OS_NAME != osx ]] || brew list coreutils || brew install coreutils"
