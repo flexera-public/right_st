@@ -36,8 +36,8 @@ BUCKET=rightscale-binaries
 ACL=public-read
 # version for gopkg.in, e.g. v1, v2, ...
 GOPKG_VERS=v1
-# Dependencies handled by go+dep. Requires 1.5+
-export GO15VENDOREXPERIMENT=1
+# Dependencies handled by go modules. Requires 1.11+
+export GO111MODULE=on
 DEP_VERSION?=v0.4.1
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)

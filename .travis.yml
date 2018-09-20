@@ -1,6 +1,4 @@
 language: go
-env:
-  - GO15VENDOREXPERIMENT=1
 go:
   - 1.11.x
 os:
