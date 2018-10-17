@@ -963,7 +963,7 @@ func getRightScriptNameFromInput(href string) (string, error) {
 
 		rightscript, err := rightscriptLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
 		if err != nil {
-			fmt.Errorf("Could not find rightscript with href %s: %s", href, err.Error())
+			return "", fmt.Errorf("Could not find rightscript with href %s: %s", href, err.Error())
 		}
 		return rightscript.Name, nil
 	}
