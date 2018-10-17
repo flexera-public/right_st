@@ -82,6 +82,10 @@ var (
 	rightScriptValidateCmd   = rightScriptCmd.Command("validate", "Validate RightScript YAML metadata comments in a file or files")
 	rightScriptValidatePaths = rightScriptValidateCmd.Arg("path", "Path to script file or directory containing script files").Required().ExistingFilesOrDirs()
 
+	rightScriptCommitCmd        = rightScriptCmd.Command("commit", "Commit RightScript")
+	rightScriptCommitNameOrHref = rightScriptCommitCmd.Arg("name|href|id|path", "Script Name or HREF or Id").Required().String()
+	rightScriptCommitMessage    = rightScriptCommitCmd.Arg("message", "Rightscript commit message").Required().String()
+
 	// ----- Configuration -----
 	configCmd = app.Command("config", "Manage Configuration")
 
@@ -207,6 +211,12 @@ func main() {
 			fatalError("%s\n", err.Error())
 		}
 		rightScriptValidate(files)
+	case rightScriptCommitCmd.FullCommand():
+		href, err := paramToHref("right_scripts", *rightScriptCommitNameOrHref, 0)
+		if err != nil {
+			fatalError("%s", err.Error())
+		}
+		rightScriptCommit(href, *rightScriptCommitMessage)
 	case configAccountCmd.FullCommand():
 		err := Config.SetAccount(*configAccountName, *configAccountDefault, os.Stdin, os.Stdout)
 		if err != nil {
