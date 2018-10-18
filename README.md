@@ -89,7 +89,7 @@ The following RightScript related commands are supported:
 
 ```
 right_st rightscript show <name|href|id>
-  Show a single RightScript and its attachments. 
+  Show a single RightScript and its attachments.
 
 right_st rightscript upload [<flags>] <path>...
   Upload a RightScript
@@ -118,6 +118,9 @@ right_st rightscript validate <path>...
 
 right_st rightscript commit --message=MESSAGE <name|href|id|path>...
     Commit RightScript
+
+right_st rightscript diff [<flags>] <name|href|id|path> <revision-a> <revision-b>
+  Show differences between revisions of a RightScript
 ```
 
 
@@ -291,6 +294,9 @@ right_st st commit --message=MESSAGE <name|href|id|path>...
     -n, --no-commit-head:  Do not commit HEAD revisions (if any) of the associated MultiCloud 
                            Images, RightScripts and Chef repo sequences.
     -f, --freeze-repos:  Freeze the repositories
+
+right_st st diff [<flags>] <name|href|id|path> <revision-a> <revision-b>
+  Show differences between revisions of a ServerTemplate
 ```
 
 ## Contributors

@@ -26,14 +26,15 @@ import (
 var (
 	app        = kingpin.New("right_st", "A command-line application for managing RightScripts")
 	debug      = app.Flag("debug", "Debug mode").Short('d').Bool()
-	configFile = app.Flag("config", "Set the config file path.").Short('c').Default(DefaultConfigFile()).String()
+	configFile = app.Flag("config", "Set the config file path").Short('c').Default(DefaultConfigFile()).String()
+	cachePath  = app.Flag("cache", "Set the cache directory path").Short('C').Default(DefaultCachePath()).String()
 	account    = app.Flag("account", "RightScale account name to use").Short('a').String()
 
 	// ----- ServerTemplates -----
 	stCmd = app.Command("st", "ServerTemplate")
 
 	stShowCmd        = stCmd.Command("show", "Show a single ServerTemplate")
-	stShowNameOrHref = stShowCmd.Arg("name|href|id", "ServerTemplate Name or HREF or Id").Required().String()
+	stShowNameOrHref = stShowCmd.Arg("name|href|id|path", "ServerTemplate name, HREF, ID, or YAML file path").Required().String()
 
 	stUploadCmd    = stCmd.Command("upload", "Upload a ServerTemplate specified by a YAML document")
 	stUploadPaths  = stUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
@@ -44,7 +45,7 @@ var (
 	stDeletePrefix = stDeleteCmd.Flag("prefix", "Prefix to delete").Short('x').String()
 
 	stDownloadCmd         = stCmd.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
-	stDownloadNameOrHref  = stDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
+	stDownloadNameOrHref  = stDownloadCmd.Arg("name|href|id", "ServerTemplate name, HREF, or ID").Required().String()
 	stDownloadTo          = stDownloadCmd.Arg("path", "Download location").String()
 	stDownloadPublished   = stDownloadCmd.Flag("published", "Insert links to published RightScripts instead of downloading to disk.").Short('p').Bool()
 	stDownloadMciSettings = stDownloadCmd.Flag("mci-settings", "Download MCI settings data to recreate/manage an MCI.").Short('m').Bool()
@@ -58,6 +59,12 @@ var (
 	stCommitMessage            = stCommitCmd.Flag("message", "ServerTemplate commit message").Short('m').Required().String()
 	stNoCommitHeadDependencies = stCommitCmd.Flag("no-commit-head", "Do not commit HEAD revisions (if any) of the associated MultiCloud Images, RightScripts and Chef repo sequences.").Short('n').Bool()
 	stFreezeRepositories       = stCommitCmd.Flag("freeze-repos", "Freeze the repositories").Short('f').Bool()
+
+	stDiffCmd        = stCmd.Command("diff", "Show differences between revisions of a ServerTemplate")
+	stDiffNameOrHref = stDiffCmd.Arg("name|href|id|path", "ServerTemplate name, HREF, ID, or YAML file path").Required().String()
+	stDiffRevisionA  = stDiffCmd.Arg("revision-a", "The former revision of the ServerTemplate").Required().String()
+	stDiffRevisionB  = stDiffCmd.Arg("revision-b", "The latter revision of the ServerTemplate").Required().String()
+	stDiffLinkOnly   = stDiffCmd.Flag("link-only", "Just show a link to a ServerTemplate comparison in the RightScale dashboard").Short('l').Bool()
 
 	// ----- RightScripts -----
 	rightScriptCmd = app.Command("rightscript", "RightScript")
@@ -89,6 +96,12 @@ var (
 	rightScriptCommitCmd              = rightScriptCmd.Command("commit", "Commit RightScript")
 	rightScriptCommitNameOrHrefOrPath = rightScriptCommitCmd.Arg("name|href|id|path", "RightScript name, HREF, ID or file path").Required().Strings()
 	rightScriptCommitMessage          = rightScriptCommitCmd.Flag("message", "RightScript commit message").Short('m').Required().String()
+
+	rightScriptDiffCmd        = rightScriptCmd.Command("diff", "Show differences between revisions of a RightScript")
+	rightScriptDiffNameOrHref = rightScriptDiffCmd.Arg("name|href|id|path", "RightScript name, HREF, ID, or file path").Required().String()
+	rightScriptDiffRevisionA  = rightScriptDiffCmd.Arg("revision-a", "The former revision of the RightScript").Required().String()
+	rightScriptDiffRevisionB  = rightScriptDiffCmd.Arg("revision-b", "The latter revision of the RightScript").Required().String()
+	rightScriptDiffLinkOnly   = rightScriptDiffCmd.Flag("link-only", "Just show a link to a RightScript comparison in the RightScale dashboard").Short('l').Bool()
 
 	// ----- Configuration -----
 	configCmd = app.Command("config", "Manage Configuration")
