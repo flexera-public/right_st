@@ -348,6 +348,10 @@ func rightScriptValidate(files []string) {
 	}
 }
 
+func rightScriptDiff(href, revisionA, revisionB string, linkOnly bool, cache Cache) {
+	// TODO implement
+}
+
 func rightScriptDelete(files []string, prefix string) {
 	for _, file := range files {
 		err := deleteRightScript(file, prefix)

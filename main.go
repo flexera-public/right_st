@@ -130,17 +130,24 @@ func main() {
 	command := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	err := ReadConfig(*configFile, *account)
+	var cache Cache
 	if !strings.HasPrefix(command, "config") && !strings.HasPrefix(command, "update") {
 		// Makes sure the config file structure is valid
 		if err != nil {
-			fatalError("%s: Error reading config file: %s\n", filepath.Base(os.Args[0]), err.Error())
+			fatalError("%s: Error reading config file: %v\n", filepath.Base(os.Args[0]), err)
 		}
 
 		// Make sure the config file auth token is valid. Check now so we don't have to
 		// keep rechecking in code.
 		_, err := Config.Account.Client15()
 		if err != nil {
-			fatalError("Authentication error: %s", err.Error())
+			fatalError("Authentication error: %v", err)
+		}
+
+		// Make sure the top level cache directories exist.
+		cache, err = NewCache(*cachePath)
+		if err != nil {
+			fatalError("Error creating cache: %v", err)
 		}
 	}
 
@@ -201,6 +208,12 @@ func main() {
 			}
 			stCommit(href, *stCommitMessage, !*stNoCommitHeadDependencies, *stFreezeRepositories)
 		}
+	case stDiffCmd.FullCommand():
+		href, err := paramToHref("server_templates", *stDiffNameOrHref, 0, true)
+		if err != nil {
+			fatalError("%v", err)
+		}
+		stDiff(href, *stDiffRevisionA, *stDiffRevisionB, *stDiffLinkOnly, cache)
 	case rightScriptShowCmd.FullCommand():
 		href, err := paramToHref("right_scripts", *rightScriptShowNameOrHref, 0, true)
 		if err != nil {
@@ -245,6 +258,12 @@ func main() {
 			}
 			rightScriptCommit(href, *rightScriptCommitMessage)
 		}
+	case rightScriptDiffCmd.FullCommand():
+		href, err := paramToHref("right_scripts", *rightScriptDiffNameOrHref, 0, true)
+		if err != nil {
+			fatalError("%v", err)
+		}
+		rightScriptDiff(href, *rightScriptDiffRevisionA, *rightScriptDiffRevisionB, *rightScriptDiffLinkOnly, cache)
 	case configAccountCmd.FullCommand():
 		err := Config.SetAccount(*configAccountName, *configAccountDefault, *configAccountPassword, os.Stdin, os.Stdout)
 		if err != nil {

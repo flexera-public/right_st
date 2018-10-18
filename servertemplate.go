@@ -602,6 +602,10 @@ func stValidate(files []string) {
 	}
 }
 
+func stDiff(href, revisionA, revisionB string, linkOnly bool, cache Cache) {
+	// TODO implement
+}
+
 // TBD
 //   Handle Cookbooks in some way (error out)
 func validateServerTemplate(file string) (*ServerTemplate, []error) {
