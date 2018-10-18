@@ -82,9 +82,9 @@ var (
 	rightScriptValidateCmd   = rightScriptCmd.Command("validate", "Validate RightScript YAML metadata comments in a file or files")
 	rightScriptValidatePaths = rightScriptValidateCmd.Arg("path", "Path to script file or directory containing script files").Required().ExistingFilesOrDirs()
 
-	rightScriptCommitCmd        = rightScriptCmd.Command("commit", "Commit RightScript")
-	rightScriptCommitNameOrHref = rightScriptCommitCmd.Arg("name|href|id|path", "Script Name or HREF or Id").Required().String()
-	rightScriptCommitMessage    = rightScriptCommitCmd.Arg("message", "Rightscript commit message").Required().String()
+	rightScriptCommitCmd              = rightScriptCmd.Command("commit", "Commit RightScript")
+	rightScriptCommitNameOrHrefOrPath = rightScriptCommitCmd.Arg("name|href|id|path", "RightScript name, HREF, ID or file path").Required().Strings()
+	rightScriptCommitMessage          = rightScriptCommitCmd.Flag("message", "RightScript commit message").Short('m').Required().String()
 
 	// ----- Configuration -----
 	configCmd = app.Command("config", "Manage Configuration")
@@ -212,11 +212,22 @@ func main() {
 		}
 		rightScriptValidate(files)
 	case rightScriptCommitCmd.FullCommand():
-		href, err := paramToHref("right_scripts", *rightScriptCommitNameOrHref, 0)
-		if err != nil {
-			fatalError("%s", err.Error())
+		for _, input := range *rightScriptCommitNameOrHrefOrPath {
+			_, err := os.Stat(input)
+			if err != nil {
+				if os.IsNotExist(err) {
+					href, err := paramToHref("right_scripts", input, 0)
+					if err != nil {
+						fatalError("%s", err.Error())
+					}
+					rightScriptCommitRemoteCopy(href, *rightScriptCommitMessage)
+				} else {
+					fatalError("%s\n", err.Error())
+				}
+			} else {
+				rightScriptCommitLocalCopy(input, *rightScriptCommitMessage)
+			}
 		}
-		rightScriptCommit(href, *rightScriptCommitMessage)
 	case configAccountCmd.FullCommand():
 		err := Config.SetAccount(*configAccountName, *configAccountDefault, os.Stdin, os.Stdout)
 		if err != nil {

@@ -835,44 +835,67 @@ func validateRightScript(file string, ignoreMissingMetadata bool) (*RightScript,
 	return &rightScript, nil
 }
 
-func rightScriptCommit(href, message string) {
-	var (
-		rightScriptName string
-		err             error
-	)
-
-	rightScriptName, err = getRightScriptNameFromInput(href)
+func rightScriptCommitLocalCopy(file string, message string) {
+	f, err := os.Open(file)
 	if err != nil {
-		fatalError("%s", err.Error())
+		fatalError("Cannot open file: %s", err.Error())
 	}
+	defer f.Close()
 
-	foundID, err := rightScriptIdByName(rightScriptName)
+	metadata, err := ParseRightScriptMetadata(f)
 	if err != nil {
-		fatalError("Could not find rightscript ID with name: %s and href: %s", rightScriptName, href)
+		fatalError("Cannot parse RightScript: %s metadata: %s", file, err.Error())
 	}
-	if foundID == "" {
-		fatalError("Could not find rightscript ID with name: %s and href: %s", rightScriptName, href)
+	var rightScriptName string
+
+	if metadata == nil {
+		scriptName := path.Base(file)
+		scriptExt := path.Ext(scriptName)
+		rightScriptName = strings.TrimRight(scriptName, scriptExt)
 	} else {
-		commitRightScript(foundID, message)
+		rightScriptName = metadata.Name
+	}
+	if rightScriptName != "" {
+		rightScriptCommit(rightScriptName, message)
+	} else {
+		fatalError("Could not retrieve RightScript name in %s", file)
 	}
 }
 
-func commitRightScript(foundID, message string) error {
+func rightScriptCommitRemoteCopy(href, message string) {
 	client, _ := Config.Account.Client15()
-	var rightscriptLocator *cm15.RightScriptLocator
 
-	// found rightscript, do a commit
-	href := fmt.Sprintf("/api/right_scripts/%s", foundID)
+	rightscriptLocator := client.RightScriptLocator(href)
 
-	params := cm15.RightScriptParam{
-		CommitMessage: message,
-	}
-	rightscriptLocator = client.RightScriptLocator(href)
-	err := rightscriptLocator.Commit(&params)
+	rightscript, err := rightscriptLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
 	if err != nil {
-		return err
+		fatalError("Could not find RightScript with href %s: %s", href, err.Error())
 	}
-	return err
+	rightScriptCommit(rightscript.Name, message)
+}
+
+func rightScriptCommit(rightScriptName, message string) {
+	foundID, err := rightScriptIdByName(rightScriptName)
+	if err != nil {
+		fatalError("Could not find RightScript ID with name: %s ", rightScriptName)
+	}
+	if foundID == "" {
+		fatalError("Could not find RightScript ID with name: %s ", rightScriptName)
+	} else {
+		fmt.Printf("Committing RightScript '%s' ID %s\n", rightScriptName, foundID)
+		client, _ := Config.Account.Client15()
+		var rightscriptLocator *cm15.RightScriptLocator
+
+		// found rightscript, do a commit
+		href := fmt.Sprintf("/api/right_scripts/%s", foundID)
+
+		params := cm15.RightScriptParam{
+			CommitMessage: message,
+		}
+		rightscriptLocator = client.RightScriptLocator(href)
+		rightscriptLocator.Commit(&params)
+		return
+	}
 }
 
 func (rs RightScript) MarshalYAML() (interface{}, error) {
@@ -932,39 +955,4 @@ func (rs *RightScript) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	return nil
-}
-
-func getRightScriptNameFromInput(href string) (string, error) {
-	if isDirectory(href) {
-		var scriptName string
-		f, err := os.Open(href)
-		if err != nil {
-			return "", fmt.Errorf("Cannot open file: %s", err.Error())
-		}
-		defer f.Close()
-
-		metadata, err := ParseRightScriptMetadata(f)
-		if err != nil {
-			return "", fmt.Errorf("Cannot parse RightScript metadata: %s", err.Error())
-		}
-
-		if metadata == nil {
-			scriptName := path.Base(href)
-			scriptExt := path.Ext(scriptName)
-			scriptName = strings.TrimRight(scriptName, scriptExt)
-		} else {
-			scriptName = metadata.Name
-		}
-		return scriptName, nil
-	} else {
-		client, _ := Config.Account.Client15()
-
-		rightscriptLocator := client.RightScriptLocator(href)
-
-		rightscript, err := rightscriptLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
-		if err != nil {
-			return "", fmt.Errorf("Could not find rightscript with href %s: %s", href, err.Error())
-		}
-		return rightscript.Name, nil
-	}
 }
