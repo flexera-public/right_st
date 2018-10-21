@@ -55,6 +55,10 @@ var (
 	stValidateCmd   = stCmd.Command("validate", "Validate a ServerTemplate YAML document")
 	stValidatePaths = stValidateCmd.Arg("path", "Path to script file(s)").Required().ExistingFiles()
 
+	stCommitCmd              = stCmd.Command("commit", "Commit RightScript")
+	stCommitNameOrHrefOrPath = stCommitCmd.Arg("name|href|id|path", "RightScript name, HREF, ID or file path").Required().Strings()
+	stCommitMessage          = stCommitCmd.Flag("message", "RightScript commit message").Short('m').Required().String()
+
 	// ----- RightScripts -----
 	rightScriptCmd = app.Command("rightscript", "RightScript")
 
@@ -175,6 +179,14 @@ func main() {
 			fatalError("%s\n", err.Error())
 		}
 		stValidate(files)
+	case stCommitCmd.FullCommand():
+		for _, input := range *stCommitNameOrHrefOrPath {
+			href, err := paramToHref("server_templates", input, 0, true)
+			if err != nil {
+				fatalError("%s", err.Error())
+			}
+			stCommit(href, *stCommitMessage)
+		}
 	case rightScriptShowCmd.FullCommand():
 		href, err := paramToHref("right_scripts", *rightScriptShowNameOrHref, 0, false)
 		if err != nil {
