@@ -835,67 +835,26 @@ func validateRightScript(file string, ignoreMissingMetadata bool) (*RightScript,
 	return &rightScript, nil
 }
 
-func rightScriptCommitLocalCopy(file string, message string) {
-	f, err := os.Open(file)
-	if err != nil {
-		fatalError("Cannot open file: %s", err.Error())
-	}
-	defer f.Close()
-
-	metadata, err := ParseRightScriptMetadata(f)
-	if err != nil {
-		fatalError("Cannot parse RightScript: %s metadata: %s", file, err.Error())
-	}
-	var rightScriptName string
-
-	if metadata == nil {
-		scriptName := path.Base(file)
-		scriptExt := path.Ext(scriptName)
-		rightScriptName = strings.TrimRight(scriptName, scriptExt)
-	} else {
-		rightScriptName = metadata.Name
-	}
-	if rightScriptName != "" {
-		rightScriptCommit(rightScriptName, message)
-	} else {
-		fatalError("Could not retrieve RightScript name in %s", file)
-	}
-}
-
-func rightScriptCommitRemoteCopy(href, message string) {
+func rightScriptCommit(href, message string) {
 	client, _ := Config.Account.Client15()
 
+	// Check if RightScript exists
 	rightscriptLocator := client.RightScriptLocator(href)
-
-	rightscript, err := rightscriptLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
+	_, err := rightscriptLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
 	if err != nil {
 		fatalError("Could not find RightScript with href %s: %s", href, err.Error())
 	}
-	rightScriptCommit(rightscript.Name, message)
-}
 
-func rightScriptCommit(rightScriptName, message string) {
-	foundID, err := rightScriptIdByName(rightScriptName)
+	fmt.Printf("Committing RightScript %s\n", href)
+	params := cm15.RightScriptParam{
+		CommitMessage: message,
+	}
+
+	err = rightscriptLocator.Commit(&params)
 	if err != nil {
-		fatalError("Could not find RightScript ID with name: %s ", rightScriptName)
+		fatalError("%s", err.Error())
 	}
-	if foundID == "" {
-		fatalError("Could not find RightScript ID with name: %s ", rightScriptName)
-	} else {
-		fmt.Printf("Committing RightScript '%s' ID %s\n", rightScriptName, foundID)
-		client, _ := Config.Account.Client15()
-		var rightscriptLocator *cm15.RightScriptLocator
-
-		// found rightscript, do a commit
-		href := fmt.Sprintf("/api/right_scripts/%s", foundID)
-
-		params := cm15.RightScriptParam{
-			CommitMessage: message,
-		}
-		rightscriptLocator = client.RightScriptLocator(href)
-		rightscriptLocator.Commit(&params)
-		return
-	}
+	return
 }
 
 func (rs RightScript) MarshalYAML() (interface{}, error) {
