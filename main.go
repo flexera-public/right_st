@@ -55,9 +55,9 @@ var (
 	stValidateCmd   = stCmd.Command("validate", "Validate a ServerTemplate YAML document")
 	stValidatePaths = stValidateCmd.Arg("path", "Path to script file(s)").Required().ExistingFiles()
 
-	stCommitCmd              = stCmd.Command("commit", "Commit RightScript")
-	stCommitNameOrHrefOrPath = stCommitCmd.Arg("name|href|id|path", "RightScript name, HREF, ID or file path").Required().Strings()
-	stCommitMessage          = stCommitCmd.Flag("message", "RightScript commit message").Short('m').Required().String()
+	stCommitCmd              = stCmd.Command("commit", "Commit ServerTemplate")
+	stCommitNameOrHrefOrPath = stCommitCmd.Arg("name|href|id|path", "ServerTemplate name, HREF, ID or file path").Required().Strings()
+	stCommitMessage          = stCommitCmd.Flag("message", "ServerTemplate commit message").Short('m').Required().String()
 
 	// ----- RightScripts -----
 	rightScriptCmd = app.Command("rightscript", "RightScript")
