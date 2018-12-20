@@ -354,6 +354,8 @@ func rightScriptDiff(href, revisionA, revisionB string, linkOnly bool, cache Cac
 	// TODO implement
 }
 
+// getRightScriptRevisionHref returns the revision HREF and number of the given RightScript HREF and revision;
+// the revision may be "head", "latest", or a number
 func getRightScriptRevisionHref(href, revision string) (string, int, error) {
 	var (
 		r   int
@@ -374,6 +376,7 @@ func getRightScriptRevisionHref(href, revision string) (string, int, error) {
 	client, _ := Config.Account.Client15()
 	locator := client.RightScriptLocator(href)
 
+	// show the RightScript to find its lineage
 	rs, err := locator.Show(rsapi.APIParams{})
 	if err != nil {
 		return "", 0, err
@@ -384,11 +387,14 @@ func getRightScriptRevisionHref(href, revision string) (string, int, error) {
 		params["latest_only"] = "true"
 	}
 
+	// get all of the RightScripts in the lineage or just the latest if looking for "latest"
 	rsRevisions, err := locator.Index(params)
 	if err != nil {
 		return "", 0, err
 	}
 
+	// find the RightScript in the lineage with the matching revision
+	// or the only RightScript if looking for "latest"
 	for _, rsRevision := range rsRevisions {
 		if r < 0 || rsRevision.Revision == r {
 			return string(rsRevision.Locator(client).Href), rsRevision.Revision, nil

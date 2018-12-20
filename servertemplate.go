@@ -608,6 +608,8 @@ func stDiff(href, revisionA, revisionB string, linkOnly bool, cache Cache) {
 	// TODO implement
 }
 
+// getServerTemplateRevisionHref returns the revision HREF and number of the given ServerTemplate HREF and revision;
+// the revision may be "head", "latest", or a number
 func getServerTemplateRevisionHref(href, revision string) (string, int, error) {
 	var (
 		r   int
@@ -628,16 +630,20 @@ func getServerTemplateRevisionHref(href, revision string) (string, int, error) {
 	client, _ := Config.Account.Client15()
 	locator := client.ServerTemplateLocator(href)
 
+	// show the ServerTemplate to find its lineage
 	st, err := locator.Show(rsapi.APIParams{})
 	if err != nil {
 		return "", 0, err
 	}
 
+	// get all of the ServerTemplates in the lineage
 	stRevisions, err := locator.Index(rsapi.APIParams{"filter": []string{"lineage==" + st.Lineage}})
 	if err != nil {
 		return "", 0, err
 	}
 
+	// find the ServerTemplate in the lineage with the matching revision
+	// or find the index of the ServerTemplate with the maximum revision if looking for "latest"
 	maxI := -1
 	for i, stRevision := range stRevisions {
 		if r < 0 {
@@ -649,6 +655,7 @@ func getServerTemplateRevisionHref(href, revision string) (string, int, error) {
 		}
 	}
 
+	// the maximum index will only be greater than -1 if looking for "latest"
 	if maxI >= 0 {
 		stRevision := stRevisions[maxI]
 		return string(stRevision.Locator(client).Href), stRevision.Revision, nil
