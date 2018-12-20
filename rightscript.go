@@ -349,7 +349,53 @@ func rightScriptValidate(files []string) {
 }
 
 func rightScriptDiff(href, revisionA, revisionB string, linkOnly bool, cache Cache) {
+	fmt.Println(getRightScriptRevisionHref(href, revisionA))
+	fmt.Println(getRightScriptRevisionHref(href, revisionB))
 	// TODO implement
+}
+
+func getRightScriptRevisionHref(href, revision string) (string, int, error) {
+	var (
+		r   int
+		err error
+	)
+	switch strings.ToLower(revision) {
+	case "head":
+		return href, 0, nil
+	case "latest":
+		r = -1
+	default:
+		r, err = strconv.Atoi(revision)
+		if err != nil {
+			return "", 0, err
+		}
+	}
+
+	client, _ := Config.Account.Client15()
+	locator := client.RightScriptLocator(href)
+
+	rs, err := locator.Show(rsapi.APIParams{})
+	if err != nil {
+		return "", 0, err
+	}
+
+	params := rsapi.APIParams{"filter": []string{"lineage==" + rs.Lineage}}
+	if r < 0 {
+		params["latest_only"] = "true"
+	}
+
+	rsRevisions, err := locator.Index(params)
+	if err != nil {
+		return "", 0, err
+	}
+
+	for _, rsRevision := range rsRevisions {
+		if r < 0 || rsRevision.Revision == r {
+			return string(rsRevision.Locator(client).Href), rsRevision.Revision, nil
+		}
+	}
+
+	return "", 0, fmt.Errorf("no RightScript found for %v with revision %v", href, revision)
 }
 
 func rightScriptDelete(files []string, prefix string) {
