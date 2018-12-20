@@ -1,4 +1,4 @@
-Unreleased Changes
+v1.8.0 / 2018-12-19
 -------------------
 * Use Go 1.11.x modules instead of dep.
 * Fix [#57] by correcting line number offset calculation.
