@@ -603,7 +603,58 @@ func stValidate(files []string) {
 }
 
 func stDiff(href, revisionA, revisionB string, linkOnly bool, cache Cache) {
+	fmt.Println(getServerTemplateRevisionHref(href, revisionA))
+	fmt.Println(getServerTemplateRevisionHref(href, revisionB))
 	// TODO implement
+}
+
+func getServerTemplateRevisionHref(href, revision string) (string, int, error) {
+	var (
+		r   int
+		err error
+	)
+	switch strings.ToLower(revision) {
+	case "head":
+		return href, 0, nil
+	case "latest":
+		r = -1
+	default:
+		r, err = strconv.Atoi(revision)
+		if err != nil {
+			return "", 0, err
+		}
+	}
+
+	client, _ := Config.Account.Client15()
+	locator := client.ServerTemplateLocator(href)
+
+	st, err := locator.Show(rsapi.APIParams{})
+	if err != nil {
+		return "", 0, err
+	}
+
+	stRevisions, err := locator.Index(rsapi.APIParams{"filter": []string{"lineage==" + st.Lineage}})
+	if err != nil {
+		return "", 0, err
+	}
+
+	maxI := -1
+	for i, stRevision := range stRevisions {
+		if r < 0 {
+			if maxI < 0 || stRevision.Revision > stRevisions[maxI].Revision {
+				maxI = i
+			}
+		} else if stRevision.Revision == r {
+			return string(stRevision.Locator(client).Href), stRevision.Revision, nil
+		}
+	}
+
+	if maxI >= 0 {
+		stRevision := stRevisions[maxI]
+		return string(stRevision.Locator(client).Href), stRevision.Revision, nil
+	}
+
+	return "", 0, fmt.Errorf("no ServerTemplate found for %v with revision %v", href, revision)
 }
 
 // TBD
