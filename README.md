@@ -115,6 +115,9 @@ right_st rightscript scaffold [<flags>] <path>...
 
 right_st rightscript validate <path>...
   Validate RightScript YAML metadata comments in a file or files
+
+right_st rightscript commit --message=MESSAGE <name|href|id|path>...
+    Commit RightScript
 ```
 
 
@@ -281,6 +284,9 @@ right_st st download <name|href|id> [<path>]
 
 right_st st validate <path>...
   Validate a ServerTemplate YAML document
+
+right_st st commit --message=MESSAGE <name|href|id|path>...
+    Commit ServerTemplate
 ```
 
 ## Contributors

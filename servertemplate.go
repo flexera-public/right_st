@@ -732,16 +732,11 @@ func getServerTemplateByName(name string) (*cm15.ServerTemplate, error) {
 
 func stCommit(href, message string) {
 	client, _ := Config.Account.Client15()
-
-	// Check if ServerTemplate exists
 	stLocator := client.ServerTemplateLocator(href)
-	_, err := stLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
-	if err != nil {
-		fatalError("Could not find ServerTemplate with href %s: %s", href, err.Error())
-	}
 
 	fmt.Printf("Committing Server Template %s\n", href)
-	err = stLocator.Commit("true", message, "true")
+
+	err := stLocator.Commit("true", message, "true")
 	if err != nil {
 		fatalError("%s", err.Error())
 	}

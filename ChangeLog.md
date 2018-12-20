@@ -2,6 +2,7 @@ Unreleased Changes
 -------------------
 * Use Go 1.11.x modules instead of dep.
 * Fix [#57] by correcting line number offset calculation.
+* Add commit for RightScripts and ServerTemplates
 
 [#57]: https://github.com/rightscale/right_st/issues/57
 

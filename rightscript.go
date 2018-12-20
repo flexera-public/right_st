@@ -837,20 +837,14 @@ func validateRightScript(file string, ignoreMissingMetadata bool) (*RightScript,
 
 func rightScriptCommit(href, message string) {
 	client, _ := Config.Account.Client15()
-
-	// Check if RightScript exists
 	rightscriptLocator := client.RightScriptLocator(href)
-	_, err := rightscriptLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
-	if err != nil {
-		fatalError("Could not find RightScript with href %s: %s", href, err.Error())
-	}
 
 	fmt.Printf("Committing RightScript %s\n", href)
-	params := cm15.RightScriptParam{
-		CommitMessage: message,
-	}
 
-	err = rightscriptLocator.Commit(&params)
+	err := rightscriptLocator.Commit(
+		&cm15.RightScriptParam{
+			CommitMessage: message,
+		})
 	if err != nil {
 		fatalError("%s", err.Error())
 	}

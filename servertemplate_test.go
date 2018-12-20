@@ -4,10 +4,9 @@ import (
 	"io"
 	"strings"
 
-	. "github.com/rightscale/right_st"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	. "github.com/rightscale/right_st"
 	"gopkg.in/yaml.v2"
 )
 
