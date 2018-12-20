@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 type (
 	Cache interface {
-		GetServerTemplateDir(account, id string, revision uint) (path string, err error)
-		GetRightScriptDir(account, id string, revision uint) (path string, err error)
-		GetMultiCloudImageDir(account, id string, revision uint) (path string, err error)
+		GetServerTemplateDir(account int, id string, revision uint) (path string, err error)
+		GetRightScriptDir(account int, id string, revision uint) (path string, err error)
+		GetMultiCloudImageDir(account int, id string, revision uint) (path string, err error)
 	}
 
 	cache struct {
@@ -41,24 +42,24 @@ func NewCache(path string) (Cache, error) {
 	return c, nil
 }
 
-func (c *cache) GetServerTemplateDir(account, id string, revision uint) (string, error) {
+func (c *cache) GetServerTemplateDir(account int, id string, revision uint) (string, error) {
 	return cacheCheck(c.stPath, account, id, revision)
 }
 
-func (c *cache) GetRightScriptDir(account, id string, revision uint) (string, error) {
+func (c *cache) GetRightScriptDir(account int, id string, revision uint) (string, error) {
 	return cacheCheck(c.rsPath, account, id, revision)
 }
 
-func (c *cache) GetMultiCloudImageDir(account, id string, revision uint) (string, error) {
+func (c *cache) GetMultiCloudImageDir(account int, id string, revision uint) (string, error) {
 	return cacheCheck(c.mciPath, account, id, revision)
 }
 
-func cacheCheck(path, account, id string, revision uint) (string, error) {
+func cacheCheck(path string, account int, id string, revision uint) (string, error) {
 	if revision == 0 {
 		return "", errors.New("cannot cache HEAD revision")
 	}
 
-	path = filepath.Join(path, account, id, fmt.Sprintf("%v", revision))
+	path = filepath.Join(path, strconv.Itoa(account), id, fmt.Sprintf("%v", revision))
 	if err := os.MkdirAll(path, 0755); err != nil {
 		return "", err
 	}

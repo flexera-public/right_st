@@ -349,27 +349,39 @@ func rightScriptValidate(files []string) {
 }
 
 func rightScriptDiff(href, revisionA, revisionB string, linkOnly bool, cache Cache) {
-	fmt.Println(getRightScriptRevisionHref(href, revisionA))
-	fmt.Println(getRightScriptRevisionHref(href, revisionB))
+	rsA, err := getRightScriptRevision(href, revisionA)
+	if err != nil {
+		fatalError("Could not find revision-a: %v", err)
+	}
+	rsB, err := getRightScriptRevision(href, revisionB)
+	if err != nil {
+		fatalError("Could not find revision-b: %v", err)
+	}
+
+	fmt.Printf("https://%v/acct/%v/right_scripts/diff?old_script_id=%v&new_script_id=%v\n", Config.Account.Host, Config.Account.Id, rsA.Id, rsB.Id)
+	if linkOnly {
+		return
+	}
+
 	// TODO implement
 }
 
-// getRightScriptRevisionHref returns the revision HREF and number of the given RightScript HREF and revision;
+// getRightScriptRevision returns the RightScript object for the given RightScript HREF and revision;
 // the revision may be "head", "latest", or a number
-func getRightScriptRevisionHref(href, revision string) (string, int, error) {
+func getRightScriptRevision(href, revision string) (*cm15.RightScript, error) {
 	var (
 		r   int
 		err error
 	)
 	switch strings.ToLower(revision) {
 	case "head":
-		return href, 0, nil
+		r = 0
 	case "latest":
 		r = -1
 	default:
 		r, err = strconv.Atoi(revision)
 		if err != nil {
-			return "", 0, err
+			return nil, err
 		}
 	}
 
@@ -379,7 +391,7 @@ func getRightScriptRevisionHref(href, revision string) (string, int, error) {
 	// show the RightScript to find its lineage
 	rs, err := locator.Show(rsapi.APIParams{})
 	if err != nil {
-		return "", 0, err
+		return nil, err
 	}
 
 	params := rsapi.APIParams{"filter": []string{"lineage==" + rs.Lineage}}
@@ -390,18 +402,18 @@ func getRightScriptRevisionHref(href, revision string) (string, int, error) {
 	// get all of the RightScripts in the lineage or just the latest if looking for "latest"
 	rsRevisions, err := locator.Index(params)
 	if err != nil {
-		return "", 0, err
+		return nil, err
 	}
 
 	// find the RightScript in the lineage with the matching revision
 	// or the only RightScript if looking for "latest"
 	for _, rsRevision := range rsRevisions {
 		if r < 0 || rsRevision.Revision == r {
-			return string(rsRevision.Locator(client).Href), rsRevision.Revision, nil
+			return rsRevision, nil
 		}
 	}
 
-	return "", 0, fmt.Errorf("no RightScript found for %v with revision %v", href, revision)
+	return nil, fmt.Errorf("no RightScript found for %v with revision %v", href, revision)
 }
 
 func rightScriptDelete(files []string, prefix string) {

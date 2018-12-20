@@ -603,27 +603,39 @@ func stValidate(files []string) {
 }
 
 func stDiff(href, revisionA, revisionB string, linkOnly bool, cache Cache) {
-	fmt.Println(getServerTemplateRevisionHref(href, revisionA))
-	fmt.Println(getServerTemplateRevisionHref(href, revisionB))
+	stA, err := getServerTemplateRevision(href, revisionA)
+	if err != nil {
+		fatalError("Could not find revision-a: %v", err)
+	}
+	stB, err := getServerTemplateRevision(href, revisionB)
+	if err != nil {
+		fatalError("Could not find revision-b: %v", err)
+	}
+
+	fmt.Printf("https://%v/acct/%v/server_templates/diff?old_server_template_id=%v&new_server_template_id=%v\n", Config.Account.Host, Config.Account.Id, getServerTemplateId(stA), getServerTemplateId(stB))
+	if linkOnly {
+		return
+	}
+
 	// TODO implement
 }
 
-// getServerTemplateRevisionHref returns the revision HREF and number of the given ServerTemplate HREF and revision;
+// getServerTemplateRevision returns the ServerTemplate object for the given ServerTemplate HREF and revision;
 // the revision may be "head", "latest", or a number
-func getServerTemplateRevisionHref(href, revision string) (string, int, error) {
+func getServerTemplateRevision(href, revision string) (*cm15.ServerTemplate, error) {
 	var (
 		r   int
 		err error
 	)
 	switch strings.ToLower(revision) {
 	case "head":
-		return href, 0, nil
+		r = 0
 	case "latest":
 		r = -1
 	default:
 		r, err = strconv.Atoi(revision)
 		if err != nil {
-			return "", 0, err
+			return nil, err
 		}
 	}
 
@@ -633,13 +645,13 @@ func getServerTemplateRevisionHref(href, revision string) (string, int, error) {
 	// show the ServerTemplate to find its lineage
 	st, err := locator.Show(rsapi.APIParams{})
 	if err != nil {
-		return "", 0, err
+		return nil, err
 	}
 
 	// get all of the ServerTemplates in the lineage
 	stRevisions, err := locator.Index(rsapi.APIParams{"filter": []string{"lineage==" + st.Lineage}})
 	if err != nil {
-		return "", 0, err
+		return nil, err
 	}
 
 	// find the ServerTemplate in the lineage with the matching revision
@@ -651,17 +663,23 @@ func getServerTemplateRevisionHref(href, revision string) (string, int, error) {
 				maxI = i
 			}
 		} else if stRevision.Revision == r {
-			return string(stRevision.Locator(client).Href), stRevision.Revision, nil
+			return stRevision, nil
 		}
 	}
 
 	// the maximum index will only be greater than -1 if looking for "latest"
 	if maxI >= 0 {
-		stRevision := stRevisions[maxI]
-		return string(stRevision.Locator(client).Href), stRevision.Revision, nil
+		return stRevisions[maxI], nil
 	}
 
-	return "", 0, fmt.Errorf("no ServerTemplate found for %v with revision %v", href, revision)
+	return nil, fmt.Errorf("no ServerTemplate found for %v with revision %v", href, revision)
+}
+
+// getServerTemplateId returns the ID of the ServerTemplate object
+func getServerTemplateId(st *cm15.ServerTemplate) string {
+	client, _ := Config.Account.Client15()
+	parts := strings.Split(string(st.Locator(client).Href), "/")
+	return parts[len(parts)-1]
 }
 
 // TBD
