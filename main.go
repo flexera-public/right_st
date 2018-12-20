@@ -150,7 +150,7 @@ func main() {
 
 	switch command {
 	case stShowCmd.FullCommand():
-		href, err := paramToHref("server_templates", *stShowNameOrHref, 0, false)
+		href, err := paramToHref("server_templates", *stShowNameOrHref, 0, true)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
@@ -188,7 +188,7 @@ func main() {
 			stCommit(href, *stCommitMessage)
 		}
 	case rightScriptShowCmd.FullCommand():
-		href, err := paramToHref("right_scripts", *rightScriptShowNameOrHref, 0, false)
+		href, err := paramToHref("right_scripts", *rightScriptShowNameOrHref, 0, true)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
