@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -358,12 +359,23 @@ func rightScriptDiff(href, revisionA, revisionB string, linkOnly bool, cache Cac
 		fatalError("Could not find revision-b: %v", err)
 	}
 
-	fmt.Printf("https://%v/acct/%v/right_scripts/diff?old_script_id=%v&new_script_id=%v\n", Config.Account.Host, Config.Account.Id, rsA.Id, rsB.Id)
 	if linkOnly {
-		return
+		fmt.Println(getRightScriptDiffLink(rsA, rsB))
+	} else {
+		diffRightScript(os.Stdout, rsA, rsB, cache)
 	}
+}
 
+// diffRightScript returns whether two ServerTemplate revisions differ and writes the differences to w
+func diffRightScript(w io.Writer, rsA, rsB *cm15.RightScript, cache Cache) bool {
 	// TODO implement
+
+	return false
+}
+
+// getRightScriptDiffLink returns the RightScale Dashboard URL for a diff between two RightScript revisions
+func getRightScriptDiffLink(rsA, rsB *cm15.RightScript) string {
+	return fmt.Sprintf("https://%v/acct/%v/right_scripts/diff?old_script_id=%v&new_script_id=%v", Config.Account.Host, Config.Account.Id, rsA.Id, rsB.Id)
 }
 
 // getRightScriptRevision returns the RightScript object for the given RightScript HREF and revision;

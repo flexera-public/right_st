@@ -612,12 +612,23 @@ func stDiff(href, revisionA, revisionB string, linkOnly bool, cache Cache) {
 		fatalError("Could not find revision-b: %v", err)
 	}
 
-	fmt.Printf("https://%v/acct/%v/server_templates/diff?old_server_template_id=%v&new_server_template_id=%v\n", Config.Account.Host, Config.Account.Id, getServerTemplateId(stA), getServerTemplateId(stB))
 	if linkOnly {
-		return
+		fmt.Println(getServerTemplateDiffLink(stA, stB))
+	} else {
+		diffServerTemplate(os.Stdout, stA, stB, cache)
 	}
+}
 
+// diffServerTemplate returns whether two ServerTemplate revisions differ and writes the differences to w
+func diffServerTemplate(w io.Writer, stA, stB *cm15.ServerTemplate, cache Cache) bool {
 	// TODO implement
+
+	return false
+}
+
+// getServerTemplateDiffLink returns the RightScale Dashboard URL for a diff between two ServerTemplate revisions
+func getServerTemplateDiffLink(stA, stB *cm15.ServerTemplate) string {
+	return fmt.Sprintf("https://%v/acct/%v/server_templates/diff?old_server_template_id=%v&new_server_template_id=%v", Config.Account.Host, Config.Account.Id, getServerTemplateId(stA), getServerTemplateId(stB))
 }
 
 // getServerTemplateRevision returns the ServerTemplate object for the given ServerTemplate HREF and revision;
