@@ -13,7 +13,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/kr/pretty"
 	"github.com/rightscale/rsc/cm15"
