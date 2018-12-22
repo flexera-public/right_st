@@ -16,7 +16,7 @@ require (
 	github.com/mattn/go-isatty v0.0.4 // indirect
 	github.com/onsi/ginkgo v1.6.0
 	github.com/onsi/gomega v1.4.2
-	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0
 	github.com/rightscale/rsc v0.0.0-20180906204411-5c1104b9e716
 	github.com/rlmcpherson/s3gof3r v0.5.0
 	github.com/spf13/viper v1.2.0
