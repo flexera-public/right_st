@@ -28,7 +28,7 @@ addons:
     update: true
 before_install:
   # install mercurial on Windows as some Go dependencies need it
-  - "[[ $TRAVIS_OS_NAME != windows ]] || choco install -y hg"
+  - if [[ $TRAVIS_OS_NAME == windows ]]; then wget https://www.mercurial-scm.org/release/windows/Mercurial-4.8.2-x64.exe && ./Mercurial-4.8.2-x64.exe /VERYSILENT; fi
 install:
   - $MAKE depend
 script:
@@ -37,4 +37,4 @@ script:
   # Deploy build result to s3
   - export AWS_ACCESS_KEY_ID=AKIAIX3L4RHHIREAHABQ
   - export AWS_SECRET_ACCESS_KEY=${RSBIN_KEY}
-  - "[[ -z $AWS_SECRET_ACCESS_KEY ]] || $MAKE upload"
+  - if [[ -n $AWS_SECRET_ACCESS_KEY ]]; then $MAKE upload; fi
