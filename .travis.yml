@@ -27,6 +27,7 @@ addons:
       - coreutils
     update: true
 before_install:
+  # install mercurial on Windows as some Go dependencies need it
   - "[[ $TRAVIS_OS_NAME != windows ]] || choco install hg"
 install:
   - $MAKE depend
