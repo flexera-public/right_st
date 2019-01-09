@@ -26,6 +26,8 @@ addons:
       - bash
       - coreutils
     update: true
+before_install:
+  - "[[ $TRAVIS_OS_NAME != windows ]] || choco install hg"
 install:
   - $MAKE depend
 script:
