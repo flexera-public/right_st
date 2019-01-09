@@ -1,10 +1,12 @@
 module github.com/rightscale/right_st
 
 require (
+	bitbucket.org/pkg/inflect v0.0.0-20130829110746-8961c3750a47 // indirect
 	github.com/BurntSushi/toml v0.3.0 // indirect
 	github.com/alecthomas/kingpin v2.2.6+incompatible
 	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc // indirect
 	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf // indirect
+	github.com/coddingtonbear/go-simplejson v0.4.3 // indirect
 	github.com/douglaswth/rsrdp v0.0.0-20151016234338-276cfcdf9e52
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
@@ -17,7 +19,8 @@ require (
 	github.com/onsi/ginkgo v1.6.0
 	github.com/onsi/gomega v1.4.2
 	github.com/pmezard/go-difflib v1.0.0
-	github.com/rightscale/rsc v0.0.0-20180906204411-5c1104b9e716
+	github.com/rightscale/go-jsonselect v0.0.0-20150427163236-d04eebe26072 // indirect
+	github.com/rightscale/rsc v0.0.0-20190108213848-e35fb6164fad
 	github.com/rlmcpherson/s3gof3r v0.5.0
 	github.com/spf13/viper v1.2.0
 	github.com/stretchr/testify v1.2.2 // indirect
