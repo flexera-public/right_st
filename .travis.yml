@@ -28,7 +28,7 @@ addons:
     update: true
 before_install:
   # install mercurial on Windows as some Go dependencies need it
-  - if [[ $TRAVIS_OS_NAME == windows ]]; then wget -q https://www.mercurial-scm.org/release/windows/Mercurial-4.8.2-x64.exe && ./Mercurial-4.8.2-x64.exe /VERYSILENT; fi
+  - if [[ $TRAVIS_OS_NAME == windows ]]; then choco install -y hg; fi
 install:
   - $MAKE depend
 script:
