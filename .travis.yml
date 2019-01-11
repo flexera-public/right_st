@@ -10,6 +10,10 @@ matrix:
       env: MAKE=make
     - os: windows
       env: MAKE=mingw32-make
+  # allow the Windows build to fail for now; hopefully Travis will fix the chocolatey install hang soon but we still have AppVeyor
+  allow_failures:
+    - os: windows
+      env: MAKE=mingw32-make
   fast_finish: true
 cache:
   directories:
@@ -28,14 +32,15 @@ addons:
     update: true
 before_install:
   # install mercurial on Windows as some Go dependencies need it
-  - if [[ $TRAVIS_OS_NAME == windows ]]; then which pip; fi
   - if [[ $TRAVIS_OS_NAME == windows ]]; then choco install -y hg; fi
 install:
   - $MAKE depend
 script:
   - $MAKE test
+  # since the Travis Windows build is not working yet, build and upload the Windows binary from the Linux build
+  - if [[ $TRAVIS_OS_NAME == linux ]]; then export UPLOADS='build/right_st-linux-amd64.tgz build/right_st-windows-amd64.zip'; fi
   - $MAKE build
   # Deploy build result to s3
   - export AWS_ACCESS_KEY_ID=AKIAIX3L4RHHIREAHABQ
   - export AWS_SECRET_ACCESS_KEY=${RSBIN_KEY}
-  - if [[ -n $AWS_SECRET_ACCESS_KEY ]]; then $MAKE upload; fi
+  - if [[ -n $AWS_SECRET_ACCESS_KEY && $TRAVIS_OS_NAME != windows ]]; then $MAKE upload; fi

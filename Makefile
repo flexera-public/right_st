@@ -64,9 +64,9 @@ ifeq ($(shell go env GOHOSTOS),windows)
 endif
 
 ifeq ($(GOOS),windows)
-UPLOADS:=build/$(NAME)-$(GOOS)-$(GOARCH).zip
+UPLOADS?=build/$(NAME)-$(GOOS)-$(GOARCH).zip
 else
-UPLOADS:=build/$(NAME)-$(GOOS)-$(GOARCH).tgz
+UPLOADS?=build/$(NAME)-$(GOOS)-$(GOARCH).tgz
 endif
 
 GO_SOURCE:=$(shell find . -name "*.go")
