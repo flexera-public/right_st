@@ -171,7 +171,7 @@ func rightScriptDownload(href, downloadTo string) string {
 	}
 	source, err := getSource(rightscriptLocator)
 	if err != nil {
-		fatalError("Could get source for RightScript with href %s: %s", href, err.Error())
+		fatalError("Could not get source for RightScript with href %s: %s", href, err.Error())
 	}
 	sourceMetadata, err := ParseRightScriptMetadata(bytes.NewReader(source))
 	if err != nil {
@@ -180,7 +180,7 @@ func rightScriptDownload(href, downloadTo string) string {
 
 	attachments, err := attachmentsLocator.Index(rsapi.APIParams{})
 	if err != nil {
-		fatalError("Could get attachments for RightScript from href %s: %s", attachmentsHref, err.Error())
+		fatalError("Could not get attachments for RightScript from href %s: %s", attachmentsHref, err.Error())
 	}
 
 	guessedExtension := GuessExtension(string(source))
