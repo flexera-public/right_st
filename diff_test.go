@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"time"
 
-	. "github.com/rightscale/right_st"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	. "github.com/rightscale/right_st"
 )
 
 var _ = Describe("Diff", func() {

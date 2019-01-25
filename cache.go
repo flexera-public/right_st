@@ -51,9 +51,9 @@ type (
 
 func NewCache(path string) (Cache, error) {
 	c := &cache{
-		stPath:  filepath.Join(path, "servertemplates"),
-		rsPath:  filepath.Join(path, "rightscripts"),
-		mciPath: filepath.Join(path, "multicloudimages"),
+		stPath:  filepath.Join(path, "server_templates"),
+		rsPath:  filepath.Join(path, "right_scripts"),
+		mciPath: filepath.Join(path, "multi_cloud_images"),
 	}
 
 	if err := os.MkdirAll(c.stPath, 0755); err != nil {
