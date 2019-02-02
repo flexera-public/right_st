@@ -15,7 +15,7 @@ import (
 
 	"github.com/rightscale/rsc/cm15"
 	"github.com/rightscale/rsc/rsapi"
-	"github.com/tonnerre/golang-pretty"
+	pretty "github.com/tonnerre/golang-pretty"
 )
 
 type Iterable struct {
@@ -833,6 +833,22 @@ func validateRightScript(file string, ignoreMissingMetadata bool) (*RightScript,
 	}
 
 	return &rightScript, nil
+}
+
+func rightScriptCommit(href, message string) {
+	client, _ := Config.Account.Client15()
+	rightscriptLocator := client.RightScriptLocator(href)
+
+	fmt.Printf("Committing RightScript %s\n", href)
+
+	err := rightscriptLocator.Commit(
+		&cm15.RightScriptParam{
+			CommitMessage: message,
+		})
+	if err != nil {
+		fatalError("%s", err.Error())
+	}
+	return
 }
 
 func (rs RightScript) MarshalYAML() (interface{}, error) {

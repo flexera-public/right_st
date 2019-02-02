@@ -729,3 +729,16 @@ func getServerTemplateByName(name string) (*cm15.ServerTemplate, error) {
 	}
 	return foundSt, nil
 }
+
+func stCommit(href, message string) {
+	client, _ := Config.Account.Client15()
+	stLocator := client.ServerTemplateLocator(href)
+
+	fmt.Printf("Committing Server Template %s\n", href)
+
+	err := stLocator.Commit("true", message, "true")
+	if err != nil {
+		fatalError("%s", err.Error())
+	}
+	return
+}

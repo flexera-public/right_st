@@ -175,7 +175,7 @@ func validateMultiCloudImage(mciDef *MultiCloudImage) (errors []error) {
 				mciDef.Name, formatRev(int(mciDef.Revision)), mciDef.Publisher))
 		}
 	} else if mciDef.Name != "" {
-		href, err := paramToHref("multi_cloud_images", mciDef.Name, int(mciDef.Revision))
+		href, err := paramToHref("multi_cloud_images", mciDef.Name, int(mciDef.Revision), false)
 		if err != nil {
 			errors = append(errors, fmt.Errorf("Could not find MCI named '%s' with revision %s in account",
 				mciDef.Name, formatRev(int(mciDef.Revision))))
@@ -367,7 +367,7 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 				mciName = fmt.Sprintf("%s_%s", prefix, mciName)
 			}
 
-			href, err := paramToHref("multi_cloud_images", mciName, 0)
+			href, err := paramToHref("multi_cloud_images", mciName, 0, false)
 			if err != nil && !strings.Contains(err.Error(), "Found no multi_cloud_images matching") {
 				return fmt.Errorf("API call to find MultiCloudImage '%s' failed: %s", mciName, err.Error())
 			}

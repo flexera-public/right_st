@@ -55,6 +55,10 @@ var (
 	stValidateCmd   = stCmd.Command("validate", "Validate a ServerTemplate YAML document")
 	stValidatePaths = stValidateCmd.Arg("path", "Path to script file(s)").Required().ExistingFiles()
 
+	stCommitCmd              = stCmd.Command("commit", "Commit ServerTemplate")
+	stCommitNameOrHrefOrPath = stCommitCmd.Arg("name|href|id|path", "ServerTemplate name, HREF, ID or file path").Required().Strings()
+	stCommitMessage          = stCommitCmd.Flag("message", "ServerTemplate commit message").Short('m').Required().String()
+
 	// ----- RightScripts -----
 	rightScriptCmd = app.Command("rightscript", "RightScript")
 
@@ -81,6 +85,10 @@ var (
 
 	rightScriptValidateCmd   = rightScriptCmd.Command("validate", "Validate RightScript YAML metadata comments in a file or files")
 	rightScriptValidatePaths = rightScriptValidateCmd.Arg("path", "Path to script file or directory containing script files").Required().ExistingFilesOrDirs()
+
+	rightScriptCommitCmd              = rightScriptCmd.Command("commit", "Commit RightScript")
+	rightScriptCommitNameOrHrefOrPath = rightScriptCommitCmd.Arg("name|href|id|path", "RightScript name, HREF, ID or file path").Required().Strings()
+	rightScriptCommitMessage          = rightScriptCommitCmd.Flag("message", "RightScript commit message").Short('m').Required().String()
 
 	// ----- Configuration -----
 	configCmd = app.Command("config", "Manage Configuration")
@@ -142,7 +150,7 @@ func main() {
 
 	switch command {
 	case stShowCmd.FullCommand():
-		href, err := paramToHref("server_templates", *stShowNameOrHref, 0)
+		href, err := paramToHref("server_templates", *stShowNameOrHref, 0, true)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
@@ -160,7 +168,7 @@ func main() {
 		}
 		stDelete(files, *stDeletePrefix)
 	case stDownloadCmd.FullCommand():
-		href, err := paramToHref("server_templates", *stDownloadNameOrHref, 0)
+		href, err := paramToHref("server_templates", *stDownloadNameOrHref, 0, false)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
@@ -171,8 +179,16 @@ func main() {
 			fatalError("%s\n", err.Error())
 		}
 		stValidate(files)
+	case stCommitCmd.FullCommand():
+		for _, input := range *stCommitNameOrHrefOrPath {
+			href, err := paramToHref("server_templates", input, 0, true)
+			if err != nil {
+				fatalError("%s", err.Error())
+			}
+			stCommit(href, *stCommitMessage)
+		}
 	case rightScriptShowCmd.FullCommand():
-		href, err := paramToHref("right_scripts", *rightScriptShowNameOrHref, 0)
+		href, err := paramToHref("right_scripts", *rightScriptShowNameOrHref, 0, true)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
@@ -190,7 +206,7 @@ func main() {
 		}
 		rightScriptDelete(files, *rightScriptDeletePrefix)
 	case rightScriptDownloadCmd.FullCommand():
-		href, err := paramToHref("right_scripts", *rightScriptDownloadNameOrHref, 0)
+		href, err := paramToHref("right_scripts", *rightScriptDownloadNameOrHref, 0, false)
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
@@ -207,6 +223,14 @@ func main() {
 			fatalError("%s\n", err.Error())
 		}
 		rightScriptValidate(files)
+	case rightScriptCommitCmd.FullCommand():
+		for _, input := range *rightScriptCommitNameOrHrefOrPath {
+			href, err := paramToHref("right_scripts", input, 0, true)
+			if err != nil {
+				fatalError("%s", err.Error())
+			}
+			rightScriptCommit(href, *rightScriptCommitMessage)
+		}
 	case configAccountCmd.FullCommand():
 		err := Config.SetAccount(*configAccountName, *configAccountDefault, os.Stdin, os.Stdout)
 		if err != nil {
@@ -278,8 +302,56 @@ func paramToHrefs(resourceType, param string, revision int) ([]string, error) {
 
 // Distill a passed in user parameter (id or href or name) to a single href or
 // else return an error.
-func paramToHref(resourceType, param string, revision int) (string, error) {
-	hrefs, err := paramToHrefs(resourceType, param, revision)
+func paramToHref(resourceType, param string, revision int, filePathInInput bool) (string, error) {
+	var (
+		hrefs []string
+		err   error
+	)
+
+	// if filePathInInput is true, we have to go through an extra computation
+	// to retrieve the script name from the metadata of the file
+	if filePathInInput {
+		var resourceName string
+		// check if file exists
+		if _, err := os.Stat(param); err == nil {
+			// Open file
+			f, err := os.Open(param)
+			if err != nil {
+				return "", fmt.Errorf("Cannot open file: %s", err.Error())
+			}
+
+			defer f.Close()
+
+			// read file metadata
+			switch resourceType {
+			case "right_scripts":
+				metadata, err := ParseRightScriptMetadata(f)
+				if err != nil {
+					return "", err
+				}
+				resourceName = metadata.Name
+			case "server_templates":
+				metadata, err := ParseServerTemplate(f)
+				if err != nil {
+					return "", err
+				}
+				resourceName = metadata.Name
+			default:
+				return "", fmt.Errorf("Unknown resource")
+			}
+
+			if resourceName == "" {
+				return "", fmt.Errorf("Failed to retrieve resource name from input file: %s", param)
+			}
+			param = resourceName
+		} else {
+			if !os.IsNotExist(err) {
+				return "", fmt.Errorf("%s", err.Error())
+			}
+		}
+
+	}
+	hrefs, err = paramToHrefs(resourceType, param, revision)
 	if err != nil {
 		return "", err
 	}
@@ -293,11 +365,10 @@ func paramToHref(resourceType, param string, revision int) (string, error) {
 			"Don't know which one to use. Please delete one or specify an href to use.",
 			resourceType, revMessage, strings.Join(hrefs, ", "), param)
 	} else if len(hrefs) == 0 {
-		return "", fmt.Errorf("Found no %s matching '%s' %s.", resourceType, param, revMessage)
+		return "", fmt.Errorf("Found no %s matching '%s' %s", resourceType, param, revMessage)
 	} else {
 		return hrefs[0], nil
 	}
-
 }
 
 func getLink(links []map[string]string, name string) string {
