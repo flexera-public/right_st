@@ -110,7 +110,13 @@ func (c *cache) PutServerTemplate(account int, id string, revision int, st *cm15
 	}
 
 	cst := CachedServerTemplate{st, "", fmt.Sprintf("%x", hash.Sum(nil))}
+
 	item, err := os.Create(filepath.Join(filepath.Dir(path), "item.json"))
+	if err != nil {
+		return err
+	}
+	defer item.Close()
+
 	encoder := json.NewEncoder(item)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(&cst); err != nil {
@@ -168,7 +174,13 @@ func (c *cache) PutRightScript(account int, id string, revision int, rs *cm15.Ri
 	}
 
 	crs := CachedRightScript{rs, "", fmt.Sprintf("%x", hash.Sum(nil)), attachmentMD5s}
+
 	item, err := os.Create(filepath.Join(filepath.Dir(path), "item.json"))
+	if err != nil {
+		return err
+	}
+	defer item.Close()
+
 	encoder := json.NewEncoder(item)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(&crs); err != nil {
@@ -210,7 +222,13 @@ func (c *cache) PutMultiCloudImage(account int, id string, revision int, mci *cm
 	}
 
 	cmci := CachedMultiCloudImage{mci, "", fmt.Sprintf("%x", hash.Sum(nil))}
+
 	item, err := os.Create(filepath.Join(filepath.Dir(path), "item.json"))
+	if err != nil {
+		return err
+	}
+	defer item.Close()
+
 	encoder := json.NewEncoder(item)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(&cmci); err != nil {
