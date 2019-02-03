@@ -152,7 +152,7 @@ A MultiCloudImage definition allows you to specify an MCI in four different ways
         * `Instance Type` - String - Required - Name of instance type.
         * `User Data` - String - Optional - User Data template for this cloud/image combination.
 
-A MultiCloudImage YAML file is referenced as a normal string in the MultiCloudImages array which is the realtaive path to a YAML file containing an individual MultiCloudImage definition.
+A MultiCloudImage YAML file is referenced as a normal string in the MultiCloudImages array which is the relative path to a YAML file containing an individual MultiCloudImage definition.
 
 An Alert definition consists of three fields: a Name, Definition, and Clause (all strings). Clause is a text description of the Alert with this exact format: `If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Action> <ActionValue>`:
 
