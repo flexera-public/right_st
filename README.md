@@ -302,7 +302,9 @@ right_st st diff [<flags>] <name|href|id|path> <revision-a> <revision-b>
 ## Contributors
 
 This tool is maintained by [Douglas Thrift (douglaswth)](https://github.com/douglaswth),
-[Peter Schroeter (psschroeter)](https://github.com/psschroeter), and [Lopaka Delp (lopaka)](https://github.com/lopaka).
+[Peter Schroeter (psschroeter)](https://github.com/psschroeter),
+and [Neenu Ann Varghese (NeenuAVarghese)](https://github.com/NeenuAVarghese).
+It also includes contributions from [Lopaka Delp (lopaka)](https://github.com/lopaka) and others.
 
 ## License
 
