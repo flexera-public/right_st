@@ -1,3 +1,7 @@
+Unreleased Changes
+------------------
+* Add diff for RightScripts and ServerTemplates.
+
 v1.9.4 / 2019-11-08
 -------------------
 * Username and password from the environment were not being considered
@@ -43,7 +47,7 @@ v1.8.0 / 2019-02-02
 -------------------
 * Use Go 1.11.x modules instead of dep.
 * Fix [#57] by correcting line number offset calculation.
-* Add commit for RightScripts and ServerTemplates
+* Add commit for RightScripts and ServerTemplates.
 
 [#57]: https://github.com/rightscale/right_st/issues/57
 
