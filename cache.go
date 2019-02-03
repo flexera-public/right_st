@@ -15,17 +15,17 @@ import (
 
 type (
 	Cache interface {
-		GetServerTemplate(account int, id string, revision int) (CachedServerTemplate, bool, error)
+		GetServerTemplate(account int, id string, revision int) (*CachedServerTemplate, error)
 		GetServerTemplateDir(account int, id string, revision int) (path string, err error)
 		GetServerTemplateFile(account int, id string, revision int) (path string, err error)
 		PutServerTemplate(account int, id string, revision int, st *cm15.ServerTemplate) error
 
-		GetRightScript(account int, id string, revison int) (CachedRightScript, bool, error)
+		GetRightScript(account int, id string, revison int) (*CachedRightScript, error)
 		GetRightScriptDir(account int, id string, revision int) (path string, err error)
 		GetRightScriptFile(account int, id string, revision int) (path string, err error)
 		PutRightScript(account int, id string, revision int, rs *cm15.RightScript, attachments []string) error
 
-		GetMultiCloudImage(account int, id string, revision int) (CachedMultiCloudImage, bool, error)
+		GetMultiCloudImage(account int, id string, revision int) (*CachedMultiCloudImage, error)
 		GetMultiCloudImageDir(account int, id string, revision int) (path string, err error)
 		GetMultiCloudImageFile(account int, id string, revision int) (path string, err error)
 		PutMultiCloudImage(account int, id string, revision int, mci *cm15.MultiCloudImage) error
@@ -77,8 +77,40 @@ func NewCache(path string) (Cache, error) {
 	return c, nil
 }
 
-func (c *cache) GetServerTemplate(account int, id string, revision int) (mci CachedServerTemplate, ok bool, err error) {
-	return
+func (c *cache) GetServerTemplate(account int, id string, revision int) (*CachedServerTemplate, error) {
+	file, err := c.GetServerTemplateFile(account, id, revision)
+	if err != nil {
+		return nil, err
+	}
+
+	item, err := os.Open(filepath.Join(filepath.Dir(file), "item.json"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer item.Close()
+
+	cst := &CachedServerTemplate{File: file}
+	decoder := json.NewDecoder(item)
+	if err := decoder.Decode(cst); err != nil {
+		return nil, err
+	}
+
+	ok, err := cacheCheckMD5(file, cst.MD5Sum)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		err := os.RemoveAll(filepath.Dir(file))
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
+	return cst, nil
 }
 
 func (c *cache) GetServerTemplateDir(account int, id string, revision int) (string, error) {
@@ -98,18 +130,12 @@ func (c *cache) PutServerTemplate(account int, id string, revision int, st *cm15
 	if err != nil {
 		return err
 	}
-	file, err := os.Open(path)
+	sum, err := cacheMD5(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	hash := md5.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return err
-	}
-
-	cst := CachedServerTemplate{st, "", fmt.Sprintf("%x", hash.Sum(nil))}
+	cst := CachedServerTemplate{st, "", sum}
 
 	item, err := os.Create(filepath.Join(filepath.Dir(path), "item.json"))
 	if err != nil {
@@ -125,8 +151,52 @@ func (c *cache) PutServerTemplate(account int, id string, revision int, st *cm15
 	return nil
 }
 
-func (c *cache) GetRightScript(account int, id string, revision int) (rs CachedRightScript, ok bool, err error) {
-	return
+func (c *cache) GetRightScript(account int, id string, revision int) (*CachedRightScript, error) {
+	file, err := c.GetRightScriptFile(account, id, revision)
+	if err != nil {
+		return nil, err
+	}
+
+	item, err := os.Open(filepath.Join(filepath.Dir(file), "item.json"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer item.Close()
+
+	crs := &CachedRightScript{File: file}
+	decoder := json.NewDecoder(item)
+	if err := decoder.Decode(crs); err != nil {
+		return nil, err
+	}
+
+	ok, err := cacheCheckMD5(file, crs.MD5Sum)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		attachmentsDir := filepath.Join(filepath.Dir(file), "attachments")
+		for attachment, md5Sum := range crs.Attachments {
+			ok, err = cacheCheckMD5(filepath.Join(attachmentsDir, attachment), md5Sum)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				break
+			}
+		}
+	}
+	if !ok {
+		err := os.RemoveAll(filepath.Dir(file))
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
+	return crs, nil
 }
 
 func (c *cache) GetRightScriptDir(account int, id string, revision int) (string, error) {
@@ -146,34 +216,22 @@ func (c *cache) PutRightScript(account int, id string, revision int, rs *cm15.Ri
 	if err != nil {
 		return err
 	}
-	file, err := os.Open(path)
+	sum, err := cacheMD5(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	hash := md5.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return err
-	}
-
+	attachmentsDir := filepath.Join(filepath.Dir(path), "attachments")
 	attachmentMD5s := make(map[string]string)
 	for _, attachment := range attachments {
-		file, err := os.Open(filepath.Join(filepath.Dir(path), "attachments", attachment))
+		sum, err := cacheMD5(filepath.Join(attachmentsDir, attachment))
 		if err != nil {
 			return err
 		}
-		defer file.Close()
-
-		hash := md5.New()
-		if _, err := io.Copy(hash, file); err != nil {
-			return err
-		}
-
-		attachmentMD5s[attachment] = fmt.Sprintf("%x", hash.Sum(nil))
+		attachmentMD5s[attachment] = sum
 	}
 
-	crs := CachedRightScript{rs, "", fmt.Sprintf("%x", hash.Sum(nil)), attachmentMD5s}
+	crs := CachedRightScript{rs, "", sum, attachmentMD5s}
 
 	item, err := os.Create(filepath.Join(filepath.Dir(path), "item.json"))
 	if err != nil {
@@ -189,8 +247,40 @@ func (c *cache) PutRightScript(account int, id string, revision int, rs *cm15.Ri
 	return nil
 }
 
-func (c *cache) GetMultiCloudImage(account int, id string, revision int) (mci CachedMultiCloudImage, ok bool, err error) {
-	return
+func (c *cache) GetMultiCloudImage(account int, id string, revision int) (*CachedMultiCloudImage, error) {
+	file, err := c.GetMultiCloudImageFile(account, id, revision)
+	if err != nil {
+		return nil, err
+	}
+
+	item, err := os.Open(filepath.Join(filepath.Dir(file), "item.json"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer item.Close()
+
+	cmci := &CachedMultiCloudImage{File: file}
+	decoder := json.NewDecoder(item)
+	if err := decoder.Decode(cmci); err != nil {
+		return nil, err
+	}
+
+	ok, err := cacheCheckMD5(file, cmci.MD5Sum)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		err := os.RemoveAll(filepath.Dir(file))
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
+	return cmci, nil
 }
 
 func (c *cache) GetMultiCloudImageDir(account int, id string, revision int) (string, error) {
@@ -210,18 +300,12 @@ func (c *cache) PutMultiCloudImage(account int, id string, revision int, mci *cm
 	if err != nil {
 		return err
 	}
-	file, err := os.Open(path)
+	sum, err := cacheMD5(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	hash := md5.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return err
-	}
-
-	cmci := CachedMultiCloudImage{mci, "", fmt.Sprintf("%x", hash.Sum(nil))}
+	cmci := CachedMultiCloudImage{mci, "", sum}
 
 	item, err := os.Create(filepath.Join(filepath.Dir(path), "item.json"))
 	if err != nil {
@@ -247,4 +331,27 @@ func cacheCheck(path string, account int, id string, revision int) (string, erro
 		return "", err
 	}
 	return path, nil
+}
+
+func cacheCheckMD5(path, md5Sum string) (bool, error) {
+	sum, err := cacheMD5(path)
+	if err != nil {
+		return false, err
+	}
+	return sum == md5Sum, nil
+}
+
+func cacheMD5(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }

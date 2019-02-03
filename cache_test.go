@@ -8,6 +8,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
 	. "github.com/rightscale/right_st"
 	"github.com/rightscale/rsc/cm15"
 )
@@ -35,6 +36,24 @@ var _ = Describe("Cache", func() {
 		if err != nil {
 			panic(err)
 		}
+	})
+
+	Describe("GetServerTemplate", func() {
+		Context("without a cached ServerTemplate", func() {
+			It("returns nil without an error", func() {
+				cst, err := cache.GetServerTemplate(1, "2345678", 90)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cst).To(BeNil())
+			})
+		})
+
+		Context("with a cached ServerTemplate", func() {
+			// TODO
+		})
+
+		Context("with an invalid cached ServerTemplate", func() {
+			// TODO
+		})
 	})
 
 	Describe("GetServerTemplateFile", func() {
@@ -193,6 +212,32 @@ MultiCloudImages:
   "md5": "c656cbfe58c22482a835f1d9ff5d7c47"
 }
 `))
+		})
+	})
+
+	Describe("GetRightScript", func() {
+		Context("without a cached RightScript", func() {
+			It("returns nil without an error", func() {
+				crs, err := cache.GetRightScript(1, "2345678", 90)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(crs).To(BeNil())
+			})
+		})
+
+		Context("with a cached RightScript", func() {
+			// TODO
+		})
+
+		Context("with a cached RightScript with attachments", func() {
+			// TODO
+		})
+
+		Context("with an invalid cached RightScript", func() {
+			// TODO
+		})
+
+		Context("with a cached RightScript with invalid attachments", func() {
+			// TODO
 		})
 	})
 
@@ -371,6 +416,98 @@ cat "$RS_ATTACH_DIR"/*.txt
 }
 `))
 			})
+		})
+	})
+
+	Describe("GetMultiCloudImage", func() {
+		Context("without a cached MultiCloudImage", func() {
+			It("returns nil without an error", func() {
+				cmci, err := cache.GetMultiCloudImage(1, "2345678", 90)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cmci).To(BeNil())
+			})
+		})
+
+		Context("with a cached MultiCloudImage", func() {
+			var mci string
+
+			BeforeEach(func() {
+				var err error
+				mci, err = cache.GetMultiCloudImageFile(1, "2345678", 90)
+				if err != nil {
+					panic(err)
+				}
+				ioutil.WriteFile(mci, []byte(`Name: Ubuntu_18.04_x64
+Description: Ubuntu 18.04 x64 LTS Bionic Beaver
+Tags:
+- rs_agent:mime_shellscript=https://rightlink.rightscale.com/rll/10.6.0/rightlink.boot.sh
+- rs_agent:type=right_link_lite
+Settings:
+- Cloud: EC2 us-east-1
+  Instance Type: c5.large
+  Image: ami-1234567890abcdefg
+`), 0600)
+				ioutil.WriteFile(filepath.Join(tempPath, "multi_cloud_images", "1", "2345678", "90", "item.json"), []byte(`{
+  "multi_cloud_image": {
+    "actions": [
+      {
+        "rel": "clone"
+      }
+    ],
+    "description": "Ubuntu_18.04_x64",
+    "links": [
+      {
+        "href": "/api/multi_cloud_images/2345678",
+        "rel": "self"
+      },
+      {
+        "href": "/api/multi_cloud_images/2345678/settings",
+        "rel": "settings"
+      },
+      {
+        "href": "/api/multi_cloud_images/2345678/matchers",
+        "rel": "matchers"
+      }
+    ],
+    "name": "Ubuntu 18.04 x64 LTS Bionic Beaver",
+    "revision": 90
+  },
+  "md5": "64767c6b5a0c1b446c0cc27eb40cb832"
+}
+`), 0600)
+			})
+
+			It("returns a cached MultiCloudImage", func() {
+				cmci, err := cache.GetMultiCloudImage(1, "2345678", 90)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cmci).To(PointTo(Equal(CachedMultiCloudImage{
+					&cm15.MultiCloudImage{
+						Actions:     []map[string]string{{"rel": "clone"}},
+						Description: "Ubuntu_18.04_x64",
+						Links: []map[string]string{
+							{
+								"href": "/api/multi_cloud_images/2345678",
+								"rel":  "self",
+							},
+							{
+								"href": "/api/multi_cloud_images/2345678/settings",
+								"rel":  "settings",
+							},
+							{
+								"href": "/api/multi_cloud_images/2345678/matchers",
+								"rel":  "matchers",
+							},
+						},
+						Name:     "Ubuntu 18.04 x64 LTS Bionic Beaver",
+						Revision: 90,
+					},
+					mci, "64767c6b5a0c1b446c0cc27eb40cb832",
+				})))
+			})
+		})
+
+		Context("with an invalid cached MultiCloudImage", func() {
+			// TODO
 		})
 	})
 
