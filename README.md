@@ -258,22 +258,22 @@ Alerts:
 The following ServerTemplate related commands are supported:
 
 ```
-right_st st show <name|href|id>
+right_st servertemplate show <name|href|id>
   Show a single ServerTemplate
 
-right_st st upload <path>...
+right_st servertemplate upload <path>...
   Upload a ServerTemplate specified by a YAML document
   Flags:
     -x, --prefix <prefix>:  Create dev/test version by adding prefix to name of all
                             RightScripts uploaded
 
-right_st st delete <path>...
+right_st servertemplate delete <path>...
   Delete dev/test ServerTemplates and RightScripts with a prefix
   Flags:
     -x, --prefix <prefix>:  Delete with this prefix. This commands acts as a cleanup
                             for ServerTepmlates uploaded with --prefix.
 
-right_st st download <name|href|id> [<path>]
+right_st servertemplate download <name|href|id> [<path>]
   Download a ServerTemplate and all associated RightScripts/Attachments to disk
   Flags:
     -p, --published: When downloading RightScripts, first check if it's published in
@@ -285,17 +285,17 @@ right_st st download <name|href|id> [<path>]
     -s, --script-path <script-path>: Download RightScripts and their attachments
                                      to a subdirectory relative to the download location.
 
-right_st st validate <path>...
+right_st servertemplate validate <path>...
   Validate a ServerTemplate YAML document
 
-right_st st commit --message=MESSAGE <name|href|id|path>...
+right_st servertemplate commit --message=MESSAGE <name|href|id|path>...
     Commit ServerTemplate
     Flags:
     -n, --no-commit-head:  Do not commit HEAD revisions (if any) of the associated MultiCloud 
                            Images, RightScripts and Chef repo sequences.
     -f, --freeze-repos:  Freeze the repositories
 
-right_st st diff [<flags>] <name|href|id|path> <revision-a> <revision-b>
+right_st servertemplate diff [<flags>] <name|href|id|path> <revision-a> <revision-b>
   Show differences between revisions of a ServerTemplate
 ```
 

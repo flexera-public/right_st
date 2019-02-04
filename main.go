@@ -31,7 +31,7 @@ var (
 	account    = app.Flag("account", "RightScale account name to use").Short('a').String()
 
 	// ----- ServerTemplates -----
-	stCmd = app.Command("st", "ServerTemplate")
+	stCmd = app.Command("servertemplate", "ServerTemplate").Alias("st")
 
 	stShowCmd        = stCmd.Command("show", "Show a single ServerTemplate")
 	stShowNameOrHref = stShowCmd.Arg("name|href|id|path", "ServerTemplate name, HREF, ID, or YAML file path").Required().String()
@@ -67,7 +67,7 @@ var (
 	stDiffLinkOnly   = stDiffCmd.Flag("link-only", "Just show a link to a ServerTemplate comparison in the RightScale dashboard").Short('l').Bool()
 
 	// ----- RightScripts -----
-	rightScriptCmd = app.Command("rightscript", "RightScript")
+	rightScriptCmd = app.Command("rightscript", "RightScript").Alias("rs")
 
 	rightScriptShowCmd        = rightScriptCmd.Command("show", "Show a single RightScript and its attachments")
 	rightScriptShowNameOrHref = rightScriptShowCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
