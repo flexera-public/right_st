@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -362,20 +363,92 @@ func rightScriptDiff(href, revisionA, revisionB string, linkOnly bool, cache Cac
 	if linkOnly {
 		fmt.Println(getRightScriptDiffLink(rsA, rsB))
 	} else {
-		diffRightScript(os.Stdout, rsA, rsB, cache)
+		if _, err := diffRightScript(os.Stdout, rsA, rsB, cache); err != nil {
+			fatalError("Error performing diff: %v", err)
+		}
 	}
 }
 
 // diffRightScript returns whether two ServerTemplate revisions differ and writes the differences to w
-func diffRightScript(w io.Writer, rsA, rsB *cm15.RightScript, cache Cache) bool {
+func diffRightScript(w io.Writer, rsA, rsB *cm15.RightScript, cache Cache) (bool, error) {
+	scriptA, attachmentsA, tempA, err := getRightScriptFiles(rsA, cache)
+	if err != nil {
+		return false, err
+	}
+	if tempA != "" {
+		defer os.RemoveAll(tempA)
+	}
+	scriptB, attachmentsB, tempB, err := getRightScriptFiles(rsB, cache)
+	if err != nil {
+		return false, err
+	}
+	if tempB != "" {
+		defer os.RemoveAll(tempB)
+	}
+
+	fmt.Println(scriptA, scriptB)
+	fmt.Println(attachmentsA, attachmentsB)
+	fmt.Println(tempA, tempB)
+
 	// TODO implement
 
-	return false
+	return false, nil
 }
 
 // getRightScriptDiffLink returns the RightScale Dashboard URL for a diff between two RightScript revisions
 func getRightScriptDiffLink(rsA, rsB *cm15.RightScript) string {
 	return fmt.Sprintf("https://%v/acct/%v/right_scripts/diff?old_script_id=%v&new_script_id=%v", Config.Account.Host, Config.Account.Id, rsA.Id, rsB.Id)
+}
+
+// getRightScriptFiles retreives the local paths of a cached RightScript and its attachments; if it is a HEAD revision
+// RightScript, the temporary directory where it is cached will also be returned
+func getRightScriptFiles(rs *cm15.RightScript, cache Cache) (script string, attachments []string, temp string, err error) {
+	if rs.Revision == 0 {
+		temp, err = ioutil.TempDir("", "right_st.cache.")
+		if err != nil {
+			return
+		}
+		script = filepath.Join(temp, "right_script")
+	} else {
+		var crs *CachedRightScript
+		crs, err = cache.GetRightScript(Config.Account.Id, rs.Id, rs.Revision)
+		if err != nil {
+			return
+		}
+		if crs != nil {
+			script = crs.File
+			attachments = make([]string, 0, len(crs.Attachments))
+			for attachment := range crs.Attachments {
+				attachments = append(attachments, attachment)
+			}
+			goto finish
+		}
+		script, err = cache.GetRightScriptFile(Config.Account.Id, rs.Id, rs.Revision)
+		if err != nil {
+			return
+		}
+	}
+
+	// TODO make rightScriptDownload optionally silent and return attachments and an error
+	_ = rightScriptDownload(getRightScriptHREF(rs), script)
+	attachments, err = filepath.Glob(filepath.Join(filepath.Dir(script), "attachments", "*"))
+	if err != nil {
+		return
+	}
+	for i, attachment := range attachments {
+		attachments[i] = filepath.Base(attachment)
+	}
+
+	if rs.Revision != 0 {
+		err = cache.PutRightScript(Config.Account.Id, rs.Id, rs.Revision, rs, attachments)
+		if err != nil {
+			return
+		}
+	}
+
+finish:
+	sort.Strings(attachments)
+	return
 }
 
 // getRightScriptRevision returns the RightScript object for the given RightScript HREF and revision;
@@ -426,6 +499,12 @@ func getRightScriptRevision(href, revision string) (*cm15.RightScript, error) {
 	}
 
 	return nil, fmt.Errorf("no RightScript found for %v with revision %v", href, revision)
+}
+
+// getRightScriptHREF returns the HREF of the RightScript object
+func getRightScriptHREF(rs *cm15.RightScript) string {
+	client, _ := Config.Account.Client15()
+	return string(rs.Locator(client).Href)
 }
 
 func rightScriptDelete(files []string, prefix string) {

@@ -38,20 +38,20 @@ type (
 	}
 
 	CachedServerTemplate struct {
-		*cm15.ServerTemplate `json:"server_template"`
+		*cm15.ServerTemplate `json:"server_template"` // TODO remove if not needed
 		File                 string `json:"-"`
 		MD5Sum               string `json:"md5"`
 	}
 
 	CachedRightScript struct {
-		*cm15.RightScript `json:"right_script"`
+		*cm15.RightScript `json:"right_script"` // TODO remove if not needed
 		File              string            `json:"-"`
 		MD5Sum            string            `json:"md5"`
 		Attachments       map[string]string `json:"attachments,omitempty"`
 	}
 
 	CachedMultiCloudImage struct {
-		*cm15.MultiCloudImage `json:"multi_cloud_image"`
+		*cm15.MultiCloudImage `json:"multi_cloud_image"` // TODO remove if not needed
 		File                  string `json:"-"`
 		MD5Sum                string `json:"md5"`
 	}
