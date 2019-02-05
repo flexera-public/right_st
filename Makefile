@@ -133,8 +133,6 @@ version:
 
 depend:
 	for d in $(INSTALL_DEPEND); do go install $$d; done
-	ls $(GOPATH)/bin
-	echo $(PATH)
 
 update:
 	go get -u
