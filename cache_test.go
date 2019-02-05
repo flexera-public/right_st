@@ -52,12 +52,11 @@ var _ = Describe("Cache", func() {
 
 			BeforeEach(func() {
 				dir := filepath.Join(tempPath, "server_templates", "1", "2345678", "90")
-				err := os.MkdirAll(dir, 0700)
-				if err != nil {
+				if err := os.MkdirAll(dir, 0700); err != nil {
 					panic(err)
 				}
 				st = filepath.Join(dir, "server_template.yml")
-				err = ioutil.WriteFile(st, []byte(`
+				if err := ioutil.WriteFile(st, []byte(`
 Name: Really Cool ServerTemplate
 Description: A really cool ServerTemplate
 Inputs: {}
@@ -71,11 +70,10 @@ RightScripts:
 MultiCloudImages:
 - Name: Ubuntu_18.04_x64
   Revision: 90
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+				if err := ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
   "server_template": {
     "actions": [
       {
@@ -131,8 +129,7 @@ MultiCloudImages:
   },
   "md5": "c656cbfe58c22482a835f1d9ff5d7c47"
 }
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
 			})
@@ -194,12 +191,11 @@ MultiCloudImages:
 
 			BeforeEach(func() {
 				dir := filepath.Join(tempPath, "server_templates", "1", "2345678", "90")
-				err := os.MkdirAll(dir, 0700)
-				if err != nil {
+				if err := os.MkdirAll(dir, 0700); err != nil {
 					panic(err)
 				}
 				st = filepath.Join(dir, "server_template.yml")
-				err = ioutil.WriteFile(st, []byte(`
+				if err := ioutil.WriteFile(st, []byte(`
 Name: Really Cool ServerTemplate
 Description: A really cool ServerTemplate
 Inputs: {}
@@ -213,11 +209,10 @@ RightScripts:
 MultiCloudImages:
 - Name: Ubuntu_18.04_x64
   Revision: 90
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+				if err := ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
   "server_template": {
     "actions": [
       {
@@ -273,8 +268,7 @@ MultiCloudImages:
   },
   "md5": "c656cbfe58c22482a835f1d9ff5d7c47"
 }
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
 			})
@@ -320,11 +314,10 @@ MultiCloudImages:
 	Describe("PutServerTemplate", func() {
 		BeforeEach(func() {
 			dir := filepath.Join(tempPath, "server_templates", "1", "2345678", "90")
-			err := os.MkdirAll(dir, 0700)
-			if err != nil {
+			if err := os.MkdirAll(dir, 0700); err != nil {
 				panic(err)
 			}
-			err = ioutil.WriteFile(filepath.Join(dir, "server_template.yml"), []byte(`
+			if err := ioutil.WriteFile(filepath.Join(dir, "server_template.yml"), []byte(`
 Name: Really Cool ServerTemplate
 Description: A really cool ServerTemplate
 Inputs: {}
@@ -338,8 +331,7 @@ RightScripts:
 MultiCloudImages:
 - Name: Ubuntu_18.04_x64
   Revision: 90
-`), 0600)
-			if err != nil {
+`), 0600); err != nil {
 				panic(err)
 			}
 		})
@@ -467,12 +459,11 @@ MultiCloudImages:
 
 			BeforeEach(func() {
 				dir := filepath.Join(tempPath, "right_scripts", "1", "2345678", "90")
-				err := os.MkdirAll(dir, 0700)
-				if err != nil {
+				if err := os.MkdirAll(dir, 0700); err != nil {
 					panic(err)
 				}
 				rs = filepath.Join(dir, "right_script")
-				err = ioutil.WriteFile(rs, []byte(`#!/bin/bash
+				if err := ioutil.WriteFile(rs, []byte(`#!/bin/bash
 # ---
 # RightScript Name: Really Cool Script
 # Description: A really cool script
@@ -481,11 +472,10 @@ MultiCloudImages:
 # ...
 
 echo 'Really cool script!'
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+				if err := ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
   "right_script": {
     "created_at": "2019/02/03 01:47:25 +0000",
     "description": "A really cool script",
@@ -507,8 +497,7 @@ echo 'Really cool script!'
   },
   "md5": "130cd1afe75c80631f89c69bfb3052ab"
 }
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
 			})
@@ -551,7 +540,7 @@ echo 'Really cool script!'
 					panic(err)
 				}
 				rs = filepath.Join(dir, "right_script")
-				err = ioutil.WriteFile(rs, []byte(`#!/bin/bash
+				if err := ioutil.WriteFile(rs, []byte(`#!/bin/bash
 # ---
 # RightScript Name: Really Cool Script with Attachments
 # Description: A really cool script with attachments
@@ -561,24 +550,20 @@ echo 'Really cool script!'
 # - b.txt
 
 cat "$RS_ATTACH_DIR"/*.txt
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
 				attachments := filepath.Join(dir, "attachments")
-				err = os.Mkdir(attachments, 0700)
-				if err != nil {
+				if err := os.Mkdir(attachments, 0700); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(attachments, "a.txt"), []byte("A really cool text file!\n"), 0600)
-				if err != nil {
+				if err = ioutil.WriteFile(filepath.Join(attachments, "a.txt"), []byte("A really cool text file!\n"), 0600); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(attachments, "b.txt"), []byte("Another really cool text file!\n"), 0600)
-				if err != nil {
+				if err := ioutil.WriteFile(filepath.Join(attachments, "b.txt"), []byte("Another really cool text file!\n"), 0600); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+				if err := ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
   "right_script": {
     "created_at": "2019/02/03 01:47:25 +0000",
     "description": "A really cool script with attachments",
@@ -604,8 +589,7 @@ cat "$RS_ATTACH_DIR"/*.txt
     "b.txt": "f67753368d236a5819ec172b2a18d841"
   }
 }
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
 			})
@@ -647,12 +631,11 @@ cat "$RS_ATTACH_DIR"/*.txt
 
 			BeforeEach(func() {
 				dir := filepath.Join(tempPath, "right_scripts", "1", "2345678", "90")
-				err := os.MkdirAll(dir, 0700)
-				if err != nil {
+				if err := os.MkdirAll(dir, 0700); err != nil {
 					panic(err)
 				}
 				rs = filepath.Join(dir, "right_script")
-				err = ioutil.WriteFile(rs, []byte(`#!/bin/bash
+				if err := ioutil.WriteFile(rs, []byte(`#!/bin/bash
 # ---
 # RightScript Name: Really Bad Script
 # Description: A really bad script
@@ -661,11 +644,10 @@ cat "$RS_ATTACH_DIR"/*.txt
 # ...
 
 echo 'Really bad script!'
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+				if err := ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
   "right_script": {
     "created_at": "2019/02/03 01:47:25 +0000",
     "description": "A really cool script",
@@ -687,8 +669,7 @@ echo 'Really bad script!'
   },
   "md5": "130cd1afe75c80631f89c69bfb3052ab"
 }
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
 			})
@@ -708,12 +689,11 @@ echo 'Really bad script!'
 
 			BeforeEach(func() {
 				dir := filepath.Join(tempPath, "right_scripts", "1", "2345678", "90")
-				err := os.MkdirAll(dir, 0700)
-				if err != nil {
+				if err := os.MkdirAll(dir, 0700); err != nil {
 					panic(err)
 				}
 				rs = filepath.Join(dir, "right_script")
-				err = ioutil.WriteFile(rs, []byte(`#!/bin/bash
+				if err := ioutil.WriteFile(rs, []byte(`#!/bin/bash
 # ---
 # RightScript Name: Really Cool Script with Attachments
 # Description: A really cool script with attachments
@@ -723,24 +703,20 @@ echo 'Really bad script!'
 # - b.txt
 
 cat "$RS_ATTACH_DIR"/*.txt
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
 				attachments := filepath.Join(dir, "attachments")
-				err = os.Mkdir(attachments, 0700)
-				if err != nil {
+				if err := os.Mkdir(attachments, 0700); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(attachments, "a.txt"), []byte("A really cool text file!\n"), 0600)
-				if err != nil {
+				if err := ioutil.WriteFile(filepath.Join(attachments, "a.txt"), []byte("A really cool text file!\n"), 0600); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(attachments, "b.txt"), []byte("A really bad text file!\n"), 0600)
-				if err != nil {
+				if err := ioutil.WriteFile(filepath.Join(attachments, "b.txt"), []byte("A really bad text file!\n"), 0600); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+				if err := ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
   "right_script": {
     "created_at": "2019/02/03 01:47:25 +0000",
     "description": "A really cool script with attachments",
@@ -766,8 +742,7 @@ cat "$RS_ATTACH_DIR"/*.txt
     "b.txt": "f67753368d236a5819ec172b2a18d841"
   }
 }
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
 			})
@@ -818,7 +793,7 @@ cat "$RS_ATTACH_DIR"/*.txt
 				if err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(dir, "right_script"), []byte(`#!/bin/bash
+				if err := ioutil.WriteFile(filepath.Join(dir, "right_script"), []byte(`#!/bin/bash
 # ---
 # RightScript Name: Really Cool Script
 # Description: A really cool script
@@ -827,8 +802,7 @@ cat "$RS_ATTACH_DIR"/*.txt
 # ...
 
 echo 'Really cool script!'
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
 			})
@@ -886,11 +860,10 @@ echo 'Really cool script!'
 		Context("with attachments", func() {
 			BeforeEach(func() {
 				dir := filepath.Join(tempPath, "right_scripts", "1", "2345678", "90")
-				err := os.MkdirAll(dir, 0700)
-				if err != nil {
+				if err := os.MkdirAll(dir, 0700); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(dir, "right_script"), []byte(`#!/bin/bash
+				if err := ioutil.WriteFile(filepath.Join(dir, "right_script"), []byte(`#!/bin/bash
 # ---
 # RightScript Name: Really Cool Script with Attachments
 # Description: A really cool script with attachments
@@ -900,21 +873,17 @@ echo 'Really cool script!'
 # - b.txt
 
 cat "$RS_ATTACH_DIR"/*.txt
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
 				attachments := filepath.Join(dir, "attachments")
-				err = os.Mkdir(attachments, 0700)
-				if err != nil {
+				if err := os.Mkdir(attachments, 0700); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(attachments, "a.txt"), []byte("A really cool text file!\n"), 0600)
-				if err != nil {
+				if err := ioutil.WriteFile(filepath.Join(attachments, "a.txt"), []byte("A really cool text file!\n"), 0600); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(attachments, "b.txt"), []byte("Another really cool text file!\n"), 0600)
-				if err != nil {
+				if err := ioutil.WriteFile(filepath.Join(attachments, "b.txt"), []byte("Another really cool text file!\n"), 0600); err != nil {
 					panic(err)
 				}
 			})
@@ -989,12 +958,11 @@ cat "$RS_ATTACH_DIR"/*.txt
 
 			BeforeEach(func() {
 				dir := filepath.Join(tempPath, "multi_cloud_images", "1", "2345678", "90")
-				err := os.MkdirAll(dir, 0700)
-				if err != nil {
+				if err := os.MkdirAll(dir, 0700); err != nil {
 					panic(err)
 				}
 				mci = filepath.Join(dir, "multi_cloud_image.yml")
-				err = ioutil.WriteFile(mci, []byte(`Name: Ubuntu_18.04_x64
+				if err := ioutil.WriteFile(mci, []byte(`Name: Ubuntu_18.04_x64
 Description: Ubuntu 18.04 x64 LTS Bionic Beaver
 Tags:
 - rs_agent:mime_shellscript=https://rightlink.rightscale.com/rll/10.6.0/rightlink.boot.sh
@@ -1003,11 +971,10 @@ Settings:
 - Cloud: EC2 us-east-1
   Instance Type: c5.large
   Image: ami-1234567890abcdefg
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+				if err := ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
   "multi_cloud_image": {
     "actions": [
       {
@@ -1034,8 +1001,7 @@ Settings:
   },
   "md5": "64767c6b5a0c1b446c0cc27eb40cb832"
 }
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
 			})
@@ -1074,12 +1040,11 @@ Settings:
 
 			BeforeEach(func() {
 				dir := filepath.Join(tempPath, "multi_cloud_images", "1", "2345678", "90")
-				err := os.MkdirAll(dir, 0700)
-				if err != nil {
+				if err := os.MkdirAll(dir, 0700); err != nil {
 					panic(err)
 				}
 				mci = filepath.Join(dir, "multi_cloud_image.yml")
-				err = ioutil.WriteFile(mci, []byte(`Name: Ubuntu_18.04_x64
+				if err := ioutil.WriteFile(mci, []byte(`Name: Ubuntu_18.04_x64
 Description: Ubuntu 18.04 x64 LTS Bionic Beaver
 Tags:
 - rs_agent:mime_shellscript=https://rightlink.rightscale.com/rll/10.6.0/rightlink.boot.sh
@@ -1088,11 +1053,10 @@ Settings:
 - Cloud: EC2 us-east-1
   Instance Type: c5.large
   Image: ami-abcdefg1234567890
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
-				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+				if err := ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
   "multi_cloud_image": {
     "actions": [
       {
@@ -1119,8 +1083,7 @@ Settings:
   },
   "md5": "64767c6b5a0c1b446c0cc27eb40cb832"
 }
-`), 0600)
-				if err != nil {
+`), 0600); err != nil {
 					panic(err)
 				}
 			})
@@ -1166,11 +1129,10 @@ Settings:
 	Describe("PutMultiCloudImage", func() {
 		BeforeEach(func() {
 			dir := filepath.Join(tempPath, "multi_cloud_images", "1", "2345678", "90")
-			err := os.MkdirAll(dir, 0700)
-			if err != nil {
+			if err := os.MkdirAll(dir, 0700); err != nil {
 				panic(err)
 			}
-			err = ioutil.WriteFile(filepath.Join(dir, "multi_cloud_image.yml"), []byte(`Name: Ubuntu_18.04_x64
+			if err := ioutil.WriteFile(filepath.Join(dir, "multi_cloud_image.yml"), []byte(`Name: Ubuntu_18.04_x64
 Description: Ubuntu 18.04 x64 LTS Bionic Beaver
 Tags:
 - rs_agent:mime_shellscript=https://rightlink.rightscale.com/rll/10.6.0/rightlink.boot.sh
@@ -1179,8 +1141,7 @@ Settings:
 - Cloud: EC2 us-east-1
   Instance Type: c5.large
   Image: ami-1234567890abcdefg
-`), 0600)
-			if err != nil {
+`), 0600); err != nil {
 				panic(err)
 			}
 		})
