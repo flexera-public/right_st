@@ -103,6 +103,8 @@ func (c *cache) GetServerTemplate(account int, id string, revision int) (*Cached
 		return nil, err
 	}
 	if !ok {
+		item.Close()
+
 		err := os.RemoveAll(filepath.Dir(file))
 		if err != nil {
 			return nil, err
@@ -189,6 +191,8 @@ func (c *cache) GetRightScript(account int, id string, revision int) (*CachedRig
 		}
 	}
 	if !ok {
+		item.Close()
+
 		err := os.RemoveAll(filepath.Dir(file))
 		if err != nil {
 			return nil, err
@@ -273,6 +277,8 @@ func (c *cache) GetMultiCloudImage(account int, id string, revision int) (*Cache
 		return nil, err
 	}
 	if !ok {
+		item.Close()
+
 		err := os.RemoveAll(filepath.Dir(file))
 		if err != nil {
 			return nil, err
