@@ -48,11 +48,245 @@ var _ = Describe("Cache", func() {
 		})
 
 		Context("with a cached ServerTemplate", func() {
-			// TODO
+			var st string
+
+			BeforeEach(func() {
+				dir := filepath.Join(tempPath, "server_templates", "1", "2345678", "90")
+				err := os.MkdirAll(dir, 0700)
+				if err != nil {
+					panic(err)
+				}
+				st = filepath.Join(dir, "server_template.yml")
+				err = ioutil.WriteFile(st, []byte(`
+Name: Really Cool ServerTemplate
+Description: A really cool ServerTemplate
+Inputs: {}
+RightScripts:
+  Boot:
+  - Name: Really Cool Script
+    Revision: 90
+  Operational:
+  - Name: Really Cool Script with Attachments
+    Revision: 90
+MultiCloudImages:
+- Name: Ubuntu_18.04_x64
+  Revision: 90
+`), 0600)
+				if err != nil {
+					panic(err)
+				}
+				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+  "server_template": {
+    "actions": [
+      {
+        "rel": "commit"
+      },
+      {
+        "rel": "clone"
+      },
+      {
+        "rel": "resolve"
+      },
+      {
+        "rel": "swap_repository"
+      },
+      {
+        "rel": "detect_changes_in_head"
+      }
+    ],
+    "description": "A really cool ServerTemplate",
+    "lineage": "https://us-3.rightscale.com/api/acct/1/ec2_server_templates/2345678",
+    "links": [
+      {
+        "href": "/api/server_templates/4567890",
+        "rel": "self"
+      },
+      {
+        "href": "/api/server_templates/4567890/multi_cloud_images",
+        "rel": "multi_cloud_images"
+      },
+      {
+        "href": "/api/multi_cloud_images/440639003",
+        "rel": "default_multi_cloud_image"
+      },
+      {
+        "href": "/api/server_templates/4567890/inputs",
+        "rel": "inputs"
+      },
+      {
+        "href": "/api/server_templates/4567890/alert_specs",
+        "rel": "alert_specs"
+      },
+      {
+        "href": "/api/server_templates/4567890/runnable_bindings",
+        "rel": "runnable_bindings"
+      },
+      {
+        "href": "/api/server_templates/4567890/cookbook_attachments",
+        "rel": "cookbook_attachments"
+      }
+    ],
+    "name": "Really Cool ServerTemplate",
+    "revision": 90
+  },
+  "md5": "c656cbfe58c22482a835f1d9ff5d7c47"
+}
+`), 0600)
+				if err != nil {
+					panic(err)
+				}
+			})
+
+			It("returns a cached ServerTemplate", func() {
+				cst, err := cache.GetServerTemplate(1, "2345678", 90)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cst).To(PointTo(Equal(CachedServerTemplate{
+					&cm15.ServerTemplate{
+						Actions: []map[string]string{
+							{"rel": "commit"},
+							{"rel": "clone"},
+							{"rel": "resolve"},
+							{"rel": "swap_repository"},
+							{"rel": "detect_changes_in_head"},
+						},
+						Description: "A really cool ServerTemplate",
+						Lineage:     "https://us-3.rightscale.com/api/acct/1/ec2_server_templates/2345678",
+						Links: []map[string]string{
+							{
+								"href": "/api/server_templates/4567890",
+								"rel":  "self",
+							},
+							{
+								"href": "/api/server_templates/4567890/multi_cloud_images",
+								"rel":  "multi_cloud_images",
+							},
+							{
+								"href": "/api/multi_cloud_images/440639003",
+								"rel":  "default_multi_cloud_image",
+							},
+							{
+								"href": "/api/server_templates/4567890/inputs",
+								"rel":  "inputs",
+							},
+							{
+								"href": "/api/server_templates/4567890/alert_specs",
+								"rel":  "alert_specs",
+							},
+							{
+								"href": "/api/server_templates/4567890/runnable_bindings",
+								"rel":  "runnable_bindings",
+							},
+							{
+								"href": "/api/server_templates/4567890/cookbook_attachments",
+								"rel":  "cookbook_attachments",
+							},
+						},
+						Name:     "Really Cool ServerTemplate",
+						Revision: 90,
+					},
+					st, "c656cbfe58c22482a835f1d9ff5d7c47",
+				})))
+			})
 		})
 
 		Context("with an invalid cached ServerTemplate", func() {
-			// TODO
+			var st string
+
+			BeforeEach(func() {
+				dir := filepath.Join(tempPath, "server_templates", "1", "2345678", "90")
+				err := os.MkdirAll(dir, 0700)
+				if err != nil {
+					panic(err)
+				}
+				st = filepath.Join(dir, "server_template.yml")
+				err = ioutil.WriteFile(st, []byte(`
+Name: Really Cool ServerTemplate
+Description: A really cool ServerTemplate
+Inputs: {}
+RightScripts:
+  Boot:
+  - Name: Really Cool Script
+    Revision: 90
+  Decommission:
+  - Name: Really Cool Script with Attachments
+    Revision: 90
+MultiCloudImages:
+- Name: Ubuntu_18.04_x64
+  Revision: 90
+`), 0600)
+				if err != nil {
+					panic(err)
+				}
+				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+  "server_template": {
+    "actions": [
+      {
+        "rel": "commit"
+      },
+      {
+        "rel": "clone"
+      },
+      {
+        "rel": "resolve"
+      },
+      {
+        "rel": "swap_repository"
+      },
+      {
+        "rel": "detect_changes_in_head"
+      }
+    ],
+    "description": "A really cool ServerTemplate",
+    "lineage": "https://us-3.rightscale.com/api/acct/1/ec2_server_templates/2345678",
+    "links": [
+      {
+        "href": "/api/server_templates/4567890",
+        "rel": "self"
+      },
+      {
+        "href": "/api/server_templates/4567890/multi_cloud_images",
+        "rel": "multi_cloud_images"
+      },
+      {
+        "href": "/api/multi_cloud_images/440639003",
+        "rel": "default_multi_cloud_image"
+      },
+      {
+        "href": "/api/server_templates/4567890/inputs",
+        "rel": "inputs"
+      },
+      {
+        "href": "/api/server_templates/4567890/alert_specs",
+        "rel": "alert_specs"
+      },
+      {
+        "href": "/api/server_templates/4567890/runnable_bindings",
+        "rel": "runnable_bindings"
+      },
+      {
+        "href": "/api/server_templates/4567890/cookbook_attachments",
+        "rel": "cookbook_attachments"
+      }
+    ],
+    "name": "Really Cool ServerTemplate",
+    "revision": 90
+  },
+  "md5": "c656cbfe58c22482a835f1d9ff5d7c47"
+}
+`), 0600)
+				if err != nil {
+					panic(err)
+				}
+			})
+
+			It("returns nil without an error and removes the cached ServerTemplate directory", func() {
+				cst, err := cache.GetServerTemplate(1, "2345678", 90)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cst).To(BeNil())
+
+				Expect(st).NotTo(BeAnExistingFile())
+				Expect(filepath.Dir(st)).NotTo(BeAnExistingFile())
+			})
 		})
 	})
 
@@ -85,11 +319,12 @@ var _ = Describe("Cache", func() {
 
 	Describe("PutServerTemplate", func() {
 		BeforeEach(func() {
-			st, err := cache.GetServerTemplateFile(1, "2345678", 90)
+			dir := filepath.Join(tempPath, "server_templates", "1", "2345678", "90")
+			err := os.MkdirAll(dir, 0700)
 			if err != nil {
 				panic(err)
 			}
-			ioutil.WriteFile(st, []byte(`
+			err = ioutil.WriteFile(filepath.Join(dir, "server_template.yml"), []byte(`
 Name: Really Cool ServerTemplate
 Description: A really cool ServerTemplate
 Inputs: {}
@@ -104,6 +339,9 @@ MultiCloudImages:
 - Name: Ubuntu_18.04_x64
   Revision: 90
 `), 0600)
+			if err != nil {
+				panic(err)
+			}
 		})
 
 		It("writes an item JSON file", func() {
@@ -225,19 +463,323 @@ MultiCloudImages:
 		})
 
 		Context("with a cached RightScript", func() {
-			// TODO
+			var rs string
+
+			BeforeEach(func() {
+				dir := filepath.Join(tempPath, "right_scripts", "1", "2345678", "90")
+				err := os.MkdirAll(dir, 0700)
+				if err != nil {
+					panic(err)
+				}
+				rs = filepath.Join(dir, "right_script")
+				err = ioutil.WriteFile(rs, []byte(`#!/bin/bash
+# ---
+# RightScript Name: Really Cool Script
+# Description: A really cool script
+# Inputs: {}
+# Attachments: []
+# ...
+
+echo 'Really cool script!'
+`), 0600)
+				if err != nil {
+					panic(err)
+				}
+				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+  "right_script": {
+    "created_at": "2019/02/03 01:47:25 +0000",
+    "description": "A really cool script",
+    "id": "4567890",
+    "lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
+    "links": [
+      {
+        "href": "/api/right_scripts/4567890",
+        "rel": "self"
+      },
+      {
+        "href": "/api/right_scripts/4567890/source",
+        "rel": "source"
+      }
+    ],
+    "name": "Really Cool Script",
+    "revision": 90,
+    "updated_at": "2019/02/03 01:47:25 +0000"
+  },
+  "md5": "130cd1afe75c80631f89c69bfb3052ab"
+}
+`), 0600)
+				if err != nil {
+					panic(err)
+				}
+			})
+
+			It("returns a cached RightScript", func() {
+				crs, err := cache.GetRightScript(1, "2345678", 90)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(crs).To(PointTo(Equal(CachedRightScript{
+					&cm15.RightScript{
+						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.CreatedAt.Location())},
+						Description: "A really cool script",
+						Id:          "4567890",
+						Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
+						Links: []map[string]string{
+							{
+								"href": "/api/right_scripts/4567890",
+								"rel":  "self",
+							},
+							{
+								"href": "/api/right_scripts/4567890/source",
+								"rel":  "source",
+							},
+						},
+						Name:      "Really Cool Script",
+						Revision:  90,
+						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.UpdatedAt.Location())},
+					},
+					rs, "130cd1afe75c80631f89c69bfb3052ab", nil,
+				})))
+			})
 		})
 
 		Context("with a cached RightScript with attachments", func() {
-			// TODO
+			var rs string
+
+			BeforeEach(func() {
+				dir := filepath.Join(tempPath, "right_scripts", "1", "2345678", "90")
+				err := os.MkdirAll(dir, 0700)
+				if err != nil {
+					panic(err)
+				}
+				rs = filepath.Join(dir, "right_script")
+				err = ioutil.WriteFile(rs, []byte(`#!/bin/bash
+# ---
+# RightScript Name: Really Cool Script with Attachments
+# Description: A really cool script with attachments
+# Inputs: {}
+# Attachments:
+# - a.txt
+# - b.txt
+
+cat "$RS_ATTACH_DIR"/*.txt
+`), 0600)
+				if err != nil {
+					panic(err)
+				}
+				attachments := filepath.Join(dir, "attachments")
+				err = os.Mkdir(attachments, 0700)
+				if err != nil {
+					panic(err)
+				}
+				err = ioutil.WriteFile(filepath.Join(attachments, "a.txt"), []byte("A really cool text file!\n"), 0600)
+				if err != nil {
+					panic(err)
+				}
+				err = ioutil.WriteFile(filepath.Join(attachments, "b.txt"), []byte("Another really cool text file!\n"), 0600)
+				if err != nil {
+					panic(err)
+				}
+				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+  "right_script": {
+    "created_at": "2019/02/03 01:47:25 +0000",
+    "description": "A really cool script with attachments",
+    "id": "4567890",
+    "lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
+    "links": [
+      {
+        "href": "/api/right_scripts/4567890",
+        "rel": "self"
+      },
+      {
+        "href": "/api/right_scripts/4567890/source",
+        "rel": "source"
+      }
+    ],
+    "name": "Really Cool Script with Attachments",
+    "revision": 90,
+    "updated_at": "2019/02/03 01:47:25 +0000"
+  },
+  "md5": "9dabfc14b729875fa9dd499bc9c79f95",
+  "attachments": {
+    "a.txt": "5e9a07cc7a7353a067f0060f5eb968ed",
+    "b.txt": "f67753368d236a5819ec172b2a18d841"
+  }
+}
+`), 0600)
+				if err != nil {
+					panic(err)
+				}
+			})
+
+			It("returns a cached RightScript", func() {
+				crs, err := cache.GetRightScript(1, "2345678", 90)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(crs).To(PointTo(Equal(CachedRightScript{
+					&cm15.RightScript{
+						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.CreatedAt.Location())},
+						Description: "A really cool script with attachments",
+						Id:          "4567890",
+						Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
+						Links: []map[string]string{
+							{
+								"href": "/api/right_scripts/4567890",
+								"rel":  "self",
+							},
+							{
+								"href": "/api/right_scripts/4567890/source",
+								"rel":  "source",
+							},
+						},
+						Name:      "Really Cool Script with Attachments",
+						Revision:  90,
+						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.UpdatedAt.Location())},
+					},
+					rs, "9dabfc14b729875fa9dd499bc9c79f95",
+					map[string]string{
+						"a.txt": "5e9a07cc7a7353a067f0060f5eb968ed",
+						"b.txt": "f67753368d236a5819ec172b2a18d841",
+					},
+				})))
+			})
 		})
 
 		Context("with an invalid cached RightScript", func() {
-			// TODO
+			var rs string
+
+			BeforeEach(func() {
+				dir := filepath.Join(tempPath, "right_scripts", "1", "2345678", "90")
+				err := os.MkdirAll(dir, 0700)
+				if err != nil {
+					panic(err)
+				}
+				rs = filepath.Join(dir, "right_script")
+				err = ioutil.WriteFile(rs, []byte(`#!/bin/bash
+# ---
+# RightScript Name: Really Bad Script
+# Description: A really bad script
+# Inputs: {}
+# Attachments: []
+# ...
+
+echo 'Really bad script!'
+`), 0600)
+				if err != nil {
+					panic(err)
+				}
+				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+  "right_script": {
+    "created_at": "2019/02/03 01:47:25 +0000",
+    "description": "A really cool script",
+    "id": "4567890",
+    "lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
+    "links": [
+      {
+        "href": "/api/right_scripts/4567890",
+        "rel": "self"
+      },
+      {
+        "href": "/api/right_scripts/4567890/source",
+        "rel": "source"
+      }
+    ],
+    "name": "Really Cool Script",
+    "revision": 90,
+    "updated_at": "2019/02/03 01:47:25 +0000"
+  },
+  "md5": "130cd1afe75c80631f89c69bfb3052ab"
+}
+`), 0600)
+				if err != nil {
+					panic(err)
+				}
+			})
+
+			It("returns nil without an error and removes the cached RightScript directory", func() {
+				crs, err := cache.GetRightScript(1, "2345678", 90)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(crs).To(BeNil())
+
+				Expect(rs).NotTo(BeAnExistingFile())
+				Expect(filepath.Dir(rs)).NotTo(BeAnExistingFile())
+			})
 		})
 
 		Context("with a cached RightScript with invalid attachments", func() {
-			// TODO
+			var rs string
+
+			BeforeEach(func() {
+				dir := filepath.Join(tempPath, "right_scripts", "1", "2345678", "90")
+				err := os.MkdirAll(dir, 0700)
+				if err != nil {
+					panic(err)
+				}
+				rs = filepath.Join(dir, "right_script")
+				err = ioutil.WriteFile(rs, []byte(`#!/bin/bash
+# ---
+# RightScript Name: Really Cool Script with Attachments
+# Description: A really cool script with attachments
+# Inputs: {}
+# Attachments:
+# - a.txt
+# - b.txt
+
+cat "$RS_ATTACH_DIR"/*.txt
+`), 0600)
+				if err != nil {
+					panic(err)
+				}
+				attachments := filepath.Join(dir, "attachments")
+				err = os.Mkdir(attachments, 0700)
+				if err != nil {
+					panic(err)
+				}
+				err = ioutil.WriteFile(filepath.Join(attachments, "a.txt"), []byte("A really cool text file!\n"), 0600)
+				if err != nil {
+					panic(err)
+				}
+				err = ioutil.WriteFile(filepath.Join(attachments, "b.txt"), []byte("A really bad text file!\n"), 0600)
+				if err != nil {
+					panic(err)
+				}
+				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+  "right_script": {
+    "created_at": "2019/02/03 01:47:25 +0000",
+    "description": "A really cool script with attachments",
+    "id": "4567890",
+    "lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
+    "links": [
+      {
+        "href": "/api/right_scripts/4567890",
+        "rel": "self"
+      },
+      {
+        "href": "/api/right_scripts/4567890/source",
+        "rel": "source"
+      }
+    ],
+    "name": "Really Cool Script with Attachments",
+    "revision": 90,
+    "updated_at": "2019/02/03 01:47:25 +0000"
+  },
+  "md5": "9dabfc14b729875fa9dd499bc9c79f95",
+  "attachments": {
+    "a.txt": "5e9a07cc7a7353a067f0060f5eb968ed",
+    "b.txt": "f67753368d236a5819ec172b2a18d841"
+  }
+}
+`), 0600)
+				if err != nil {
+					panic(err)
+				}
+			})
+
+			It("returns nil without an error and removes the cached RightScript directory", func() {
+				crs, err := cache.GetRightScript(1, "2345678", 90)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(crs).To(BeNil())
+
+				Expect(rs).NotTo(BeAnExistingFile())
+				Expect(filepath.Dir(rs)).NotTo(BeAnExistingFile())
+			})
 		})
 	})
 
@@ -271,11 +813,12 @@ MultiCloudImages:
 	Describe("PutRightScript", func() {
 		Context("without attachments", func() {
 			BeforeEach(func() {
-				rs, err := cache.GetRightScriptFile(1, "2345678", 90)
+				dir := filepath.Join(tempPath, "right_scripts", "1", "2345678", "90")
+				err := os.MkdirAll(dir, 0700)
 				if err != nil {
 					panic(err)
 				}
-				ioutil.WriteFile(rs, []byte(`#!/bin/bash
+				err = ioutil.WriteFile(filepath.Join(dir, "right_script"), []byte(`#!/bin/bash
 # ---
 # RightScript Name: Really Cool Script
 # Description: A really cool script
@@ -285,6 +828,9 @@ MultiCloudImages:
 
 echo 'Really cool script!'
 `), 0600)
+				if err != nil {
+					panic(err)
+				}
 			})
 
 			It("writes an item JSON file", func() {
@@ -314,7 +860,7 @@ echo 'Really cool script!'
 				Expect(item).To(BeARegularFile())
 				Expect(ioutil.ReadFile(item)).To(MatchJSON(`{
   "right_script": {
-    "created_at": "2019-02-03T01:47:25Z",
+    "created_at": "2019/02/03 01:47:25 +0000",
     "description": "A really cool script",
     "id": "4567890",
     "lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
@@ -330,7 +876,7 @@ echo 'Really cool script!'
     ],
     "name": "Really Cool Script",
     "revision": 90,
-    "updated_at": "2019-02-03T01:47:25Z"
+    "updated_at": "2019/02/03 01:47:25 +0000"
   },
   "md5": "130cd1afe75c80631f89c69bfb3052ab"
 }`))
@@ -339,11 +885,12 @@ echo 'Really cool script!'
 
 		Context("with attachments", func() {
 			BeforeEach(func() {
-				rs, err := cache.GetRightScriptFile(1, "2345678", 90)
+				dir := filepath.Join(tempPath, "right_scripts", "1", "2345678", "90")
+				err := os.MkdirAll(dir, 0700)
 				if err != nil {
 					panic(err)
 				}
-				ioutil.WriteFile(rs, []byte(`#!/bin/bash
+				err = ioutil.WriteFile(filepath.Join(dir, "right_script"), []byte(`#!/bin/bash
 # ---
 # RightScript Name: Really Cool Script with Attachments
 # Description: A really cool script with attachments
@@ -354,13 +901,22 @@ echo 'Really cool script!'
 
 cat "$RS_ATTACH_DIR"/*.txt
 `), 0600)
-				attachments := filepath.Join(filepath.Dir(rs), "attachments")
+				if err != nil {
+					panic(err)
+				}
+				attachments := filepath.Join(dir, "attachments")
 				err = os.Mkdir(attachments, 0700)
 				if err != nil {
 					panic(err)
 				}
-				ioutil.WriteFile(filepath.Join(attachments, "a.txt"), []byte("A really cool text file!\n"), 0600)
-				ioutil.WriteFile(filepath.Join(attachments, "b.txt"), []byte("Another really cool text file!\n"), 0600)
+				err = ioutil.WriteFile(filepath.Join(attachments, "a.txt"), []byte("A really cool text file!\n"), 0600)
+				if err != nil {
+					panic(err)
+				}
+				err = ioutil.WriteFile(filepath.Join(attachments, "b.txt"), []byte("Another really cool text file!\n"), 0600)
+				if err != nil {
+					panic(err)
+				}
 			})
 
 			It("writes an item JSON file", func() {
@@ -390,7 +946,7 @@ cat "$RS_ATTACH_DIR"/*.txt
 				Expect(item).To(BeARegularFile())
 				Expect(ioutil.ReadFile(item)).To(MatchJSON(`{
   "right_script": {
-    "created_at": "2019-02-03T01:47:25Z",
+    "created_at": "2019/02/03 01:47:25 +0000",
     "description": "A really cool script with attachments",
     "id": "4567890",
     "lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
@@ -406,7 +962,7 @@ cat "$RS_ATTACH_DIR"/*.txt
     ],
     "name": "Really Cool Script with Attachments",
     "revision": 90,
-    "updated_at": "2019-02-03T01:47:25Z"
+    "updated_at": "2019/02/03 01:47:25 +0000"
   },
   "md5": "9dabfc14b729875fa9dd499bc9c79f95",
   "attachments": {
@@ -432,12 +988,13 @@ cat "$RS_ATTACH_DIR"/*.txt
 			var mci string
 
 			BeforeEach(func() {
-				var err error
-				mci, err = cache.GetMultiCloudImageFile(1, "2345678", 90)
+				dir := filepath.Join(tempPath, "multi_cloud_images", "1", "2345678", "90")
+				err := os.MkdirAll(dir, 0700)
 				if err != nil {
 					panic(err)
 				}
-				ioutil.WriteFile(mci, []byte(`Name: Ubuntu_18.04_x64
+				mci = filepath.Join(dir, "multi_cloud_image.yml")
+				err = ioutil.WriteFile(mci, []byte(`Name: Ubuntu_18.04_x64
 Description: Ubuntu 18.04 x64 LTS Bionic Beaver
 Tags:
 - rs_agent:mime_shellscript=https://rightlink.rightscale.com/rll/10.6.0/rightlink.boot.sh
@@ -447,7 +1004,10 @@ Settings:
   Instance Type: c5.large
   Image: ami-1234567890abcdefg
 `), 0600)
-				ioutil.WriteFile(filepath.Join(tempPath, "multi_cloud_images", "1", "2345678", "90", "item.json"), []byte(`{
+				if err != nil {
+					panic(err)
+				}
+				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
   "multi_cloud_image": {
     "actions": [
       {
@@ -475,6 +1035,9 @@ Settings:
   "md5": "64767c6b5a0c1b446c0cc27eb40cb832"
 }
 `), 0600)
+				if err != nil {
+					panic(err)
+				}
 			})
 
 			It("returns a cached MultiCloudImage", func() {
@@ -507,7 +1070,69 @@ Settings:
 		})
 
 		Context("with an invalid cached MultiCloudImage", func() {
-			// TODO
+			var mci string
+
+			BeforeEach(func() {
+				dir := filepath.Join(tempPath, "multi_cloud_images", "1", "2345678", "90")
+				err := os.MkdirAll(dir, 0700)
+				if err != nil {
+					panic(err)
+				}
+				mci = filepath.Join(dir, "multi_cloud_image.yml")
+				err = ioutil.WriteFile(mci, []byte(`Name: Ubuntu_18.04_x64
+Description: Ubuntu 18.04 x64 LTS Bionic Beaver
+Tags:
+- rs_agent:mime_shellscript=https://rightlink.rightscale.com/rll/10.6.0/rightlink.boot.sh
+- rs_agent:type=right_link_lite
+Settings:
+- Cloud: EC2 us-east-1
+  Instance Type: c5.large
+  Image: ami-abcdefg1234567890
+`), 0600)
+				if err != nil {
+					panic(err)
+				}
+				err = ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+  "multi_cloud_image": {
+    "actions": [
+      {
+        "rel": "clone"
+      }
+    ],
+    "description": "Ubuntu_18.04_x64",
+    "links": [
+      {
+        "href": "/api/multi_cloud_images/2345678",
+        "rel": "self"
+      },
+      {
+        "href": "/api/multi_cloud_images/2345678/settings",
+        "rel": "settings"
+      },
+      {
+        "href": "/api/multi_cloud_images/2345678/matchers",
+        "rel": "matchers"
+      }
+    ],
+    "name": "Ubuntu 18.04 x64 LTS Bionic Beaver",
+    "revision": 90
+  },
+  "md5": "64767c6b5a0c1b446c0cc27eb40cb832"
+}
+`), 0600)
+				if err != nil {
+					panic(err)
+				}
+			})
+
+			It("returns nil without an error and removes the cached MultiCloudImage directory", func() {
+				cmci, err := cache.GetMultiCloudImage(1, "2345678", 90)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cmci).To(BeNil())
+
+				Expect(mci).NotTo(BeAnExistingFile())
+				Expect(filepath.Dir(mci)).NotTo(BeAnExistingFile())
+			})
 		})
 	})
 
@@ -540,11 +1165,12 @@ Settings:
 
 	Describe("PutMultiCloudImage", func() {
 		BeforeEach(func() {
-			mci, err := cache.GetMultiCloudImageFile(1, "2345678", 90)
+			dir := filepath.Join(tempPath, "multi_cloud_images", "1", "2345678", "90")
+			err := os.MkdirAll(dir, 0700)
 			if err != nil {
 				panic(err)
 			}
-			ioutil.WriteFile(mci, []byte(`Name: Ubuntu_18.04_x64
+			err = ioutil.WriteFile(filepath.Join(dir, "multi_cloud_image.yml"), []byte(`Name: Ubuntu_18.04_x64
 Description: Ubuntu 18.04 x64 LTS Bionic Beaver
 Tags:
 - rs_agent:mime_shellscript=https://rightlink.rightscale.com/rll/10.6.0/rightlink.boot.sh
@@ -554,6 +1180,9 @@ Settings:
   Instance Type: c5.large
   Image: ami-1234567890abcdefg
 `), 0600)
+			if err != nil {
+				panic(err)
+			}
 		})
 
 		It("writes an item JSON file", func() {
