@@ -363,36 +363,97 @@ func rightScriptDiff(href, revisionA, revisionB string, linkOnly bool, cache Cac
 	if linkOnly {
 		fmt.Println(getRightScriptDiffLink(rsA, rsB))
 	} else {
-		if _, err := diffRightScript(os.Stdout, rsA, rsB, cache); err != nil {
+		differ, err := diffRightScript(os.Stdout, rsA, rsB, cache)
+		if err != nil {
 			fatalError("Error performing diff: %v", err)
+		}
+		if differ {
+			os.Exit(1)
 		}
 	}
 }
 
 // diffRightScript returns whether two ServerTemplate revisions differ and writes the differences to w
 func diffRightScript(w io.Writer, rsA, rsB *cm15.RightScript, cache Cache) (bool, error) {
-	scriptA, attachmentsA, tempA, err := getRightScriptFiles(rsA, cache)
+	scriptA, attachmentsA, dirA, err := getRightScriptFiles(rsA, cache)
 	if err != nil {
 		return false, err
 	}
-	if tempA != "" {
-		defer os.RemoveAll(tempA)
+	defer scriptA.Close()
+	if rsA.Revision == 0 {
+		defer os.RemoveAll(dirA)
 	}
-	scriptB, attachmentsB, tempB, err := getRightScriptFiles(rsB, cache)
+	scriptB, attachmentsB, dirB, err := getRightScriptFiles(rsB, cache)
 	if err != nil {
 		return false, err
 	}
-	if tempB != "" {
-		defer os.RemoveAll(tempB)
+	defer scriptB.Close()
+	if rsB.Revision == 0 {
+		defer os.RemoveAll(dirB)
 	}
 
-	fmt.Println(scriptA, scriptB)
-	fmt.Println(attachmentsA, attachmentsB)
-	fmt.Println(tempA, tempB)
+	nameRevA := getRightScriptNameRev(rsA)
+	nameRevB := getRightScriptNameRev(rsB)
+	differ, output, err := Diff(nameRevA, nameRevB, rsA.UpdatedAt.Time, rsB.UpdatedAt.Time, scriptA, scriptB)
+	if err != nil {
+		return false, err
+	}
 
-	// TODO implement
+	// line up the attachments lists by inserting /dev/null entries for missing attachments
+	for i := 0; i < len(attachmentsA) || i < len(attachmentsB); i++ {
+		switch {
+		case i >= len(attachmentsA):
+			attachmentsA = append(attachmentsA, os.DevNull)
+		case i >= len(attachmentsB):
+			attachmentsB = append(attachmentsB, os.DevNull)
+		case attachmentsA[i] < attachmentsB[i]:
+			attachmentsB = append(attachmentsB[:i], append([]string{os.DevNull}, attachmentsB[i:]...)...)
+		case attachmentsA[i] > attachmentsB[i]:
+			attachmentsA = append(attachmentsA[:i], append([]string{os.DevNull}, attachmentsA[i:]...)...)
+		}
+	}
 
-	return false, nil
+	outputs := make([]string, 0, len(attachmentsA))
+	for i := 0; i < len(attachmentsA); i++ {
+		attachmentA := attachmentsA[i]
+		if attachmentA != os.DevNull {
+			attachmentA = filepath.Join(dirA, "attachments", attachmentA)
+		}
+		readerA, err := os.Open(attachmentA)
+		if err != nil {
+			return false, err
+		}
+		defer readerA.Close()
+		attachmentB := attachmentsB[i]
+		if attachmentB != os.DevNull {
+			attachmentB = filepath.Join(dirB, "attachments", attachmentB)
+		}
+		readerB, err := os.Open(attachmentB)
+		if err != nil {
+			return false, err
+		}
+
+		d, o, err := Diff(attachmentsA[i], attachmentsB[i], rsA.UpdatedAt.Time, rsB.UpdatedAt.Time, readerA, readerB)
+		if err != nil {
+			return false, err
+		}
+		if d {
+			outputs = append(outputs, o)
+			if !differ {
+				differ = true
+			}
+		}
+	}
+
+	if differ {
+		fmt.Fprintf(w, "%v and %v differ\n\n%v\n\n", nameRevA, nameRevB, getRightScriptDiffLink(rsA, rsB))
+		fmt.Fprint(w, output)
+		for _, o := range outputs {
+			fmt.Fprint(w, o)
+		}
+	}
+
+	return differ, nil
 }
 
 // getRightScriptDiffLink returns the RightScale Dashboard URL for a diff between two RightScript revisions
@@ -400,15 +461,15 @@ func getRightScriptDiffLink(rsA, rsB *cm15.RightScript) string {
 	return fmt.Sprintf("https://%v/acct/%v/right_scripts/diff?old_script_id=%v&new_script_id=%v", Config.Account.Host, Config.Account.Id, rsA.Id, rsB.Id)
 }
 
-// getRightScriptFiles retreives the local paths of a cached RightScript and its attachments; if it is a HEAD revision
-// RightScript, the temporary directory where it is cached will also be returned
-func getRightScriptFiles(rs *cm15.RightScript, cache Cache) (script string, attachments []string, temp string, err error) {
+// getRightScriptFiles retreives the local paths of a cached RightScript, its attachments, and the directory
+func getRightScriptFiles(rs *cm15.RightScript, cache Cache) (reader io.ReadCloser, attachments []string, dir string, err error) {
+	var script string
 	if rs.Revision == 0 {
-		temp, err = ioutil.TempDir("", "right_st.cache.")
+		dir, err = ioutil.TempDir("", "right_st.cache.")
 		if err != nil {
 			return
 		}
-		script = filepath.Join(temp, "right_script")
+		script = filepath.Join(dir, "right_script")
 	} else {
 		var crs *CachedRightScript
 		crs, err = cache.GetRightScript(Config.Account.Id, rs.Id, rs.Revision)
@@ -447,7 +508,11 @@ func getRightScriptFiles(rs *cm15.RightScript, cache Cache) (script string, atta
 	}
 
 finish:
+	if dir == "" {
+		dir = filepath.Dir(script)
+	}
 	sort.Strings(attachments)
+	reader, err = os.Open(script)
 	return
 }
 
@@ -505,6 +570,14 @@ func getRightScriptRevision(href, revision string) (*cm15.RightScript, error) {
 func getRightScriptHREF(rs *cm15.RightScript) string {
 	client, _ := Config.Account.Client15()
 	return string(rs.Locator(client).Href)
+}
+
+// getRightScriptNameRev returns the name and revison of the RightScript object
+func getRightScriptNameRev(rs *cm15.RightScript) string {
+	if rs.Revision == 0 {
+		return rs.Name + " [HEAD]"
+	}
+	return fmt.Sprintf("%v [rev %v]", rs.Name, rs.Revision)
 }
 
 func rightScriptDelete(files []string, prefix string) {

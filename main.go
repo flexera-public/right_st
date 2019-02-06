@@ -443,7 +443,7 @@ func fatalError(format string, v ...interface{}) {
 	msg := fmt.Sprintf("ERROR: "+format, v...)
 	fmt.Fprintf(os.Stderr, "%s\n", msg)
 
-	os.Exit(1)
+	os.Exit(2)
 }
 
 func fmd5sum(path string) (string, error) {
