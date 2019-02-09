@@ -55,8 +55,7 @@ func Diff(nameA, nameB string, timeA, timeB time.Time, rA, rB io.Reader) (bool, 
 			return false, "", err
 		}
 
-		// work around difflib including an extra " \n" at the end of unified diffs
-		return d != "", strings.TrimSuffix(d, " \n"), nil
+		return d != "", d, nil
 	}
 
 	// check if binary files differ

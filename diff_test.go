@@ -109,6 +109,7 @@ z
 +24
 +25
  z
+ 
 `),
 		Entry("differing binary", []byte{0x1f, 0x8b, 0x08}, []byte{0x50, 0x4B, 0x03, 0x04}, true, "Binary files a and b differ\n"),
 		Entry("binary then text", []byte{0}, []byte("a"), true, "Binary files a and b differ\n"),
@@ -140,6 +141,7 @@ d
 +2
 +3
  d
+ 
 `))
 	})
 })
