@@ -127,7 +127,8 @@ MultiCloudImages:
     "name": "Really Cool ServerTemplate",
     "revision": 90
   },
-  "md5": "c656cbfe58c22482a835f1d9ff5d7c47"
+  "md5": "c656cbfe58c22482a835f1d9ff5d7c47",
+  "version": 1
 }
 `), 0600); err != nil {
 					panic(err)
@@ -181,8 +182,106 @@ MultiCloudImages:
 						Name:     "Really Cool ServerTemplate",
 						Revision: 90,
 					},
-					st, "c656cbfe58c22482a835f1d9ff5d7c47",
+					st, "c656cbfe58c22482a835f1d9ff5d7c47", CacheVersion,
 				})))
+			})
+		})
+
+		Context("with a different version cached ServerTemplate", func() {
+			var st string
+
+			BeforeEach(func() {
+				dir := filepath.Join(tempPath, "server_templates", "1", "2345678", "90")
+				if err := os.MkdirAll(dir, 0700); err != nil {
+					panic(err)
+				}
+				st = filepath.Join(dir, "server_template.yml")
+				if err := ioutil.WriteFile(st, []byte(`
+Name: Really Cool ServerTemplate
+Description: A really cool ServerTemplate
+Inputs: {}
+RightScripts:
+  Boot:
+  - Name: Really Cool Script
+    Revision: 90
+  Operational:
+  - Name: Really Cool Script with Attachments
+    Revision: 90
+MultiCloudImages:
+- Name: Ubuntu_18.04_x64
+  Revision: 90
+`), 0600); err != nil {
+					panic(err)
+				}
+				if err := ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+  "server_template": {
+    "actions": [
+      {
+        "rel": "commit"
+      },
+      {
+        "rel": "clone"
+      },
+      {
+        "rel": "resolve"
+      },
+      {
+        "rel": "swap_repository"
+      },
+      {
+        "rel": "detect_changes_in_head"
+      }
+    ],
+    "description": "A really cool ServerTemplate",
+    "lineage": "https://us-3.rightscale.com/api/acct/1/ec2_server_templates/2345678",
+    "links": [
+      {
+        "href": "/api/server_templates/4567890",
+        "rel": "self"
+      },
+      {
+        "href": "/api/server_templates/4567890/multi_cloud_images",
+        "rel": "multi_cloud_images"
+      },
+      {
+        "href": "/api/multi_cloud_images/440639003",
+        "rel": "default_multi_cloud_image"
+      },
+      {
+        "href": "/api/server_templates/4567890/inputs",
+        "rel": "inputs"
+      },
+      {
+        "href": "/api/server_templates/4567890/alert_specs",
+        "rel": "alert_specs"
+      },
+      {
+        "href": "/api/server_templates/4567890/runnable_bindings",
+        "rel": "runnable_bindings"
+      },
+      {
+        "href": "/api/server_templates/4567890/cookbook_attachments",
+        "rel": "cookbook_attachments"
+      }
+    ],
+    "name": "Really Cool ServerTemplate",
+    "revision": 90
+  },
+  "md5": "c656cbfe58c22482a835f1d9ff5d7c47",
+  "version": 0
+}
+`), 0600); err != nil {
+					panic(err)
+				}
+			})
+
+			It("returns nil without an error and removes the cached ServerTemplate directory", func() {
+				cst, err := cache.GetServerTemplate(1, "2345678", 90)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cst).To(BeNil())
+
+				Expect(st).NotTo(BeAnExistingFile())
+				Expect(filepath.Dir(st)).NotTo(BeAnExistingFile())
 			})
 		})
 
@@ -439,7 +538,8 @@ MultiCloudImages:
     "name": "Really Cool ServerTemplate",
     "revision": 90
   },
-  "md5": "c656cbfe58c22482a835f1d9ff5d7c47"
+  "md5": "c656cbfe58c22482a835f1d9ff5d7c47",
+  "version": 1
 }
 `))
 		})
@@ -495,7 +595,8 @@ echo 'Really cool script!'
     "revision": 90,
     "updated_at": "2019/02/03 01:47:25 +0000"
   },
-  "md5": "130cd1afe75c80631f89c69bfb3052ab"
+  "md5": "130cd1afe75c80631f89c69bfb3052ab",
+  "version": 1
 }
 `), 0600); err != nil {
 					panic(err)
@@ -505,6 +606,7 @@ echo 'Really cool script!'
 			It("returns a cached RightScript", func() {
 				crs, err := cache.GetRightScript(1, "2345678", 90)
 				Expect(err).NotTo(HaveOccurred())
+				Expect(crs).NotTo(BeNil())
 				Expect(crs).To(PointTo(Equal(CachedRightScript{
 					&cm15.RightScript{
 						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.CreatedAt.Location())},
@@ -525,7 +627,7 @@ echo 'Really cool script!'
 						Revision:  90,
 						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.UpdatedAt.Location())},
 					},
-					rs, "130cd1afe75c80631f89c69bfb3052ab", nil,
+					rs, "130cd1afe75c80631f89c69bfb3052ab", nil, CacheVersion,
 				})))
 			})
 		})
@@ -587,7 +689,8 @@ cat "$RS_ATTACH_DIR"/*.txt
   "attachments": {
     "a.txt": "5e9a07cc7a7353a067f0060f5eb968ed",
     "b.txt": "f67753368d236a5819ec172b2a18d841"
-  }
+  },
+  "version": 1
 }
 `), 0600); err != nil {
 					panic(err)
@@ -597,6 +700,7 @@ cat "$RS_ATTACH_DIR"/*.txt
 			It("returns a cached RightScript", func() {
 				crs, err := cache.GetRightScript(1, "2345678", 90)
 				Expect(err).NotTo(HaveOccurred())
+				Expect(crs).NotTo(BeNil())
 				Expect(crs).To(PointTo(Equal(CachedRightScript{
 					&cm15.RightScript{
 						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.CreatedAt.Location())},
@@ -622,7 +726,67 @@ cat "$RS_ATTACH_DIR"/*.txt
 						"a.txt": "5e9a07cc7a7353a067f0060f5eb968ed",
 						"b.txt": "f67753368d236a5819ec172b2a18d841",
 					},
+					CacheVersion,
 				})))
+			})
+		})
+
+		Context("with a different version cached RightScript", func() {
+			var rs string
+
+			BeforeEach(func() {
+				dir := filepath.Join(tempPath, "right_scripts", "1", "2345678", "90")
+				if err := os.MkdirAll(dir, 0700); err != nil {
+					panic(err)
+				}
+				rs = filepath.Join(dir, "right_script")
+				if err := ioutil.WriteFile(rs, []byte(`#!/bin/bash
+# ---
+# RightScript Name: Really Cool Script
+# Description: A really cool script
+# Inputs: {}
+# Attachments: []
+# ...
+
+echo 'Really cool script!'
+`), 0600); err != nil {
+					panic(err)
+				}
+				if err := ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+  "right_script": {
+    "created_at": "2019/02/03 01:47:25 +0000",
+    "description": "A really cool script",
+    "id": "4567890",
+    "lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
+    "links": [
+      {
+        "href": "/api/right_scripts/4567890",
+        "rel": "self"
+      },
+      {
+        "href": "/api/right_scripts/4567890/source",
+        "rel": "source"
+      }
+    ],
+    "name": "Really Cool Script",
+    "revision": 90,
+    "updated_at": "2019/02/03 01:47:25 +0000"
+  },
+  "md5": "130cd1afe75c80631f89c69bfb3052ab",
+  "version": 0
+}
+`), 0600); err != nil {
+					panic(err)
+				}
+			})
+
+			It("returns nil without an error and removes the cached RightScript directory", func() {
+				crs, err := cache.GetRightScript(1, "2345678", 90)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(crs).To(BeNil())
+
+				Expect(rs).NotTo(BeAnExistingFile())
+				Expect(filepath.Dir(rs)).NotTo(BeAnExistingFile())
 			})
 		})
 
@@ -852,7 +1016,8 @@ echo 'Really cool script!'
     "revision": 90,
     "updated_at": "2019/02/03 01:47:25 +0000"
   },
-  "md5": "130cd1afe75c80631f89c69bfb3052ab"
+  "md5": "130cd1afe75c80631f89c69bfb3052ab",
+  "version": 1
 }`))
 			})
 		})
@@ -937,7 +1102,8 @@ cat "$RS_ATTACH_DIR"/*.txt
   "attachments": {
     "a.txt": "5e9a07cc7a7353a067f0060f5eb968ed",
     "b.txt": "f67753368d236a5819ec172b2a18d841"
-  }
+  },
+  "version": 1
 }
 `))
 			})
@@ -999,7 +1165,8 @@ Settings:
     "name": "Ubuntu 18.04 x64 LTS Bionic Beaver",
     "revision": 90
   },
-  "md5": "64767c6b5a0c1b446c0cc27eb40cb832"
+  "md5": "64767c6b5a0c1b446c0cc27eb40cb832",
+  "version": 1
 }
 `), 0600); err != nil {
 					panic(err)
@@ -1030,8 +1197,72 @@ Settings:
 						Name:     "Ubuntu 18.04 x64 LTS Bionic Beaver",
 						Revision: 90,
 					},
-					mci, "64767c6b5a0c1b446c0cc27eb40cb832",
+					mci, "64767c6b5a0c1b446c0cc27eb40cb832", CacheVersion,
 				})))
+			})
+		})
+
+		Context("with a different version cached MultiCloudImage", func() {
+			var mci string
+
+			BeforeEach(func() {
+				dir := filepath.Join(tempPath, "multi_cloud_images", "1", "2345678", "90")
+				if err := os.MkdirAll(dir, 0700); err != nil {
+					panic(err)
+				}
+				mci = filepath.Join(dir, "multi_cloud_image.yml")
+				if err := ioutil.WriteFile(mci, []byte(`Name: Ubuntu_18.04_x64
+Description: Ubuntu 18.04 x64 LTS Bionic Beaver
+Tags:
+- rs_agent:mime_shellscript=https://rightlink.rightscale.com/rll/10.6.0/rightlink.boot.sh
+- rs_agent:type=right_link_lite
+Settings:
+- Cloud: EC2 us-east-1
+  Instance Type: c5.large
+  Image: ami-1234567890abcdefg
+`), 0600); err != nil {
+					panic(err)
+				}
+				if err := ioutil.WriteFile(filepath.Join(dir, "item.json"), []byte(`{
+  "multi_cloud_image": {
+    "actions": [
+      {
+        "rel": "clone"
+      }
+    ],
+    "description": "Ubuntu_18.04_x64",
+    "links": [
+      {
+        "href": "/api/multi_cloud_images/2345678",
+        "rel": "self"
+      },
+      {
+        "href": "/api/multi_cloud_images/2345678/settings",
+        "rel": "settings"
+      },
+      {
+        "href": "/api/multi_cloud_images/2345678/matchers",
+        "rel": "matchers"
+      }
+    ],
+    "name": "Ubuntu 18.04 x64 LTS Bionic Beaver",
+    "revision": 90
+  },
+  "md5": "64767c6b5a0c1b446c0cc27eb40cb832",
+  "version": 0
+}
+`), 0600); err != nil {
+					panic(err)
+				}
+			})
+
+			It("returns nil without an error and removes the cached MultiCloudImage directory", func() {
+				cmci, err := cache.GetMultiCloudImage(1, "2345678", 90)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cmci).To(BeNil())
+
+				Expect(mci).NotTo(BeAnExistingFile())
+				Expect(filepath.Dir(mci)).NotTo(BeAnExistingFile())
 			})
 		})
 
@@ -1197,7 +1428,8 @@ Settings:
     "name": "Ubuntu 18.04 x64 LTS Bionic Beaver",
     "revision": 90
   },
-  "md5": "64767c6b5a0c1b446c0cc27eb40cb832"
+  "md5": "64767c6b5a0c1b446c0cc27eb40cb832",
+  "version": 1
 }
 `))
 		})

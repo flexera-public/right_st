@@ -38,24 +38,29 @@ type (
 	}
 
 	CachedServerTemplate struct {
-		*cm15.ServerTemplate `json:"server_template"` // TODO remove if not needed
-		File                 string                   `json:"-"`
-		MD5Sum               string                   `json:"md5"`
+		*cm15.ServerTemplate `json:"server_template"`
+		File                 string `json:"-"`
+		MD5Sum               string `json:"md5"`
+		Version              uint   `json:"version,omitempty"`
 	}
 
 	CachedRightScript struct {
-		*cm15.RightScript `json:"right_script"` // TODO remove if not needed
-		File              string                `json:"-"`
-		MD5Sum            string                `json:"md5"`
-		Attachments       map[string]string     `json:"attachments,omitempty"`
+		*cm15.RightScript `json:"right_script"`
+		File              string            `json:"-"`
+		MD5Sum            string            `json:"md5"`
+		Attachments       map[string]string `json:"attachments,omitempty"`
+		Version           uint              `json:"version,omitempty"`
 	}
 
 	CachedMultiCloudImage struct {
-		*cm15.MultiCloudImage `json:"multi_cloud_image"` // TODO remove if not needed
-		File                  string                     `json:"-"`
-		MD5Sum                string                     `json:"md5"`
+		*cm15.MultiCloudImage `json:"multi_cloud_image"`
+		File                  string `json:"-"`
+		MD5Sum                string `json:"md5"`
+		Version               uint   `json:"version,omitempty"`
 	}
 )
+
+const CacheVersion = 1
 
 func NewCache(path string) (Cache, error) {
 	c := &cache{
@@ -102,7 +107,7 @@ func (c *cache) GetServerTemplate(account int, id string, revision int) (*Cached
 	if err != nil {
 		return nil, err
 	}
-	if !ok {
+	if cst.Version != CacheVersion || !ok {
 		item.Close()
 
 		err := os.RemoveAll(filepath.Dir(file))
@@ -137,7 +142,7 @@ func (c *cache) PutServerTemplate(account int, id string, revision int, st *cm15
 		return err
 	}
 
-	cst := CachedServerTemplate{st, "", sum}
+	cst := CachedServerTemplate{st, "", sum, CacheVersion}
 
 	item, err := os.Create(filepath.Join(filepath.Dir(path), "item.json"))
 	if err != nil {
@@ -190,7 +195,7 @@ func (c *cache) GetRightScript(account int, id string, revision int) (*CachedRig
 			}
 		}
 	}
-	if !ok {
+	if crs.Version != CacheVersion || !ok {
 		item.Close()
 
 		err := os.RemoveAll(filepath.Dir(file))
@@ -235,7 +240,7 @@ func (c *cache) PutRightScript(account int, id string, revision int, rs *cm15.Ri
 		attachmentMD5s[attachment] = sum
 	}
 
-	crs := CachedRightScript{rs, "", sum, attachmentMD5s}
+	crs := CachedRightScript{rs, "", sum, attachmentMD5s, CacheVersion}
 
 	item, err := os.Create(filepath.Join(filepath.Dir(path), "item.json"))
 	if err != nil {
@@ -276,7 +281,7 @@ func (c *cache) GetMultiCloudImage(account int, id string, revision int) (*Cache
 	if err != nil {
 		return nil, err
 	}
-	if !ok {
+	if cmci.Version != CacheVersion || !ok {
 		item.Close()
 
 		err := os.RemoveAll(filepath.Dir(file))
@@ -311,7 +316,7 @@ func (c *cache) PutMultiCloudImage(account int, id string, revision int, mci *cm
 		return err
 	}
 
-	cmci := CachedMultiCloudImage{mci, "", sum}
+	cmci := CachedMultiCloudImage{mci, "", sum, CacheVersion}
 
 	item, err := os.Create(filepath.Join(filepath.Dir(path), "item.json"))
 	if err != nil {
