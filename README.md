@@ -309,4 +309,4 @@ It also includes contributions from [Lopaka Delp (lopaka)](https://github.com/lo
 ## License
 
 The `right_st` source code is subject to the MIT license, see the
-[LICENSE](https://github.com/douglaswth/right_st/blob/master/LICENSE) file.
+[LICENSE](https://github.com/rightscale/right_st/blob/master/LICENSE) file.
