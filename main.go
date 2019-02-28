@@ -55,9 +55,11 @@ var (
 	stValidateCmd   = stCmd.Command("validate", "Validate a ServerTemplate YAML document")
 	stValidatePaths = stValidateCmd.Arg("path", "Path to script file(s)").Required().ExistingFiles()
 
-	stCommitCmd              = stCmd.Command("commit", "Commit ServerTemplate")
-	stCommitNameOrHrefOrPath = stCommitCmd.Arg("name|href|id|path", "ServerTemplate name, HREF, ID or file path").Required().Strings()
-	stCommitMessage          = stCommitCmd.Flag("message", "ServerTemplate commit message").Short('m').Required().String()
+	stCommitCmd                = stCmd.Command("commit", "Commit ServerTemplate")
+	stCommitNameOrHrefOrPath   = stCommitCmd.Arg("name|href|id|path", "ServerTemplate name, HREF, ID or file path").Required().Strings()
+	stCommitMessage            = stCommitCmd.Flag("message", "ServerTemplate commit message").Short('m').Required().String()
+	stNoCommitHeadDependencies = stCommitCmd.Flag("no-commit-head", "Do not commit HEAD revisions (if any) of the associated MultiCloud Images, RightScripts and Chef repo sequences.").Short('n').Bool()
+	stFreezeRepositories       = stCommitCmd.Flag("freeze-repos", "Freeze the repositories").Short('f').Bool()
 
 	// ----- RightScripts -----
 	rightScriptCmd = app.Command("rightscript", "RightScript")
@@ -185,7 +187,7 @@ func main() {
 			if err != nil {
 				fatalError("%s", err.Error())
 			}
-			stCommit(href, *stCommitMessage)
+			stCommit(href, *stCommitMessage, !*stNoCommitHeadDependencies, *stFreezeRepositories)
 		}
 	case rightScriptShowCmd.FullCommand():
 		href, err := paramToHref("right_scripts", *rightScriptShowNameOrHref, 0, true)

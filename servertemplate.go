@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/rightscale/rsc/cm15"
@@ -730,13 +731,14 @@ func getServerTemplateByName(name string) (*cm15.ServerTemplate, error) {
 	return foundSt, nil
 }
 
-func stCommit(href, message string) {
+func stCommit(href, message string, commitHead, freezeRepos bool) {
 	client, _ := Config.Account.Client15()
 	stLocator := client.ServerTemplateLocator(href)
 
 	fmt.Printf("Committing Server Template %s\n", href)
 
-	err := stLocator.Commit("true", message, "true")
+	// https://reference.rightscale.com/api1.5/resources/ResourceServerTemplates.html#commit
+	err := stLocator.Commit(strconv.FormatBool(commitHead), message, strconv.FormatBool(freezeRepos))
 	if err != nil {
 		fatalError("%s", err.Error())
 	}
