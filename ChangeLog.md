@@ -1,3 +1,7 @@
+v1.8.1 / 2019-03-01
+-------------------
+* Add optional flags to ServerTemplate commits
+
 v1.8.0 / 2019-02-02
 -------------------
 * Use Go 1.11.x modules instead of dep.
