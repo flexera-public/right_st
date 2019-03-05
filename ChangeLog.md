@@ -1,4 +1,4 @@
-v1.8.1 / 2019-03-01
+v1.8.1 / 2019-03-05
 -------------------
 * Add optional flags to ServerTemplate commits
 
