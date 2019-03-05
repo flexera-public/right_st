@@ -287,6 +287,10 @@ right_st st validate <path>...
 
 right_st st commit --message=MESSAGE <name|href|id|path>...
     Commit ServerTemplate
+    Flags:
+    -n, --no-commit-head:  Do not commit HEAD revisions (if any) of the associated MultiCloud 
+                           Images, RightScripts and Chef repo sequences.
+    -f, --freeze-repos:  Freeze the repositories
 ```
 
 ## Contributors
