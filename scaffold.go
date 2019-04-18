@@ -23,7 +23,7 @@ var (
 	powershellAttachment = regexp.MustCompile(`\$\{?(?i:ENV):RS_ATTACH_DIR\}?[/\\]+([^\t\n\f\r "]+)`)
 	shellVariable        = regexp.MustCompile(`\$\{?([A-Z][A-Z0-9_]*)(?::=([^}]*))?\}?`)
 	shellAttachment      = regexp.MustCompile(`\$\{?RS_ATTACH_DIR(?::=[^}]*)?\}?[/\\]+([^\t\n\f\r "]+)`)
-	ignoreVariables      = regexp.MustCompile(`^(?:ATTACH_DIR|SHELL|TERM|USER|PATH|MAIL|PWD|HOME|RS_.*|INSTANCE_ID|PRIVATE_ID|DATACENTER|EC2_.*)$`)
+	ignoreVariables      = regexp.MustCompile(`^(?:ATTACH_DIR|BASH_REMATCH|SHELL|TERM|USER|PATH|MAIL|PWD|HOME|RS_.*|INSTANCE_ID|PRIVATE_ID|DATACENTER|EC2_.*)$`)
 )
 
 const (

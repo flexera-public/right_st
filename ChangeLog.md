@@ -1,3 +1,8 @@
+v1.8.2 / 2019-04-18
+-------------------
+* Do not add trailing spaces on empty comment lines of RightScript Metadata when scaffolding
+* Ignore `BASH_REMATCH` when detecting inputs while scaffolding
+
 v1.8.1 / 2019-03-05
 -------------------
 * Add optional flags to ServerTemplate commits
