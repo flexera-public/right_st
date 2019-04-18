@@ -137,7 +137,12 @@ func (metadata *RightScriptMetadata) WriteTo(script io.Writer) (n int64, err err
 	scanner := bufio.NewScanner(bytes.NewBuffer(yml))
 
 	for scanner.Scan() {
-		c, err = fmt.Fprintf(script, "%s %s\n", metadata.Comment, scanner.Text())
+		t := scanner.Text()
+		if len(t) > 0 {
+			c, err = fmt.Fprintf(script, "%s %s\n", metadata.Comment, t)
+		} else {
+			c, err = fmt.Fprintf(script, "%s\n", metadata.Comment)
+		}
 		if n += int64(c); err != nil {
 			return
 		}
