@@ -2,6 +2,7 @@ v1.8.2 / 2019-04-18
 -------------------
 * Do not add trailing spaces on empty comment lines of RightScript Metadata when scaffolding
 * Ignore `BASH_REMATCH` when detecting inputs while scaffolding
+* Use Go 1.12.x on Travis CI
 
 v1.8.1 / 2019-03-05
 -------------------

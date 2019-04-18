@@ -163,7 +163,7 @@ lint:
 	@if gofmt -l *.go 2>&1 | grep .go; then \
 	  echo "^- Repo contains improperly formatted go files; run gofmt -w *.go" && exit 1; \
 	  else echo "All .go files formatted correctly"; fi
-	go tool vet -composites=false *.go
+	go vet -composites=false ./...
 
 test: lint
 	go test -cover -race
