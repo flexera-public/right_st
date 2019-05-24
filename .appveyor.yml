@@ -1,4 +1,5 @@
 clone_folder: C:\projects\go\src\github.com\rightscale\right_st
+image: Visual Studio 2017
 environment:
   CYGWIN: nodosfilewarning
   GOPATH: C:\projects\go
