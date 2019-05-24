@@ -30,6 +30,7 @@ import (
 	"strings"
 
 	"github.com/spf13/viper"
+	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
 )
 
@@ -75,6 +76,16 @@ func ReadConfig(configFile, account string) error {
 			Host:         Config.GetString("login.account.host"),
 			RefreshToken: Config.GetString("login.account.refresh_token"),
 		}
+	} else if Config.IsSet("login.account.id") &&
+		Config.IsSet("login.account.host") &&
+		Config.IsSet("login.account.username") &&
+		Config.IsSet("login.account.password") {
+		Config.Account = &Account{
+			Id:       Config.GetInt("login.account.id"),
+			Host:     Config.GetString("login.account.host"),
+			Username: Config.GetString("login.account.username"),
+			Password: Config.GetString("login.account.password"),
+		}
 	} else {
 		var ok bool
 		if account == "" {
@@ -117,7 +128,7 @@ func (config *ConfigViper) GetAccount(id int, host string) (*Account, error) {
 //       id: 60073
 //       host: us-4.rightscale.com
 //       refresh_token: zxy987zxy987zxy987zxy987xzy987zxy987xzy9
-func (config *ConfigViper) SetAccount(name string, setDefault bool, input io.Reader, output io.Writer) error {
+func (config *ConfigViper) SetAccount(name string, setDefault, setPassword bool, input io.Reader, output io.Writer) error {
 	// if the default account isn't set we should set it to the account we are setting
 	if !config.IsSet("login.default_account") {
 		setDefault = true
@@ -137,40 +148,88 @@ func (config *ConfigViper) SetAccount(name string, setDefault bool, input io.Rea
 	}
 
 	// get the previous value for the named account if it exists and construct a new account to populate
-	oldAccount, ok := config.Accounts[name]
+	oldAccount, hasOldAccount := config.Accounts[name]
 	newAccount := &Account{}
 
 	// prompt for the account ID and use the old value if nothing is entered
 	fmt.Fprint(output, "Account ID")
-	if ok {
+	if hasOldAccount {
 		fmt.Fprintf(output, " (%d)", oldAccount.Id)
 	}
 	fmt.Fprint(output, ": ")
 	fmt.Fscanln(input, &newAccount.Id)
-	if ok && newAccount.Id == 0 {
+	if hasOldAccount && newAccount.Id == 0 {
 		newAccount.Id = oldAccount.Id
 	}
 
 	// prompt for the API endpoint host and use the old value if nothing is entered
 	fmt.Fprint(output, "API endpoint host")
-	if ok {
+	if hasOldAccount {
 		fmt.Fprintf(output, " (%s)", oldAccount.Host)
 	}
 	fmt.Fprint(output, ": ")
 	fmt.Fscanln(input, &newAccount.Host)
-	if ok && newAccount.Host == "" {
+	if hasOldAccount && newAccount.Host == "" {
 		newAccount.Host = oldAccount.Host
 	}
 
-	// prompt for the refresh token and use the old value if nothing is entered
-	fmt.Fprint(output, "Refresh token")
-	if ok {
-		fmt.Fprintf(output, " (%s)", oldAccount.RefreshToken)
-	}
-	fmt.Fprint(output, ": ")
-	fmt.Fscanln(input, &newAccount.RefreshToken)
-	if ok && newAccount.RefreshToken == "" {
-		newAccount.RefreshToken = oldAccount.RefreshToken
+	if setPassword {
+		// prompt for the username and use the old value if nothing is entered
+		fmt.Fprintf(output, "Username")
+		if hasOldAccount {
+			fmt.Fprintf(output, " (%s)", oldAccount.Username)
+		}
+		fmt.Fprint(output, ": ")
+		fmt.Fscanln(input, &newAccount.Username)
+		if hasOldAccount && newAccount.Username == "" {
+			newAccount.Username = oldAccount.Username
+		}
+
+		// prompt for the password and use the old value if nothing is entered
+		fmt.Fprintf(output, "Password")
+		if hasOldAccount {
+			password := oldAccount.Password
+			if strings.HasPrefix(password, encryptedPrefix) {
+				var err error
+				password, err = Decrypt(strings.TrimPrefix(password, encryptedPrefix))
+				if err != nil {
+					return err
+				}
+			}
+			fmt.Fprintf(output, " (%s)", strings.Repeat("*", len(password)))
+		}
+		fmt.Fprint(output, ": ")
+		var password string
+		if f, ok := input.(*os.File); ok && terminal.IsTerminal(int(f.Fd())) {
+			b, err := terminal.ReadPassword(int(f.Fd()))
+			if err != nil {
+				return err
+			}
+			password = string(b)
+		} else {
+			fmt.Fscanln(input, &password)
+		}
+		if hasOldAccount && password == "" {
+			newAccount.Password = oldAccount.Password
+		} else {
+			var err error
+			password, err = Encrypt(password)
+			if err != nil {
+				return err
+			}
+			newAccount.Password = encryptedPrefix + password
+		}
+	} else {
+		// prompt for the refresh token and use the old value if nothing is entered
+		fmt.Fprint(output, "Refresh token")
+		if hasOldAccount {
+			fmt.Fprintf(output, " (%s)", oldAccount.RefreshToken)
+		}
+		fmt.Fprint(output, ": ")
+		fmt.Fscanln(input, &newAccount.RefreshToken)
+		if hasOldAccount && newAccount.RefreshToken == "" {
+			newAccount.RefreshToken = oldAccount.RefreshToken
+		}
 	}
 
 	// add the new account to the map of accounts overwriting any old value

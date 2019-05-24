@@ -117,17 +117,18 @@ var _ = Describe("Config", func() {
 				})
 
 				Describe("Set account", func() {
-					It("Creates a config file with the set account", func() {
-						Expect(ReadConfig(nonexistentConfigFile, "")).NotTo(Succeed())
-						input := new(bytes.Buffer)
-						fmt.Fprintln(input, 12345)
-						fmt.Fprintln(input, "us-3.rightscale.com")
-						fmt.Fprintln(input, "abcdef1234567890abcdef1234567890abcdef12")
-						Expect(Config.SetAccount("production", false, input, buffer)).To(Succeed())
-						Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: API endpoint host: Refresh token: "))
-						config, err := ioutil.ReadFile(nonexistentConfigFile)
-						Expect(err).NotTo(HaveOccurred())
-						Expect(string(config)).To(BeEquivalentTo(`login:
+					Context("With refresh token", func() {
+						It("Creates a config file with the set account", func() {
+							Expect(ReadConfig(nonexistentConfigFile, "")).NotTo(Succeed())
+							input := new(bytes.Buffer)
+							fmt.Fprintln(input, 12345)
+							fmt.Fprintln(input, "us-3.rightscale.com")
+							fmt.Fprintln(input, "abcdef1234567890abcdef1234567890abcdef12")
+							Expect(Config.SetAccount("production", false, false, input, buffer)).To(Succeed())
+							Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: API endpoint host: Refresh token: "))
+							config, err := ioutil.ReadFile(nonexistentConfigFile)
+							Expect(err).NotTo(HaveOccurred())
+							Expect(string(config)).To(BeEquivalentTo(`login:
   accounts:
     production:
       host: us-3.rightscale.com
@@ -137,6 +138,7 @@ var _ = Describe("Config", func() {
 update:
   check: true
 `))
+						})
 					})
 				})
 			})
@@ -341,18 +343,19 @@ login:
 			})
 
 			Describe("Set account", func() {
-				It("Updates the config file with the new account", func() {
-					Expect(ReadConfig(configFile, "")).To(Succeed())
-					input := new(bytes.Buffer)
-					fmt.Fprintln(input, 54321)
-					fmt.Fprintln(input, "us-4.rightscale.com")
-					fmt.Fprintln(input, "21fedcba0987654321fedcba0987654321fedcba")
-					Expect(Config.SetAccount("testing", false, input, buffer)).To(Succeed())
-					Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: " + "API endpoint host: " +
-						"Refresh token: "))
-					config, err := ioutil.ReadFile(configFile)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(config).To(BeEquivalentTo(`login:
+				Context("With refresh token", func() {
+					It("Updates the config file with the new account", func() {
+						Expect(ReadConfig(configFile, "")).To(Succeed())
+						input := new(bytes.Buffer)
+						fmt.Fprintln(input, 54321)
+						fmt.Fprintln(input, "us-4.rightscale.com")
+						fmt.Fprintln(input, "21fedcba0987654321fedcba0987654321fedcba")
+						Expect(Config.SetAccount("testing", false, false, input, buffer)).To(Succeed())
+						Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: " + "API endpoint host: " +
+							"Refresh token: "))
+						config, err := ioutil.ReadFile(configFile)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(string(config)).To(BeEquivalentTo(`login:
   accounts:
     production:
       host: us-3.rightscale.com
@@ -370,17 +373,17 @@ login:
 update:
   check: true
 `))
-				})
+					})
 
-				It("Updates the default account and uses defaults when modifying an existing account", func() {
-					Expect(ReadConfig(configFile, "")).To(Succeed())
-					Expect(Config.SetAccount("staging", true, new(bytes.Buffer), buffer)).To(Succeed())
-					Expect(buffer.Contents()).To(BeEquivalentTo("Account ID (67890): " +
-						"API endpoint host (us-4.rightscale.com): " +
-						"Refresh token (fedcba0987654321febcba0987654321fedcba09): "))
-					config, err := ioutil.ReadFile(configFile)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(config).To(BeEquivalentTo(`login:
+					It("Updates the default account and uses defaults when modifying an existing account", func() {
+						Expect(ReadConfig(configFile, "")).To(Succeed())
+						Expect(Config.SetAccount("staging", true, false, new(bytes.Buffer), buffer)).To(Succeed())
+						Expect(buffer.Contents()).To(BeEquivalentTo("Account ID (67890): " +
+							"API endpoint host (us-4.rightscale.com): " +
+							"Refresh token (fedcba0987654321febcba0987654321fedcba09): "))
+						config, err := ioutil.ReadFile(configFile)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(string(config)).To(BeEquivalentTo(`login:
   accounts:
     production:
       host: us-3.rightscale.com
@@ -394,6 +397,7 @@ update:
 update:
   check: true
 `))
+					})
 				})
 			})
 

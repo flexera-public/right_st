@@ -95,9 +95,10 @@ var (
 	// ----- Configuration -----
 	configCmd = app.Command("config", "Manage Configuration")
 
-	configAccountCmd     = configCmd.Command("account", "Add or edit configuration for a RightScale API account")
-	configAccountName    = configAccountCmd.Arg("name", "Name of RightScale API Account to add or edit").Required().String()
-	configAccountDefault = configAccountCmd.Flag("default", "Set the named RightScale API Account as the default").Short('D').Bool()
+	configAccountCmd      = configCmd.Command("account", "Add or edit configuration for a RightScale API account")
+	configAccountName     = configAccountCmd.Arg("name", "Name of RightScale API Account to add or edit").Required().String()
+	configAccountDefault  = configAccountCmd.Flag("default", "Set the named RightScale API Account as the default").Short('D').Bool()
+	configAccountPassword = configAccountCmd.Flag("password", "Store a username and encrypted password instead of a refresh token").Short('p').Bool()
 
 	configShowCmd = configCmd.Command("show", "Show configuration")
 
@@ -234,7 +235,7 @@ func main() {
 			rightScriptCommit(href, *rightScriptCommitMessage)
 		}
 	case configAccountCmd.FullCommand():
-		err := Config.SetAccount(*configAccountName, *configAccountDefault, os.Stdin, os.Stdout)
+		err := Config.SetAccount(*configAccountName, *configAccountDefault, *configAccountPassword, os.Stdin, os.Stdout)
 		if err != nil {
 			fatalError("%s\n", err.Error())
 		}
