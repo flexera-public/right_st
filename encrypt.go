@@ -13,7 +13,7 @@ import (
 // Note: this is by no mean meant to be a bullet proof encryption scheme but just rather a way to
 // avoid having sensitive data written in plain text on disk.
 func seekret() []byte {
-	return []byte(`xLtwITJ$tIh@*B#lQL53W!Qq`)
+	return []byte(`@BsuyrI5o8Y12!#H4SsUhbik`)
 }
 
 func encodeBase64(b []byte) []byte {
