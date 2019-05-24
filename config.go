@@ -188,13 +188,9 @@ func (config *ConfigViper) SetAccount(name string, setDefault, setPassword bool,
 		// prompt for the password and use the old value if nothing is entered
 		fmt.Fprintf(output, "Password")
 		if hasOldAccount {
-			password := oldAccount.Password
-			if strings.HasPrefix(password, encryptedPrefix) {
-				var err error
-				password, err = Decrypt(strings.TrimPrefix(password, encryptedPrefix))
-				if err != nil {
-					return err
-				}
+			password, err := oldAccount.DecryptPassword()
+			if err != nil {
+				return err
 			}
 			fmt.Fprintf(output, " (%s)", strings.Repeat("*", len(password)))
 		}
@@ -212,12 +208,10 @@ func (config *ConfigViper) SetAccount(name string, setDefault, setPassword bool,
 		if hasOldAccount && password == "" {
 			newAccount.Password = oldAccount.Password
 		} else {
-			var err error
-			password, err = Encrypt(password)
+			err := newAccount.EncryptPassword(password)
 			if err != nil {
 				return err
 			}
-			newAccount.Password = encryptedPrefix + password
 		}
 	} else {
 		// prompt for the refresh token and use the old value if nothing is entered

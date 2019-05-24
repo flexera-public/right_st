@@ -76,15 +76,28 @@ func (account *Account) Auth() (rsapi.Authenticator, error) {
 	if account.RefreshToken != "" {
 		return rsapi.NewOAuthAuthenticator(account.RefreshToken, account.Id), nil
 	} else {
-		password := account.Password
-		if strings.HasPrefix(password, encryptedPrefix) {
-			var err error
-			password, err = Decrypt(strings.TrimPrefix(password, encryptedPrefix))
-			if err != nil {
-				return nil, err
-			}
+		password, err := account.DecryptPassword()
+		if err != nil {
+			return nil, err
 		}
 		return rsapi.NewBasicAuthenticator(account.Username, password, account.Id), nil
+	}
+}
+
+func (account *Account) EncryptPassword(password string) error {
+	p, err := Encrypt(password)
+	if err != nil {
+		return err
+	}
+	account.Password = encryptedPrefix + p
+	return nil
+}
+
+func (account *Account) DecryptPassword() (string, error) {
+	if strings.HasPrefix(account.Password, encryptedPrefix) {
+		return Decrypt(strings.TrimPrefix(account.Password, encryptedPrefix))
+	} else {
+		return account.Password, nil
 	}
 }
 
