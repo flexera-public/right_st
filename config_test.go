@@ -28,6 +28,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	. "github.com/rightscale/right_st"
 
@@ -45,8 +46,9 @@ var _ = Describe("Config", func() {
 
 	Describe("Read config", func() {
 		var (
-			tempDir string
-			buffer  *gbytes.Buffer
+			tempDir                 string
+			buffer                  *gbytes.Buffer
+			encryptedPasswordRegexp = regexp.MustCompile(`\{ENCRYPTED\}[A-Za-z0-9+/]+={0,2}`)
 		)
 
 		BeforeEach(func() {
@@ -125,16 +127,49 @@ var _ = Describe("Config", func() {
 							fmt.Fprintln(input, "us-3.rightscale.com")
 							fmt.Fprintln(input, "abcdef1234567890abcdef1234567890abcdef12")
 							Expect(Config.SetAccount("production", false, false, input, buffer)).To(Succeed())
-							Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: API endpoint host: Refresh token: "))
+							Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: " +
+								"API endpoint host: " +
+								"Refresh token: "))
 							config, err := ioutil.ReadFile(nonexistentConfigFile)
 							Expect(err).NotTo(HaveOccurred())
-							Expect(string(config)).To(BeEquivalentTo(`login:
+							Expect(string(config)).To(MatchYAML(`login:
   accounts:
     production:
       host: us-3.rightscale.com
       id: 12345
       refresh_token: abcdef1234567890abcdef1234567890abcdef12
   default_account: production
+update:
+  check: true
+`))
+						})
+					})
+
+					Context("With username and password", func() {
+						It("Creates a config file with the set account", func() {
+							Expect(ReadConfig(nonexistentConfigFile, "")).NotTo(Succeed())
+							input := new(bytes.Buffer)
+							fmt.Fprintln(input, 101112)
+							fmt.Fprintln(input, "us-4.rightscale.com")
+							fmt.Fprintln(input, "cool.dude@rightscale.com")
+							fmt.Fprintln(input, "hunter2")
+							Expect(Config.SetAccount("dev", false, true, input, buffer)).To(Succeed())
+							Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: " +
+								"API endpoint host: " +
+								"Username: " +
+								"Password: "))
+							config, err := ioutil.ReadFile(nonexistentConfigFile)
+							Expect(err).NotTo(HaveOccurred())
+							encryptedPassword := encryptedPasswordRegexp.FindString(string(config))
+							Expect(encryptedPassword).NotTo(BeEmpty())
+							Expect(config).To(MatchYAML(`login:
+  accounts:
+    dev:
+      host: us-4.rightscale.com
+      id: 101112
+      username: cool.dude@rightscale.com
+      password: '` + encryptedPassword + `'
+  default_account: dev
 update:
   check: true
 `))
@@ -221,6 +256,11 @@ login:
       host: us-4.rightscale.com
       id: 67890
       refresh_token: fedcba0987654321febcba0987654321fedcba09
+    dev:
+      host: us-4.rightscale.com
+      id: 101112
+      username: cool.dude@rightscale.com
+      password: hunter2
 `), 0600)
 				if err != nil {
 					panic(err)
@@ -239,6 +279,12 @@ login:
 						Id:           67890,
 						Host:         "us-4.rightscale.com",
 						RefreshToken: "fedcba0987654321febcba0987654321fedcba09",
+					},
+					"dev": {
+						Id:       101112,
+						Host:     "us-4.rightscale.com",
+						Username: "cool.dude@rightscale.com",
+						Password: "hunter2",
 					},
 				}))
 				Expect(Config.Account).To(Equal(&Account{
@@ -260,6 +306,12 @@ login:
 						Id:           67890,
 						Host:         "us-4.rightscale.com",
 						RefreshToken: "fedcba0987654321febcba0987654321fedcba09",
+					},
+					"dev": {
+						Id:       101112,
+						Host:     "us-4.rightscale.com",
+						Username: "cool.dude@rightscale.com",
+						Password: "hunter2",
 					},
 				}))
 				Expect(Config.Account).To(Equal(&Account{
@@ -333,6 +385,12 @@ login:
 							Host:         "us-4.rightscale.com",
 							RefreshToken: "fedcba0987654321febcba0987654321fedcba09",
 						},
+						"dev": {
+							Id:       101112,
+							Host:     "us-4.rightscale.com",
+							Username: "cool.dude@rightscale.com",
+							Password: "hunter2",
+						},
 					}))
 					Expect(Config.Account).To(Equal(&Account{
 						Id:           67890,
@@ -351,11 +409,12 @@ login:
 						fmt.Fprintln(input, "us-4.rightscale.com")
 						fmt.Fprintln(input, "21fedcba0987654321fedcba0987654321fedcba")
 						Expect(Config.SetAccount("testing", false, false, input, buffer)).To(Succeed())
-						Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: " + "API endpoint host: " +
+						Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: " +
+							"API endpoint host: " +
 							"Refresh token: "))
 						config, err := ioutil.ReadFile(configFile)
 						Expect(err).NotTo(HaveOccurred())
-						Expect(string(config)).To(BeEquivalentTo(`login:
+						Expect(config).To(MatchYAML(`login:
   accounts:
     production:
       host: us-3.rightscale.com
@@ -365,6 +424,11 @@ login:
       host: us-4.rightscale.com
       id: 67890
       refresh_token: fedcba0987654321febcba0987654321fedcba09
+    dev:
+      host: us-4.rightscale.com
+      id: 101112
+      username: cool.dude@rightscale.com
+      password: hunter2
     testing:
       host: us-4.rightscale.com
       id: 54321
@@ -383,7 +447,7 @@ update:
 							"Refresh token (fedcba0987654321febcba0987654321fedcba09): "))
 						config, err := ioutil.ReadFile(configFile)
 						Expect(err).NotTo(HaveOccurred())
-						Expect(string(config)).To(BeEquivalentTo(`login:
+						Expect(config).To(MatchYAML(`login:
   accounts:
     production:
       host: us-3.rightscale.com
@@ -393,7 +457,86 @@ update:
       host: us-4.rightscale.com
       id: 67890
       refresh_token: fedcba0987654321febcba0987654321fedcba09
+    dev:
+      host: us-4.rightscale.com
+      id: 101112
+      username: cool.dude@rightscale.com
+      password: hunter2
   default_account: staging
+update:
+  check: true
+`))
+					})
+				})
+
+				Context("With username and password", func() {
+					It("Updates the config file with the new account", func() {
+						Expect(ReadConfig(configFile, "")).To(Succeed())
+						input := new(bytes.Buffer)
+						fmt.Fprintln(input, 54321)
+						fmt.Fprintln(input, "us-4.rightscale.com")
+						fmt.Fprintln(input, "cool.dude@rightscale.com")
+						fmt.Fprintln(input, "hunter2")
+						Expect(Config.SetAccount("testing", false, true, input, buffer)).To(Succeed())
+						Expect(buffer.Contents()).To(BeEquivalentTo("Account ID: " +
+							"API endpoint host: " +
+							"Username: " +
+							"Password: "))
+						config, err := ioutil.ReadFile(configFile)
+						Expect(err).NotTo(HaveOccurred())
+						encryptedPassword := encryptedPasswordRegexp.FindString(string(config))
+						Expect(encryptedPassword).NotTo(BeEmpty())
+						Expect(config).To(MatchYAML(`login:
+  accounts:
+    production:
+      host: us-3.rightscale.com
+      id: 12345
+      refresh_token: abcdef1234567890abcdef1234567890abcdef12
+    staging:
+      host: us-4.rightscale.com
+      id: 67890
+      refresh_token: fedcba0987654321febcba0987654321fedcba09
+    dev:
+      host: us-4.rightscale.com
+      id: 101112
+      username: cool.dude@rightscale.com
+      password: hunter2
+    testing:
+      host: us-4.rightscale.com
+      id: 54321
+      username: cool.dude@rightscale.com
+      password: '` + encryptedPassword + `'
+  default_account: production
+update:
+  check: true
+`))
+					})
+
+					It("Updates the default account and uses defaults when modifying an existing account", func() {
+						Expect(ReadConfig(configFile, "")).To(Succeed())
+						Expect(Config.SetAccount("dev", true, true, new(bytes.Buffer), buffer)).To(Succeed())
+						Expect(buffer.Contents()).To(BeEquivalentTo("Account ID (101112): " +
+							"API endpoint host (us-4.rightscale.com): " +
+							"Username (cool.dude@rightscale.com): " +
+							"Password (*******): "))
+						config, err := ioutil.ReadFile(configFile)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(config).To(MatchYAML(`login:
+  accounts:
+    production:
+      host: us-3.rightscale.com
+      id: 12345
+      refresh_token: abcdef1234567890abcdef1234567890abcdef12
+    staging:
+      host: us-4.rightscale.com
+      id: 67890
+      refresh_token: fedcba0987654321febcba0987654321fedcba09
+    dev:
+      host: us-4.rightscale.com
+      id: 101112
+      username: cool.dude@rightscale.com
+      password: hunter2
+  default_account: dev
 update:
   check: true
 `))
@@ -405,7 +548,7 @@ update:
 				It("Prints the configuration", func() {
 					Expect(ReadConfig(configFile, "")).To(Succeed())
 					Expect(Config.ShowConfiguration(buffer)).To(Succeed())
-					Expect(buffer.Contents()).To(BeEquivalentTo(`login:
+					Expect(buffer.Contents()).To(MatchYAML(`login:
   accounts:
     production:
       host: us-3.rightscale.com
@@ -415,6 +558,11 @@ update:
       host: us-4.rightscale.com
       id: 67890
       refresh_token: fedcba0987654321febcba0987654321fedcba09
+    dev:
+      host: us-4.rightscale.com
+      id: 101112
+      username: cool.dude@rightscale.com
+      password: '*******'
   default_account: production
 update:
   check: true

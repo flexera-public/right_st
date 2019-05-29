@@ -101,6 +101,14 @@ func (account *Account) DecryptPassword() (string, error) {
 	}
 }
 
+func (account *Account) MaskPassword() (string, error) {
+	password, err := account.DecryptPassword()
+	if err != nil {
+		return "", err
+	}
+	return strings.Repeat("*", len(password)), nil
+}
+
 func (account *Account) validate() error {
 	if _, err := net.LookupIP(account.Host); err != nil {
 		return fmt.Errorf("Invalid host name for account (host: %s, id: %d): %s", account.Host, account.Id, err)

@@ -188,11 +188,11 @@ func (config *ConfigViper) SetAccount(name string, setDefault, setPassword bool,
 		// prompt for the password and use the old value if nothing is entered
 		fmt.Fprintf(output, "Password")
 		if hasOldAccount {
-			password, err := oldAccount.DecryptPassword()
+			mask, err := oldAccount.MaskPassword()
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(output, " (%s)", strings.Repeat("*", len(password)))
+			fmt.Fprintf(output, " (%s)", mask)
 		}
 		fmt.Fprint(output, ": ")
 		var password string
@@ -269,7 +269,23 @@ func (config *ConfigViper) ShowConfiguration(output io.Writer) error {
 		return err
 	}
 
-	yml, err := yaml.Marshal(config.AllSettings())
+	settings := config.AllSettings()
+	if _, ok := settings["login"]; !ok {
+		settings["login"] = map[string]interface{}{"accounts": make(map[string]interface{})}
+	}
+	loginSettings := settings["login"].(map[string]interface{})
+	accounts := loginSettings["accounts"].(map[string]interface{})
+
+	for name, account := range config.Accounts {
+		var err error
+		account.Password, err = account.MaskPassword()
+		if err != nil {
+			return err
+		}
+		accounts[name] = account
+	}
+
+	yml, err := yaml.Marshal(settings)
 	if err != nil {
 		return err
 	}
