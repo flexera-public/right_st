@@ -7,7 +7,7 @@ cache:
   - '%LocalAppData%\go-build'
   - C:\projects\go\pkg\mod
 install:
-  - appveyor SetVariable -Name PATH -Value "%GOPATH%\bin;%PATH%;C:\Ruby21-x64\DevKit\mingw\bin;C:\cygwin\bin"
+  - appveyor SetVariable -Name PATH -Value "%GOPATH%\bin;%PATH%;C:\Ruby21-x64\DevKit\mingw\bin;C:\cygwin64\bin"
   - make depend
 before_build:
   - go version
