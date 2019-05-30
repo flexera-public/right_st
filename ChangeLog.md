@@ -1,3 +1,7 @@
+v1.9.0 / 2019-05-29
+-------------------
+* Add username/password support based on `rsc`
+
 v1.8.2 / 2019-04-18
 -------------------
 * Do not add trailing spaces on empty comment lines of RightScript Metadata when scaffolding
