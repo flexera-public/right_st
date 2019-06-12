@@ -20,7 +20,7 @@ require (
 	github.com/onsi/gomega v1.4.2
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/rightscale/go-jsonselect v0.0.0-20150427163236-d04eebe26072 // indirect
-	github.com/rightscale/rsc v0.0.0-20190204234923-a99a0afeecd6
+	github.com/rightscale/rsc v0.0.0-20190607230330-a362a171a2aa
 	github.com/rlmcpherson/s3gof3r v0.5.0
 	github.com/spf13/viper v1.2.0
 	github.com/stretchr/testify v1.2.2 // indirect

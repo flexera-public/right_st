@@ -337,25 +337,18 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 			if mciDef.Href == "" {
 				loc := pub.Locator(client)
 
-				err = loc.Import()
-
+				impLoc, err := loc.Import()
 				if err != nil {
 					return fmt.Errorf("Failed to import publication %s for MultiCloudImage '%s' Revision %s Publisher %s\n",
 						getLink(pub.Links, "self"), mciDef.Name, formatRev(int(mciDef.Revision)), mciDef.Publisher)
 				}
 
-				mciUnfiltered, err := mciLocator.Index(rsapi.APIParams{"filter": filters})
+				mciLocator := client.MultiCloudImageLocator(string(impLoc.Href))
+				mci, err := mciLocator.Show()
 				if err != nil {
 					return fmt.Errorf("Error looking up MCI: %s", err.Error())
 				}
-				for _, mci := range mciUnfiltered {
-					if mci.Name == mciDef.Name && mci.Revision == pub.Revision && mci.Description == pub.Description {
-						mciDef.Href = getLink(mci.Links, "self")
-					}
-				}
-				if mciDef.Href == "" {
-					return fmt.Errorf("Could not refind MultiCloudImage '%s' Revision %s after import!", mciDef.Name, formatRev(pub.Revision))
-				}
+				mciDef.Href = getLink(mci.Links, "self")
 			}
 		}
 	}

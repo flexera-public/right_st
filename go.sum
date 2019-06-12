@@ -61,6 +61,8 @@ github.com/rightscale/rsc v0.0.0-20190108213848-e35fb6164fad h1:pqlu+2cJ+QWh0zQ5
 github.com/rightscale/rsc v0.0.0-20190108213848-e35fb6164fad/go.mod h1:oCd96Y+3gjQAwj+WsqMtJAY9So9oNPIZkBFYfZuz1Pg=
 github.com/rightscale/rsc v0.0.0-20190204234923-a99a0afeecd6 h1:Saey61IU+URWv7d7YhAQUHVljpzsmYLjG84LxArXHgg=
 github.com/rightscale/rsc v0.0.0-20190204234923-a99a0afeecd6/go.mod h1:oCd96Y+3gjQAwj+WsqMtJAY9So9oNPIZkBFYfZuz1Pg=
+github.com/rightscale/rsc v0.0.0-20190607230330-a362a171a2aa h1:sJrxq2ltLLJMmNVwmxPPPMh31mQYsnhOP3GVjg5Htgw=
+github.com/rightscale/rsc v0.0.0-20190607230330-a362a171a2aa/go.mod h1:oCd96Y+3gjQAwj+WsqMtJAY9So9oNPIZkBFYfZuz1Pg=
 github.com/rlmcpherson/s3gof3r v0.5.0 h1:1izOJpTiohSibfOHuNyEA/yQnAirh05enzEdmhez43k=
 github.com/rlmcpherson/s3gof3r v0.5.0/go.mod h1:s7vv7SMDPInkitQMuZzH615G7yWHdrU2r/Go7Bo71Rs=
 github.com/spf13/afero v1.1.2 h1:m8/z1t7/fwjysjQRYbP0RD+bUIF/8tJwPdEZsI83ACI=

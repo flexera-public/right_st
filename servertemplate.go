@@ -829,9 +829,13 @@ func stCommit(href, message string, commitHead, freezeRepos bool) {
 	fmt.Printf("Committing Server Template %s\n", href)
 
 	// https://reference.rightscale.com/api1.5/resources/ResourceServerTemplates.html#commit
-	err := stLocator.Commit(strconv.FormatBool(commitHead), message, strconv.FormatBool(freezeRepos))
+	commitLocator, err := stLocator.Commit(strconv.FormatBool(commitHead), message, strconv.FormatBool(freezeRepos))
 	if err != nil {
-		fatalError("%s", err.Error())
+		fatalError("%v", err)
 	}
-	return
+	st, err := commitLocator.Show(rsapi.APIParams{})
+	if err != nil {
+		fatalError("%v", err)
+	}
+	fmt.Printf("Revision: %v\nHREF: %v\n", st.Revision, commitLocator.Href)
 }

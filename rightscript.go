@@ -853,17 +853,17 @@ func (r *RightScript) PushRemote() error {
 			return fmt.Errorf("Could not find RightScript '%s' Revision %s in local account. Add a 'Publisher' to also search the MultiCloud Marketplace", r.Name, formatRev(r.Revision))
 		} else {
 			loc := pub.Locator(client)
-			err = loc.Import()
+			impLoc, err := loc.Import()
 			if err != nil {
 				return fmt.Errorf("Failed to import publication %s for RightScript '%s' Revision %s Publisher %s\n",
 					getLink(pub.Links, "self"), r.Name, formatRev(rev), r.Publisher)
 			}
-			script, err = findRightScript(r.Name, rev, pubMatcher)
-			if script == nil {
-				return fmt.Errorf("Could not refind RightScript '%s' Revision %s after import!", r.Name, formatRev(rev))
-			} else {
-				r.Href = getLink(script.Links, "self")
+			scriptLocator := client.RightScriptLocator(string(impLoc.Href))
+			script, err = scriptLocator.Show(rsapi.APIParams{})
+			if err != nil {
+				return fmt.Errorf("Error looking up RightScript: %v", err)
 			}
+			r.Href = getLink(script.Links, "self")
 		}
 	} else {
 		r.Href = getLink(script.Links, "self")
@@ -1069,18 +1069,19 @@ func validateRightScript(file string, ignoreMissingMetadata bool) (*RightScript,
 
 func rightScriptCommit(href, message string) {
 	client, _ := Config.Account.Client15()
-	rightscriptLocator := client.RightScriptLocator(href)
+	scriptLocator := client.RightScriptLocator(href)
 
 	fmt.Printf("Committing RightScript %s\n", href)
 
-	err := rightscriptLocator.Commit(
-		&cm15.RightScriptParam{
-			CommitMessage: message,
-		})
+	commitLocator, err := scriptLocator.Commit(&cm15.RightScriptParam{CommitMessage: message})
 	if err != nil {
-		fatalError("%s", err.Error())
+		fatalError("%v", err)
 	}
-	return
+	script, err := commitLocator.Show(rsapi.APIParams{})
+	if err != nil {
+		fatalError("%v", err)
+	}
+	fmt.Printf("Revision: %v\nHREF: %v\n", script.Revision, commitLocator.Href)
 }
 
 func (rs RightScript) MarshalYAML() (interface{}, error) {
