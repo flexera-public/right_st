@@ -1,6 +1,7 @@
 Unreleased Changes
 ------------------
 * Add diff for RightScripts and ServerTemplates.
+* Include commited revision and HREF in RightScript and ServerTemplate commit output.
 
 v1.9.4 / 2019-11-08
 -------------------
