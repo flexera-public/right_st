@@ -1081,7 +1081,24 @@ func validateRightScript(file string, ignoreMissingMetadata bool) (*RightScript,
 	return &rightScript, nil
 }
 
-func rightScriptCommit(href, message string) {
+func rightScriptCommit(href, message string, force bool, cache Cache) {
+	if !force {
+		rsLatest, err := getRightScriptRevision(href, "latest")
+		if err != nil {
+			fatalError("Could not find latest: %v", err)
+		}
+		rsHead, err := getRightScriptRevision(href, "head")
+		if err != nil {
+			fatalError("Could not find head: %v", err)
+		}
+
+		differ, err := diffRightScript(ioutil.Discard, rsLatest, rsHead, cache)
+		if !differ {
+			fmt.Println("No changes to commit")
+			os.Exit(1)
+		}
+	}
+
 	client, _ := Config.Account.Client15()
 	scriptLocator := client.RightScriptLocator(href)
 
