@@ -377,14 +377,14 @@ func rightScriptDiff(href, revisionA, revisionB string, linkOnly bool, cache Cac
 	}
 }
 
-// diffRightScript returns whether two ServerTemplate revisions differ and writes the differences to w
+// diffRightScript returns whether two RightScript revisions differ and writes the differences to w
 func diffRightScript(w io.Writer, rsA, rsB *cm15.RightScript, cache Cache) (bool, error) {
 	scriptA, attachmentsA, dirA, err := getRightScriptFiles(rsA, cache)
 	if err != nil {
 		return false, err
 	}
 	defer scriptA.Close()
-	if rsA.Revision == 0 {
+	if rsA.Id != "" && rsA.Revision == 0 {
 		defer os.RemoveAll(dirA)
 	}
 	scriptB, attachmentsB, dirB, err := getRightScriptFiles(rsB, cache)
@@ -392,7 +392,7 @@ func diffRightScript(w io.Writer, rsA, rsB *cm15.RightScript, cache Cache) (bool
 		return false, err
 	}
 	defer scriptB.Close()
-	if rsB.Revision == 0 {
+	if rsB.Id != "" && rsB.Revision == 0 {
 		defer os.RemoveAll(dirB)
 	}
 
@@ -462,12 +462,22 @@ func diffRightScript(w io.Writer, rsA, rsB *cm15.RightScript, cache Cache) (bool
 
 // getRightScriptDiffLink returns the RightScale Dashboard URL for a diff between two RightScript revisions
 func getRightScriptDiffLink(rsA, rsB *cm15.RightScript) string {
+	if rsA.Id == "" {
+		return fmt.Sprintf("https://%v/acct/%v/right_scripts/%v", Config.Account.Host, Config.Account.Id, rsB.Id)
+	}
+	if rsB.Id == "" {
+		return fmt.Sprintf("https://%v/acct/%v/right_scripts/%v", Config.Account.Host, Config.Account.Id, rsA.Id)
+	}
 	return fmt.Sprintf("https://%v/acct/%v/right_scripts/diff?old_script_id=%v&new_script_id=%v", Config.Account.Host, Config.Account.Id, rsA.Id, rsB.Id)
 }
 
 // getRightScriptFiles retreives the local paths of a cached RightScript, its attachments, and the directory
 func getRightScriptFiles(rs *cm15.RightScript, cache Cache) (reader io.ReadCloser, attachments []string, dir string, err error) {
 	var script string
+	if rs.Id == "" {
+		reader = ioutil.NopCloser(&bytes.Reader{})
+		return
+	}
 	if rs.Revision == 0 {
 		dir, err = ioutil.TempDir("", "right_st.cache.")
 		if err != nil {
@@ -516,13 +526,15 @@ finish:
 }
 
 // getRightScriptRevision returns the RightScript object for the given RightScript HREF and revision;
-// the revision may be "head", "latest", or a number
+// the revision may be "null", "head", "latest", or a number
 func getRightScriptRevision(href, revision string) (*cm15.RightScript, error) {
 	var (
 		r   int
 		err error
 	)
 	switch strings.ToLower(revision) {
+	case "null":
+		return &cm15.RightScript{UpdatedAt: &cm15.RubyTime{}}, nil
 	case "head":
 		r = 0
 	case "latest":
@@ -573,6 +585,9 @@ func getRightScriptHREF(rs *cm15.RightScript) string {
 
 // getRightScriptNameRev returns the name and revison of the RightScript object
 func getRightScriptNameRev(rs *cm15.RightScript) string {
+	if rs.Id == "" {
+		return os.DevNull
+	}
 	if rs.Revision == 0 {
 		return rs.Name + " [HEAD]"
 	}
