@@ -237,7 +237,10 @@ func main() {
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
-		rightScriptDownload(href, *rightScriptDownloadTo)
+		_, _, err = rightScriptDownload(href, *rightScriptDownloadTo, true, os.Stdout)
+		if err != nil {
+			fatalError("%v", err)
+		}
 	case rightScriptScaffoldCmd.FullCommand():
 		files, err := walkPaths(*rightScriptScaffoldPaths)
 		if err != nil {

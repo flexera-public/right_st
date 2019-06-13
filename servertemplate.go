@@ -513,7 +513,10 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 
 		if newScript.Type == LocalRightScript {
 			if scriptPath == "" {
-				downloadedTo := rightScriptDownload(rsHref, filepath.Dir(downloadTo))
+				downloadedTo, _, err := rightScriptDownload(rsHref, filepath.Dir(downloadTo), true, os.Stdout)
+				if err != nil {
+					fatalError("%v", err)
+				}
 				newScript.Path = strings.TrimPrefix(downloadedTo, filepath.Dir(downloadTo)+string(filepath.Separator))
 			} else {
 				// Create scripts directory
@@ -521,7 +524,10 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 				if err != nil {
 					fatalError("Error creating directory: %s", err.Error())
 				}
-				downloadedTo := rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo), scriptPath))
+				downloadedTo, _, err := rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo), scriptPath), true, os.Stdout)
+				if err != nil {
+					fatalError("%v", err)
+				}
 				newScript.Path = strings.TrimPrefix(downloadedTo, filepath.Dir(downloadTo)+string(filepath.Separator))
 			}
 		}

@@ -159,7 +159,7 @@ func GuessExtension(source string) string {
 	return ""
 }
 
-func rightScriptDownload(href, downloadTo string) string {
+func rightScriptDownload(href, downloadTo string, scaffold bool, output io.Writer) (string, []string, error) {
 	client, _ := Config.Account.Client15()
 
 	attachmentsHref := fmt.Sprintf("%s/attachments", href)
@@ -168,20 +168,20 @@ func rightScriptDownload(href, downloadTo string) string {
 
 	rightscript, err := rightscriptLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
 	if err != nil {
-		fatalError("Could not find RightScript with href %s: %s", href, err.Error())
+		return "", nil, fmt.Errorf("Could not find RightScript with href %v: %v", href, err)
 	}
 	source, err := getSource(rightscriptLocator)
 	if err != nil {
-		fatalError("Could not get source for RightScript with href %s: %s", href, err.Error())
+		return "", nil, fmt.Errorf("Could not get source for RightScript with href %v: %v", href, err)
 	}
 	sourceMetadata, err := ParseRightScriptMetadata(bytes.NewReader(source))
 	if err != nil {
-		fmt.Printf("WARNING: Metadata in %s is malformed: %s\n", rightscript.Name, err.Error())
+		fmt.Fprintf(output, "WARNING: Metadata in %v is malformed: %v\n", rightscript.Name, err)
 	}
 
 	attachments, err := attachmentsLocator.Index(rsapi.APIParams{})
 	if err != nil {
-		fatalError("Could not get attachments for RightScript from href %s: %s", attachmentsHref, err.Error())
+		return "", nil, fmt.Errorf("Could not get attachments for RightScript from href %v: %v", attachmentsHref, err)
 	}
 
 	guessedExtension := GuessExtension(string(source))
@@ -191,7 +191,7 @@ func rightScriptDownload(href, downloadTo string) string {
 	} else if isDirectory(downloadTo) {
 		downloadTo = filepath.Join(downloadTo, cleanFileName(rightscript.Name)+guessedExtension)
 	}
-	fmt.Printf("Downloading '%s' to '%s'\n", rightscript.Name, downloadTo)
+	fmt.Fprintf(output, "Downloading '%v' to '%v'\n", rightscript.Name, downloadTo)
 
 	for i, attachment := range attachments {
 		// API attachments are always just plain names without path information.
@@ -225,7 +225,7 @@ func rightScriptDownload(href, downloadTo string) string {
 
 		downloadUrl, err := url.Parse(attachment.DownloadUrl)
 		if err != nil {
-			fatalError("Could not parse URL of attachment: %s", err.Error())
+			return "", nil, fmt.Errorf("Could not parse URL of attachment: %v", err)
 		}
 		downloadItem := downloadItem{
 			url:       *downloadUrl,
@@ -235,12 +235,12 @@ func rightScriptDownload(href, downloadTo string) string {
 		downloadItems = append(downloadItems, &downloadItem)
 	}
 	if len(downloadItems) == 0 {
-		fmt.Println("No attachments to download")
+		fmt.Fprintln(output, "No attachments to download")
 	} else {
-		fmt.Printf("Download %d attachments:\n", len(downloadItems))
-		err = downloadManager(downloadItems)
+		fmt.Fprintf(output, "Download %d attachments:\n", len(downloadItems))
+		err = downloadManager(downloadItems, output)
 		if err != nil {
-			fatalError("Failed to download all attachments: %s", err.Error())
+			return "", nil, fmt.Errorf("Failed to download all attachments: %v", err)
 		}
 		for _, d := range downloadItems {
 			for i, attachment := range attachments {
@@ -267,24 +267,28 @@ func rightScriptDownload(href, downloadTo string) string {
 		Attachments: attachmentNames,
 	}
 
-	// Re-running it through scaffoldBuffer has the benefit of cleaning up any errors in how
-	// the inputs are described. Also any attachments added or removed manually will be
-	// handled in that the builtin metadata will reflect whats on disk
-	scaffoldedSourceBytes, err := scaffoldBuffer(source, apiMetadata, "", false)
-	if err == nil {
-		if bytes.Compare(scaffoldedSourceBytes, source) != 0 {
-			fmt.Println("Automatically inserted RightScript metadata.")
+	if scaffold {
+		// Re-running it through scaffoldBuffer has the benefit of cleaning up any errors in how
+		// the inputs are described. Also any attachments added or removed manually will be
+		// handled in that the builtin metadata will reflect whats on disk
+		scaffoldedSourceBytes, err := scaffoldBuffer(source, apiMetadata, "", false)
+		if err == nil {
+			if bytes.Compare(scaffoldedSourceBytes, source) != 0 {
+				fmt.Fprintln(output, "Automatically inserted RightScript metadata.")
+			}
+			err = ioutil.WriteFile(downloadTo, scaffoldedSourceBytes, 0755)
+		} else {
+			fmt.Fprintf(output, "Downloaded script as is. An error occurred generating metadata to insert into the RightScript: %v", err)
+			err = ioutil.WriteFile(downloadTo, source, 0755)
 		}
-		err = ioutil.WriteFile(downloadTo, scaffoldedSourceBytes, 0755)
 	} else {
-		fmt.Printf("Downloaded script as is. An error occurred generating metadata to insert into the RightScript: %s", err.Error())
 		err = ioutil.WriteFile(downloadTo, source, 0755)
 	}
 	if err != nil {
-		fatalError("Could not create file: %s", err.Error())
+		return "", nil, fmt.Errorf("Could not create file: %v", err)
 	}
 
-	return downloadTo
+	return downloadTo, attachmentNames, nil
 }
 
 // Convert a JSON response to InputMetadata struct
@@ -490,14 +494,9 @@ func getRightScriptFiles(rs *cm15.RightScript, cache Cache) (reader io.ReadClose
 		}
 	}
 
-	// TODO make rightScriptDownload optionally silent and return attachments and an error
-	_ = rightScriptDownload(getRightScriptHREF(rs), script)
-	attachments, err = filepath.Glob(filepath.Join(filepath.Dir(script), "attachments", "*"))
+	_, attachments, err = rightScriptDownload(getRightScriptHREF(rs), script, false, ioutil.Discard)
 	if err != nil {
 		return
-	}
-	for i, attachment := range attachments {
-		attachments[i] = filepath.Base(attachment)
 	}
 
 	if rs.Revision != 0 {
