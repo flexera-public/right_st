@@ -96,7 +96,7 @@ var (
 	rightScriptCommitCmd              = rightScriptCmd.Command("commit", "Commit RightScript")
 	rightScriptCommitNameOrHrefOrPath = rightScriptCommitCmd.Arg("name|href|id|path", "RightScript name, HREF, ID or file path").Required().Strings()
 	rightScriptCommitMessage          = rightScriptCommitCmd.Flag("message", "RightScript commit message").Short('m').Required().String()
-	rightScriptCommitForce			  = rightScriptCommitCmd.Flag("force", "Force commit even if there are no changes").Short('f').Bool()
+	rightScriptCommitForce            = rightScriptCommitCmd.Flag("force", "Force commit even if there are no changes").Short('f').Bool()
 
 	rightScriptDiffCmd        = rightScriptCmd.Command("diff", "Show differences between revisions of a RightScript")
 	rightScriptDiffNameOrHref = rightScriptDiffCmd.Arg("name|href|id|path", "RightScript name, HREF, ID, or file path").Required().String()
