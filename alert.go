@@ -219,13 +219,13 @@ func uploadAlerts(stDef *ServerTemplate) error {
 	seenAlert := make(map[string]bool)
 	alertLookup := make(map[string]*cm15.AlertSpec)
 	for _, alert := range existingAlerts {
-		alertLookup[alert.Name] = alert
+		alertLookup[normalizeAlertName(alert.Name)] = alert
 	}
 	// Add/Update alerts
 	for _, alert := range stDef.Alerts {
 		parsedAlert, _ := parseAlertClause(alert.Clause)
-		seenAlert[alert.Name] = true
-		existingAlert, ok := alertLookup[alert.Name]
+		seenAlert[normalizeAlertName(alert.Name)] = true
+		existingAlert, ok := alertLookup[normalizeAlertName(alert.Name)]
 		if ok { // update
 			if alert.Clause != printAlertClause(*existingAlert) || alert.Description != existingAlert.Description {
 				alertsUpdateLocator := client.AlertSpecLocator(getLink(existingAlert.Links, "self"))
@@ -269,7 +269,7 @@ func uploadAlerts(stDef *ServerTemplate) error {
 		}
 	}
 	for _, alert := range existingAlerts {
-		if !seenAlert[alert.Name] {
+		if !seenAlert[normalizeAlertName(alert.Name)] {
 			fmt.Printf("  Removing alert %s\n", alert.Name)
 			err := alert.Locator(client).Destroy()
 			if err != nil {
@@ -279,4 +279,10 @@ func uploadAlerts(stDef *ServerTemplate) error {
 	}
 
 	return nil
+}
+
+// normalizeAlertName normalizes an alert name in a way that should mimic how right_api behaves: trimming any leading
+// and/or trailing whitespace and also lowercasing it
+func normalizeAlertName(alertName string) string {
+	return strings.ToLower(strings.TrimSpace(alertName))
 }

@@ -1,3 +1,7 @@
+v1.9.1 / 2019-06-17
+-------------------
+* Fix updating ServerTemplate alerts that have changed case or have different leading and/or trailing whitespace.
+
 v1.9.0 / 2019-05-29
 -------------------
 * Add username/password support based on `rsc`
