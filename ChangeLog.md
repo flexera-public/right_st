@@ -1,3 +1,12 @@
+v1.9.2 / 2019-06-20
+-------------------
+* Fix [#68] where a new ServerTemplate upload in a new account would fail with a duplicate MCI attachment by changing
+  to not using the dummy MCI if there are no existing MCIs on a ServerTemplate during upload and also creating a
+  temporary dummy MCI rather than picking one that exists already in the account which is error prone in new or small
+  accounts.
+
+[#68]: https://github.com/rightscale/right_st/issues/68
+
 v1.9.1 / 2019-06-17
 -------------------
 * Fix updating ServerTemplate alerts that have changed case or have different leading and/or trailing whitespace.
