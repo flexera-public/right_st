@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -475,23 +477,34 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 	// Dummy MCI. If we can't find ANY valid Mcis, that means we're going to delete all the existing attached MCIs
 	// before adding any new ones. This presents a problem in that the API will return an error if you try and delete
 	// the final MCI. We work around this by adding a dummy MCI we later delete
-	if firstValidMci == nil {
+	if len(existingMcis) > 0 && firstValidMci == nil {
+		b := make([]byte, 16)
+		if _, err := rand.Read(b); err != nil {
+			fatalError("Failed to read random bytes: %v", err)
+		}
+
 		mciLocator := client.MultiCloudImageLocator("/api/multi_cloud_images")
 
-		dummyMcis, err := mciLocator.Index(rsapi.APIParams{})
+		dummyMci, err := mciLocator.Create(&cm15.MultiCloudImageParam{
+			Name:        "right_st dummy " + hex.EncodeToString(b),
+			Description: "This is a dummy MCI created by right_st when replacing MCIs on a ServerTemplate, it is safe to delete.",
+		})
 		if err != nil {
-			fatalError("Failed to find dummy MCIs: %s", mciLocator.Href, err.Error())
+			fatalError("Failed to create dummy MCI: %v", err)
 		}
 		params := cm15.ServerTemplateMultiCloudImageParam{
-			MultiCloudImageHref: getLink(dummyMcis[0].Links, "self"),
+			MultiCloudImageHref: string(dummyMci.Href),
 			ServerTemplateHref:  stDef.href,
 		}
 		loc, err := stMciLocator.Create(&params)
 		if err != nil {
-			fatalError("  Failed to associate Dummy MCI '%s' with ServerTemplate '%s': %s", getLink(dummyMcis[0].Links, "self"), stDef.href, err.Error())
+			fatalError("  Failed to associate Dummy MCI '%v' with ServerTemplate '%v': %v", dummyMci.Href, stDef.href, err)
 		}
 		firstValidMci = loc
-		defer loc.Destroy()
+		defer func() {
+			loc.Destroy()
+			dummyMci.Destroy()
+		}()
 	}
 	for _, mci := range existingMcis {
 		mciHref := getLink(mci.Links, "multi_cloud_image")
@@ -504,7 +517,9 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 		if !foundMci {
 			fmt.Printf("  Removing MCI %s\n", mciHref)
 			if mci.IsDefault {
-				firstValidMci.MakeDefault()
+				if err := firstValidMci.MakeDefault(); err != nil {
+					fatalError("  Failed to make temporary MCI the default for ServerTemplate '%v': %v", stDef.href, err)
+				}
 			}
 			err := mci.Locator(client).Destroy()
 			if err != nil {
@@ -519,6 +534,11 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 		for _, mci := range existingMcis {
 			mciHref := getLink(mci.Links, "multi_cloud_image")
 			if mciDef.Href == mciHref {
+				if i == 0 && !mci.IsDefault {
+					if err := mci.Locator(client).MakeDefault(); err != nil {
+						fatalError("  Failed to make MCI '%v' the default for ServerTemplate '%v': %v", mciDef.Href, stDef.href, err)
+					}
+				}
 				foundMci = true
 			}
 		}
@@ -537,7 +557,9 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 				fatalError("  Failed to associate MCI '%s' with ServerTemplate '%s': %s", mciDef.Href, stDef.href, err.Error())
 			}
 			if i == 0 {
-				_ = loc.MakeDefault()
+				if err := loc.MakeDefault(); err != nil {
+					fatalError("  Failed to make MCI '%v' the default for ServerTemplate '%v': %v", mciDef.Href, stDef.href, err)
+				}
 			}
 		}
 	}
