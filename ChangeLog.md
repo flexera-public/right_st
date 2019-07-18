@@ -1,3 +1,8 @@
+v1.9.3 / 2019-07-17
+-------------------
+* Fix an issue where trying to set the default MCI on a ServerTemplate would error with:
+  "ActionNotAllowed: This ServerTemplateMultiCloudImage is already default."
+
 v1.9.2 / 2019-06-20
 -------------------
 * Fix [#68] where a new ServerTemplate upload in a new account would fail with a duplicate MCI attachment by changing
