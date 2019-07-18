@@ -557,8 +557,14 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 				fatalError("  Failed to associate MCI '%s' with ServerTemplate '%s': %s", mciDef.Href, stDef.href, err.Error())
 			}
 			if i == 0 {
-				if err := loc.MakeDefault(); err != nil && !strings.Contains(err.Error(), "This ServerTemplateMultiCloudImage is already default.") {
-					fatalError("  Failed to make MCI '%v' the default for ServerTemplate '%v': %v", mciDef.Href, stDef.href, err)
+				mci, err := loc.Show(rsapi.APIParams{})
+				if err != nil {
+					fatalError("  Failed to show MCI ServerTemplate '%v': %v", loc.Href, err)
+				}
+				if !mci.IsDefault {
+					if err := loc.MakeDefault(); err != nil {
+						fatalError("  Failed to make MCI '%v' the default for ServerTemplate '%v': %v", mciDef.Href, stDef.href, err)
+					}
 				}
 			}
 		}
