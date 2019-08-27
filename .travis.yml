@@ -28,7 +28,7 @@ addons:
     update: true
 before_install:
   # install mercurial on Windows as some Go dependencies need it
-  - if [[ $TRAVIS_OS_NAME == windows ]]; then choco install -y hg --version 5.0 && export PATH="$PATH:/c/Program Files/Mercurial"; fi
+  - if [[ $TRAVIS_OS_NAME == windows ]]; then choco install -y hg && export PATH="$PATH:/c/Program Files/Mercurial"; fi
 install:
   - $MAKE depend
 script:
