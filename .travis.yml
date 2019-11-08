@@ -8,6 +8,7 @@ matrix:
     - os: osx
       env: MAKE=make
   fast_finish: true
+osx_image: xcode11.2
 cache:
   directories:
     - $HOME/.cache/go-build
