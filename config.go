@@ -58,7 +58,9 @@ func ReadConfig(configFile, account string) error {
 		if _, ok := err.(*os.PathError); !(ok &&
 			Config.IsSet("login.account.id") &&
 			Config.IsSet("login.account.host") &&
-			Config.IsSet("login.account.refresh_token")) {
+			(Config.IsSet("login.account.refresh_token") ||
+				(Config.IsSet("login.account.username") &&
+					Config.IsSet("login.account.password")))) {
 			return err
 		}
 	}

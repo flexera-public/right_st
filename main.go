@@ -1,7 +1,5 @@
 package main
 
-//	"github.com/tonnerre/golang-pretty"
-
 import (
 	"crypto/md5"
 	"encoding/hex"
