@@ -13,9 +13,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kr/pretty"
 	"github.com/rightscale/rsc/cm15"
 	"github.com/rightscale/rsc/rsapi"
-	pretty "github.com/tonnerre/golang-pretty"
 )
 
 type Iterable struct {
