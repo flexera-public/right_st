@@ -1,3 +1,11 @@
+v1.9.4 / 2019-11-08
+-------------------
+* Username and password from the environment were not being considered
+  when the `~/.right_st.yml` file did not exist. They are now.
+* Use go 1.13.x in Travis CI.
+* Remove Slack notification from `.travis.yml`.
+* Use a `pretty` that still exists.
+
 v1.9.3 / 2019-07-17
 -------------------
 * Fix an issue where trying to set the default MCI on a ServerTemplate would error with:
