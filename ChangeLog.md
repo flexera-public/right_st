@@ -5,6 +5,7 @@ v1.9.4 / 2019-11-08
 * Use go 1.13.x in Travis CI.
 * Remove Slack notification from `.travis.yml`.
 * Use a `pretty` that still exists.
+* Use a newer macOS image for Homebrew to work on Travis CI.
 
 v1.9.3 / 2019-07-17
 -------------------
