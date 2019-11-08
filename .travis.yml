@@ -1,16 +1,27 @@
 language: go
 go:
   - 1.13.x
-os:
-  - linux
-  - osx
+matrix:
+  include:
+    - os: linux
+      env: MAKE=make
+    - os: osx
+      env: MAKE=make
+  fast_finish: true
 cache:
   directories:
     - $HOME/.cache/go-build
     - $HOME/gopath/pkg/mod
-before_install:
-  - "[[ $TRAVIS_OS_NAME != osx ]] || brew list bash || brew install bash"
-  - "[[ $TRAVIS_OS_NAME != osx ]] || brew list coreutils || brew install coreutils"
+addons:
+  apt:
+    packages:
+      # install 7z on Linux so both the Linux and Windows build can make the zip file the same way
+      - p7zip-full
+  homebrew:
+    packages:
+      # install modern bash and coreutils on macOS so that version.sh script works correctly
+      - bash
+      - coreutils
 install:
   - make depend
 script:
