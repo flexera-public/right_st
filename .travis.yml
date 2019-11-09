@@ -6,6 +6,7 @@ matrix:
     - os: linux
       env: MAKE=make
     - os: osx
+      osx_image: xcode11.2
       env: MAKE=make
   fast_finish: true
 cache:
