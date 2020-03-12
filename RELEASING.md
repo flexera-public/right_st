@@ -3,24 +3,23 @@
 This is how to release a new version of `right_st`:
 
 1. Verify that all of the tests pass:
-  * Linux and Mac OS X [![Travis CI Build Status](https://travis-ci.org/rightscale/right_st.svg?branch=master)](https://travis-ci.org/rightscale/right_st?branch=master)
-  * Windows [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/rightscale/right_st?branch=master&svg=true)](https://ci.appveyor.com/project/RightScale/right-st?branch=master)
+   * Linux and macOS [![Travis CI Build Status](https://travis-ci.org/rightscale/right_st.svg?branch=master)](https://travis-ci.org/rightscale/right_st?branch=master)
+   * Windows [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/rightscale/right_st?branch=master&svg=true)](https://ci.appveyor.com/project/RightScale/right-st?branch=master)
 2. Make sure the [ChangeLog](https://github.com/rightscale/right_st/blob/master/ChangeLog.md) and
   [README](https://github.com/rightscale/right_st/blob/master/README.md) are up to date.
 3. Create a tag of the form `vX.Y.Z` where `X`, `Y`, and `Z` are the major, minor, and patch versions respectively:
-
-  ```bash
-  git checkout master
-  git pull
-  git tag --annotate --message='Release version vX.Y.Z' vX.Y.Z
-  git push --tags
-  ```
-4. Create a [GitHub release](https://github.com/rightscale/right_st/releases) from the tag with the ChangeLog contents
-  as the description. Also include links to the binaries for Linux, Mac OS X, and Windows in the description:
-  * Linux: `https://binaries.rightscale.com/rsbin/right_st/vX.Y.Z/right_st-linux-amd64.tgz`
-  * Mac OS X: `https://binaries.rightscale.com/rsbin/right_st/vX.Y.Z/right_st-darwin-amd64.tgz`
-  * Windows: `https://binaries.rightscale.com/rsbin/right_st/vX.Y.Z/right_st-windows-amd64.zip`
+   ```bash
+   git checkout master
+   git pull
+   git tag --annotate --message='Release version vX.Y.Z' vX.Y.Z
+   git push --tags
+   ```
+4. Once the [Travis CI tag build](https://travis-ci.com/github/rightscale/right_st/builds) succeeds, run the release script to create a GitHub Release:
+   ```bash
+   ./release.sh
+   ```
+   This script uses the [`hub`](https://hub.github.com/) command line tool for GitHub, you will need to install it using the [Installation](https://github.com/github/hub#installation) instructions for your platform and authenticate it with GitHub before running the script (you can use the `hub release` command to test if you are authenticated correctly).
 
 ## Testing the release
 
-TBD: should include testing binaries for Linux, Mac OS X, and Windows
+TBD: should include testing binaries for Linux, macOS, and Windows
