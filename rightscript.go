@@ -471,13 +471,13 @@ func getRightScriptDiffLink(rsA, rsB *cm15.RightScript) string {
 	return fmt.Sprintf("https://%v/acct/%v/right_scripts/diff?old_script_id=%v&new_script_id=%v", Config.Account.Host, Config.Account.Id, rsA.Id, rsB.Id)
 }
 
-// getRightScriptFiles retreives the local paths of a cached RightScript, its attachments, and the directory
+// getRightScriptFiles retreives the local paths of a cached RightScript, its attachments, and its directory
 func getRightScriptFiles(rs *cm15.RightScript, cache Cache) (reader io.ReadCloser, attachments []string, dir string, err error) {
-	var script string
 	if rs.Id == "" {
 		reader = ioutil.NopCloser(&bytes.Reader{})
 		return
 	}
+	var script string
 	if rs.Revision == 0 {
 		dir, err = ioutil.TempDir("", "right_st.cache.")
 		if err != nil {
@@ -1081,7 +1081,7 @@ func validateRightScript(file string, ignoreMissingMetadata bool) (*RightScript,
 	return &rightScript, nil
 }
 
-func rightScriptCommit(href, message string, force bool, cache Cache) {
+func rightScriptCommit(href, message string, force bool, cache Cache) bool {
 	if !force {
 		rsLatest, err := getRightScriptRevision(href, "latest")
 		if err != nil {
@@ -1093,9 +1093,11 @@ func rightScriptCommit(href, message string, force bool, cache Cache) {
 		}
 
 		differ, err := diffRightScript(ioutil.Discard, rsLatest, rsHead, cache)
+		if err != nil {
+			fatalError("Error performing diff: %v", err)
+		}
 		if !differ {
-			fmt.Println("No changes to commit")
-			os.Exit(1)
+			return false
 		}
 	}
 
@@ -1113,6 +1115,8 @@ func rightScriptCommit(href, message string, force bool, cache Cache) {
 		fatalError("%v", err)
 	}
 	fmt.Printf("Revision: %v\nHREF: %v\n", script.Revision, commitLocator.Href)
+
+	return true
 }
 
 func (rs RightScript) MarshalYAML() (interface{}, error) {

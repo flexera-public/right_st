@@ -47,23 +47,24 @@ var (
 	stDownloadCmd         = stCmd.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
 	stDownloadNameOrHref  = stDownloadCmd.Arg("name|href|id", "ServerTemplate name, HREF, or ID").Required().String()
 	stDownloadTo          = stDownloadCmd.Arg("path", "Download location").String()
-	stDownloadPublished   = stDownloadCmd.Flag("published", "Insert links to published RightScripts instead of downloading to disk.").Short('p').Bool()
-	stDownloadMciSettings = stDownloadCmd.Flag("mci-settings", "Download MCI settings data to recreate/manage an MCI.").Short('m').Bool()
-	stDownloadScriptPath  = stDownloadCmd.Flag("script-path", "Download RightScripts and their attachments to a subdirectory relative to the download location.").Short('s').String()
+	stDownloadPublished   = stDownloadCmd.Flag("published", "Insert links to published RightScripts instead of downloading to disk").Short('p').Bool()
+	stDownloadMciSettings = stDownloadCmd.Flag("mci-settings", "Download MCI settings data to recreate/manage an MCI").Short('m').Bool()
+	stDownloadScriptPath  = stDownloadCmd.Flag("script-path", "Download RightScripts and their attachments to a subdirectory relative to the download location").Short('s').String()
 
 	stValidateCmd   = stCmd.Command("validate", "Validate a ServerTemplate YAML document")
 	stValidatePaths = stValidateCmd.Arg("path", "Path to script file(s)").Required().ExistingFiles()
 
-	stCommitCmd                = stCmd.Command("commit", "Commit ServerTemplate")
-	stCommitNameOrHrefOrPath   = stCommitCmd.Arg("name|href|id|path", "ServerTemplate name, HREF, ID or file path").Required().Strings()
-	stCommitMessage            = stCommitCmd.Flag("message", "ServerTemplate commit message").Short('m').Required().String()
-	stNoCommitHeadDependencies = stCommitCmd.Flag("no-commit-head", "Do not commit HEAD revisions (if any) of the associated MultiCloud Images, RightScripts and Chef repo sequences.").Short('n').Bool()
-	stFreezeRepositories       = stCommitCmd.Flag("freeze-repos", "Freeze the repositories").Short('f').Bool()
+	stCommitCmd                      = stCmd.Command("commit", "Commit ServerTemplate")
+	stCommitNameOrHrefOrPath         = stCommitCmd.Arg("name|href|id|path", "ServerTemplate name, HREF, ID or file path").Required().Strings()
+	stCommitMessage                  = stCommitCmd.Flag("message", "ServerTemplate commit message").Short('m').Required().String()
+	stCommitForce                    = stCommitCmd.Flag("force", "Force commit even if there are no changes").Short('f').Bool()
+	stCommitNoCommitHeadDependencies = stCommitCmd.Flag("no-commit-head", "Do not commit HEAD revisions (if any) of the associated MultiCloud Images or RightScripts").Bool()
+	stCommitFreezeRepositories       = stCommitCmd.Flag("freeze-repos", "Freeze the repositories").Bool()
 
 	stDiffCmd        = stCmd.Command("diff", "Show differences between revisions of a ServerTemplate")
 	stDiffNameOrHref = stDiffCmd.Arg("name|href|id|path", "ServerTemplate name, HREF, ID, or YAML file path").Required().String()
-	stDiffRevisionA  = stDiffCmd.Arg("revision-a", "The former revision of the ServerTemplate").Required().String()
-	stDiffRevisionB  = stDiffCmd.Arg("revision-b", "The latter revision of the ServerTemplate").Required().String()
+	stDiffRevisionA  = stDiffCmd.Arg("revision-a", "The former revision of the ServerTemplate (may be a number, 'latest', or 'head')").Required().String()
+	stDiffRevisionB  = stDiffCmd.Arg("revision-b", "The latter revision of the ServerTemplate (may be a number, 'latest', or 'head')").Required().String()
 	stDiffLinkOnly   = stDiffCmd.Flag("link-only", "Just show a link to a ServerTemplate comparison in the RightScale dashboard").Short('l').Bool()
 
 	// ----- RightScripts -----
@@ -77,7 +78,7 @@ var (
 	rightScriptUploadPrefix = rightScriptUploadCmd.Flag("prefix", "Create dev/test version by adding prefix to name of all RightScripts uploaded").Short('x').String()
 	rightScriptUploadForce  = rightScriptUploadCmd.Flag("force", "Force upload of file if metadata is not present").Short('f').Bool()
 
-	rightScriptDeleteCmd    = rightScriptCmd.Command("delete", "Delete dev/test RightScripts with a prefix.")
+	rightScriptDeleteCmd    = rightScriptCmd.Command("delete", "Delete dev/test RightScripts with a prefix")
 	rightScriptDeletePaths  = rightScriptDeleteCmd.Arg("path", "File or directory containing script files").Required().ExistingFilesOrDirs()
 	rightScriptDeletePrefix = rightScriptDeleteCmd.Flag("prefix", "Prefix to delete").Short('x').String()
 
@@ -100,8 +101,8 @@ var (
 
 	rightScriptDiffCmd        = rightScriptCmd.Command("diff", "Show differences between revisions of a RightScript")
 	rightScriptDiffNameOrHref = rightScriptDiffCmd.Arg("name|href|id|path", "RightScript name, HREF, ID, or file path").Required().String()
-	rightScriptDiffRevisionA  = rightScriptDiffCmd.Arg("revision-a", "The former revision of the RightScript").Required().String()
-	rightScriptDiffRevisionB  = rightScriptDiffCmd.Arg("revision-b", "The latter revision of the RightScript").Required().String()
+	rightScriptDiffRevisionA  = rightScriptDiffCmd.Arg("revision-a", "The former revision of the RightScript (may be a number, 'latest', or 'head')").Required().String()
+	rightScriptDiffRevisionB  = rightScriptDiffCmd.Arg("revision-b", "The latter revision of the RightScript (may be a number, 'latest', or 'head')").Required().String()
 	rightScriptDiffLinkOnly   = rightScriptDiffCmd.Flag("link-only", "Just show a link to a RightScript comparison in the RightScale dashboard").Short('l').Bool()
 
 	// ----- Configuration -----
@@ -207,7 +208,11 @@ func main() {
 			if err != nil {
 				fatalError("%s", err.Error())
 			}
-			stCommit(href, *stCommitMessage, !*stNoCommitHeadDependencies, *stFreezeRepositories)
+			committed := stCommit(href, *stCommitMessage, *stCommitForce, !*stCommitNoCommitHeadDependencies, *stCommitFreezeRepositories, cache)
+			if !committed {
+				fmt.Println("No changes to commit")
+				os.Exit(1)
+			}
 		}
 	case stDiffCmd.FullCommand():
 		href, err := paramToHref("server_templates", *stDiffNameOrHref, 0, true)
@@ -260,7 +265,11 @@ func main() {
 			if err != nil {
 				fatalError("%s", err.Error())
 			}
-			rightScriptCommit(href, *rightScriptCommitMessage, *rightScriptCommitForce, cache)
+			committed := rightScriptCommit(href, *rightScriptCommitMessage, *rightScriptCommitForce, cache)
+			if !committed {
+				fmt.Println("No changes to commit")
+				os.Exit(1)
+			}
 		}
 	case rightScriptDiffCmd.FullCommand():
 		href, err := paramToHref("right_scripts", *rightScriptDiffNameOrHref, 0, true)

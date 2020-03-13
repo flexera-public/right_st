@@ -18,7 +18,7 @@ type (
 		GetServerTemplate(account int, id string, revision int) (*CachedServerTemplate, error)
 		GetServerTemplateDir(account int, id string, revision int) (path string, err error)
 		GetServerTemplateFile(account int, id string, revision int) (path string, err error)
-		PutServerTemplate(account int, id string, revision int, st *cm15.ServerTemplate) error
+		PutServerTemplate(account int, id string, revision int, st *cm15.ServerTemplate, mcis []*cm15.MultiCloudImage, scripts map[string][]*cm15.RightScript) error
 
 		GetRightScript(account int, id string, revison int) (*CachedRightScript, error)
 		GetRightScriptDir(account int, id string, revision int) (path string, err error)
@@ -39,9 +39,11 @@ type (
 
 	CachedServerTemplate struct {
 		*cm15.ServerTemplate `json:"server_template"`
-		File                 string `json:"-"`
-		MD5Sum               string `json:"md5"`
-		Version              uint   `json:"version,omitempty"`
+		File                 string                         `json:"-"`
+		MD5Sum               string                         `json:"md5"`
+		MultiCloudImages     []*cm15.MultiCloudImage        `json:"multi_cloud_images"`
+		RightScripts         map[string][]*cm15.RightScript `json:"right_scripts"`
+		Version              uint                           `json:"version,omitempty"`
 	}
 
 	CachedRightScript struct {
@@ -129,10 +131,10 @@ func (c *cache) GetServerTemplateFile(account int, id string, revision int) (str
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "server_template.yml"), nil
+	return filepath.Join(dir, "server_template.yaml"), nil
 }
 
-func (c *cache) PutServerTemplate(account int, id string, revision int, st *cm15.ServerTemplate) error {
+func (c *cache) PutServerTemplate(account int, id string, revision int, st *cm15.ServerTemplate, mcis []*cm15.MultiCloudImage, scripts map[string][]*cm15.RightScript) error {
 	path, err := c.GetServerTemplateFile(account, id, revision)
 	if err != nil {
 		return err
@@ -142,7 +144,7 @@ func (c *cache) PutServerTemplate(account int, id string, revision int, st *cm15
 		return err
 	}
 
-	cst := CachedServerTemplate{st, "", sum, CacheVersion}
+	cst := CachedServerTemplate{st, "", sum, mcis, scripts, CacheVersion}
 
 	item, err := os.Create(filepath.Join(filepath.Dir(path), "item.json"))
 	if err != nil {
@@ -303,7 +305,7 @@ func (c *cache) GetMultiCloudImageFile(account int, id string, revision int) (st
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "multi_cloud_image.yml"), nil
+	return filepath.Join(dir, "multi_cloud_image.yaml"), nil
 }
 
 func (c *cache) PutMultiCloudImage(account int, id string, revision int, mci *cm15.MultiCloudImage) error {

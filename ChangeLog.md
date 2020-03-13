@@ -1,7 +1,12 @@
 Unreleased Changes
 ------------------
+* Use subcommand aliases so now both `rs` and `rightscript` work as well as `st` and `servertemplate`.
 * Add diff for RightScripts and ServerTemplates.
 * Include commited revision and HREF in RightScript and ServerTemplate commit output.
+* Only commit RightScripts or ServerTemplates if they have actual changes (use `--force`/`-f` to override).
+* **Backward Incompatibility:** removed `-n` and `-f` short flags to `right_st st commit` leaving just the long flags
+  `--no-commit-head` and `--freeze-repos` since the options should not be necessary in mainstream usage. The `-f` short
+  flag now means `--force` which is consistent with other sub commands.
 
 v1.9.4 / 2019-11-08
 -------------------

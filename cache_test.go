@@ -55,7 +55,7 @@ var _ = Describe("Cache", func() {
 				if err := os.MkdirAll(dir, 0700); err != nil {
 					panic(err)
 				}
-				st = filepath.Join(dir, "server_template.yml")
+				st = filepath.Join(dir, "server_template.yaml")
 				if err := ioutil.WriteFile(st, []byte(`
 Name: Really Cool ServerTemplate
 Description: A really cool ServerTemplate
@@ -139,7 +139,7 @@ MultiCloudImages:
 				cst, err := cache.GetServerTemplate(1, "2345678", 90)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(cst).To(PointTo(Equal(CachedServerTemplate{
-					&cm15.ServerTemplate{
+					ServerTemplate: &cm15.ServerTemplate{
 						Actions: []map[string]string{
 							{"rel": "commit"},
 							{"rel": "clone"},
@@ -182,7 +182,9 @@ MultiCloudImages:
 						Name:     "Really Cool ServerTemplate",
 						Revision: 90,
 					},
-					st, "c656cbfe58c22482a835f1d9ff5d7c47", CacheVersion,
+					File:    st,
+					MD5Sum:  "c656cbfe58c22482a835f1d9ff5d7c47",
+					Version: CacheVersion,
 				})))
 			})
 		})
@@ -195,7 +197,7 @@ MultiCloudImages:
 				if err := os.MkdirAll(dir, 0700); err != nil {
 					panic(err)
 				}
-				st = filepath.Join(dir, "server_template.yml")
+				st = filepath.Join(dir, "server_template.yaml")
 				if err := ioutil.WriteFile(st, []byte(`
 Name: Really Cool ServerTemplate
 Description: A really cool ServerTemplate
@@ -293,7 +295,7 @@ MultiCloudImages:
 				if err := os.MkdirAll(dir, 0700); err != nil {
 					panic(err)
 				}
-				st = filepath.Join(dir, "server_template.yml")
+				st = filepath.Join(dir, "server_template.yaml")
 				if err := ioutil.WriteFile(st, []byte(`
 Name: Really Cool ServerTemplate
 Description: A really cool ServerTemplate
@@ -365,6 +367,32 @@ MultiCloudImages:
     "name": "Really Cool ServerTemplate",
     "revision": 90
   },
+  "multi_cloud_images": [
+    {
+	  "actions": [
+	    {
+		  "rel": "clone"
+	    }
+	  ],
+	  "description": "Ubuntu_18.04_x64",
+	  "links": [
+	    {
+		  "href": "/api/multi_cloud_images/2345678",
+		  "rel": "self"
+	    },
+	    {
+		  "href": "/api/multi_cloud_images/2345678/settings",
+		  "rel": "settings"
+	    },
+	    {
+		  "href": "/api/multi_cloud_images/2345678/matchers",
+		  "rel": "matchers"
+	    }
+	  ],
+	  "name": "Ubuntu 18.04 x64 LTS Bionic Beaver",
+	  "revision": 90
+    }
+  ],
   "md5": "c656cbfe58c22482a835f1d9ff5d7c47"
 }
 `), 0600); err != nil {
@@ -387,7 +415,7 @@ MultiCloudImages:
 		It("gets a cached ServerTemplate file path", func() {
 			path, err := cache.GetServerTemplateFile(1, "2345678", 90)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(filepath.Base(path)).To(Equal("server_template.yml"))
+			Expect(filepath.Base(path)).To(Equal("server_template.yaml"))
 
 			revisionPath := filepath.Dir(path)
 			Expect(filepath.Base(revisionPath)).To(Equal("90"))
@@ -416,7 +444,7 @@ MultiCloudImages:
 			if err := os.MkdirAll(dir, 0700); err != nil {
 				panic(err)
 			}
-			if err := ioutil.WriteFile(filepath.Join(dir, "server_template.yml"), []byte(`
+			if err := ioutil.WriteFile(filepath.Join(dir, "server_template.yaml"), []byte(`
 Name: Really Cool ServerTemplate
 Description: A really cool ServerTemplate
 Inputs: {}
@@ -479,7 +507,73 @@ MultiCloudImages:
 				Name:     "Really Cool ServerTemplate",
 				Revision: 90,
 			}
-			err := cache.PutServerTemplate(1, "2345678", 90, &st)
+			mcis := []*cm15.MultiCloudImage{
+				{
+					Actions:     []map[string]string{{"rel": "clone"}},
+					Description: "Ubuntu_18.04_x64",
+					Links: []map[string]string{
+						{
+							"href": "/api/multi_cloud_images/2345678",
+							"rel":  "self",
+						},
+						{
+							"href": "/api/multi_cloud_images/2345678/settings",
+							"rel":  "settings",
+						},
+						{
+							"href": "/api/multi_cloud_images/2345678/matchers",
+							"rel":  "matchers",
+						},
+					},
+					Name:     "Ubuntu 18.04 x64 LTS Bionic Beaver",
+					Revision: 90,
+				},
+			}
+			scripts := map[string][]*cm15.RightScript{
+				"Boot": {
+					{
+						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
+						Description: "A really cool script",
+						Id:          "4567890",
+						Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
+						Links: []map[string]string{
+							{
+								"href": "/api/right_scripts/4567890",
+								"rel":  "self",
+							},
+							{
+								"href": "/api/right_scripts/4567890/source",
+								"rel":  "source",
+							},
+						},
+						Name:      "Really Cool Script",
+						Revision:  90,
+						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
+					},
+				},
+				"Operational": {
+					{
+						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
+						Description: "A really cool script with attachments",
+						Id:          "4567890",
+						Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
+						Links: []map[string]string{
+							{
+								"href": "/api/right_scripts/4567890",
+								"rel":  "self",
+							},
+							{
+								"href": "/api/right_scripts/4567890/source",
+								"rel":  "source",
+							},
+						},
+						Name:      "Really Cool Script with Attachments",
+						Revision:  90,
+						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
+					},
+				},
+			}
+			err := cache.PutServerTemplate(1, "2345678", 90, &st, mcis, scripts)
 			Expect(err).NotTo(HaveOccurred())
 
 			item := filepath.Join(tempPath, "server_templates", "1", "2345678", "90", "item.json")
@@ -539,6 +633,76 @@ MultiCloudImages:
     "revision": 90
   },
   "md5": "c656cbfe58c22482a835f1d9ff5d7c47",
+  "multi_cloud_images": [
+    {
+      "actions": [
+        {
+          "rel": "clone"
+        }
+      ],
+      "description": "Ubuntu_18.04_x64",
+      "links": [
+        {
+          "href": "/api/multi_cloud_images/2345678",
+          "rel": "self"
+        },
+        {
+          "href": "/api/multi_cloud_images/2345678/settings",
+          "rel": "settings"
+        },
+        {
+          "href": "/api/multi_cloud_images/2345678/matchers",
+          "rel": "matchers"
+        }
+      ],
+      "name": "Ubuntu 18.04 x64 LTS Bionic Beaver",
+      "revision": 90
+	}
+  ],
+  "right_scripts": {
+	"Boot": [
+	  {
+		"created_at": "2019/02/03 01:47:25 +0000",
+		"description": "A really cool script",
+		"id": "4567890",
+		"lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
+		"links": [
+		  {
+			"href": "/api/right_scripts/4567890",
+			"rel": "self"
+		  },
+		  {
+			"href": "/api/right_scripts/4567890/source",
+			"rel": "source"
+		  }
+		],
+		"name": "Really Cool Script",
+		"revision": 90,
+		"updated_at": "2019/02/03 01:47:25 +0000"
+	  }
+	],
+	"Operational": [
+	  {
+		"created_at": "2019/02/03 01:47:25 +0000",
+		"description": "A really cool script with attachments",
+		"id": "4567890",
+		"lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
+		"links": [
+		  {
+			"href": "/api/right_scripts/4567890",
+			"rel": "self"
+		  },
+		  {
+			"href": "/api/right_scripts/4567890/source",
+			"rel": "source"
+		  }
+		],
+		"name": "Really Cool Script with Attachments",
+		"revision": 90,
+		"updated_at": "2019/02/03 01:47:25 +0000"
+	  }
+	]
+  },
   "version": 1
 }
 `))
@@ -1127,7 +1291,7 @@ cat "$RS_ATTACH_DIR"/*.txt
 				if err := os.MkdirAll(dir, 0700); err != nil {
 					panic(err)
 				}
-				mci = filepath.Join(dir, "multi_cloud_image.yml")
+				mci = filepath.Join(dir, "multi_cloud_image.yaml")
 				if err := ioutil.WriteFile(mci, []byte(`Name: Ubuntu_18.04_x64
 Description: Ubuntu 18.04 x64 LTS Bionic Beaver
 Tags:
@@ -1210,7 +1374,7 @@ Settings:
 				if err := os.MkdirAll(dir, 0700); err != nil {
 					panic(err)
 				}
-				mci = filepath.Join(dir, "multi_cloud_image.yml")
+				mci = filepath.Join(dir, "multi_cloud_image.yaml")
 				if err := ioutil.WriteFile(mci, []byte(`Name: Ubuntu_18.04_x64
 Description: Ubuntu 18.04 x64 LTS Bionic Beaver
 Tags:
@@ -1274,7 +1438,7 @@ Settings:
 				if err := os.MkdirAll(dir, 0700); err != nil {
 					panic(err)
 				}
-				mci = filepath.Join(dir, "multi_cloud_image.yml")
+				mci = filepath.Join(dir, "multi_cloud_image.yaml")
 				if err := ioutil.WriteFile(mci, []byte(`Name: Ubuntu_18.04_x64
 Description: Ubuntu 18.04 x64 LTS Bionic Beaver
 Tags:
@@ -1334,7 +1498,7 @@ Settings:
 		It("gets a cached MultiCloudImage file path", func() {
 			path, err := cache.GetMultiCloudImageFile(1, "2345678", 90)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(filepath.Base(path)).To(Equal("multi_cloud_image.yml"))
+			Expect(filepath.Base(path)).To(Equal("multi_cloud_image.yaml"))
 
 			revisionPath := filepath.Dir(path)
 			Expect(filepath.Base(revisionPath)).To(Equal("90"))
@@ -1363,7 +1527,7 @@ Settings:
 			if err := os.MkdirAll(dir, 0700); err != nil {
 				panic(err)
 			}
-			if err := ioutil.WriteFile(filepath.Join(dir, "multi_cloud_image.yml"), []byte(`Name: Ubuntu_18.04_x64
+			if err := ioutil.WriteFile(filepath.Join(dir, "multi_cloud_image.yaml"), []byte(`Name: Ubuntu_18.04_x64
 Description: Ubuntu 18.04 x64 LTS Bionic Beaver
 Tags:
 - rs_agent:mime_shellscript=https://rightlink.rightscale.com/rll/10.6.0/rightlink.boot.sh

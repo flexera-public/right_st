@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/rightscale/rsc/cm15"
 	"github.com/rightscale/rsc/rsapi"
@@ -621,20 +623,141 @@ func stDiff(href, revisionA, revisionB string, linkOnly bool, cache Cache) {
 	if linkOnly {
 		fmt.Println(getServerTemplateDiffLink(stA, stB))
 	} else {
-		diffServerTemplate(os.Stdout, stA, stB, cache)
+		differ, err := diffServerTemplate(os.Stdout, stA, stB, false, cache)
+		if err != nil {
+			fatalError("Error performing diff: %v", err)
+		}
+		if differ {
+			os.Exit(1)
+		}
 	}
 }
 
 // diffServerTemplate returns whether two ServerTemplate revisions differ and writes the differences to w
-func diffServerTemplate(w io.Writer, stA, stB *cm15.ServerTemplate, cache Cache) bool {
-	// TODO implement
+func diffServerTemplate(w io.Writer, stA, stB *cm15.ServerTemplate, ignoreHeads bool, cache Cache) (bool, error) {
+	yamlA, mcisA, scriptsA, dirA, err := getServerTemplateFiles(stA, cache)
+	if err != nil {
+		return false, err
+	}
+	defer yamlA.Close()
+	if stA.Revision == 0 {
+		defer os.RemoveAll(dirA)
+	}
+	yamlB, mcisB, scriptsB, dirB, err := getServerTemplateFiles(stB, cache)
+	if err != nil {
+		return false, err
+	}
+	defer yamlB.Close()
+	if stB.Revision == 0 {
+		defer os.RemoveAll(dirB)
+	}
 
-	return false
+	if ignoreHeads {
+		b, err := ioutil.ReadAll(yamlA)
+		if err != nil {
+			return false, err
+		}
+		yamlA.Close()
+
+		st := &ServerTemplate{}
+		if err := yaml.Unmarshal(b, st); err != nil {
+			return false, err
+		}
+
+		for sequence, scripts := range scriptsB {
+			stScripts, ok := st.RightScripts[sequence]
+			if !ok {
+				continue
+			}
+			for _, script := range scripts {
+				if script.Revision == 0 {
+					href := getRightScriptHREF(script)
+					for i, stScript := range stScripts {
+						if stScript.Href == href {
+							stScripts[i].Revision = 0
+						}
+					}
+				}
+			}
+		}
+
+		b, err = yaml.Marshal(st)
+		if err != nil {
+			return false, err
+		}
+		yamlA = ioutil.NopCloser(bytes.NewReader(b))
+	}
+
+	nameRevA := getServerTemplateNameRev(stA)
+	nameRevB := getServerTemplateNameRev(stB)
+	differ, output, err := Diff(nameRevA, nameRevB, time.Time{}, time.Time{}, yamlA, yamlB)
+	if err != nil {
+		return false, err
+	}
+
+	fmt.Println(mcisA, scriptsA)
+	fmt.Println(mcisB, scriptsB)
+	outputs := make([]string, 0, len(scriptsA)+len(mcisA))
+
+	if differ {
+		fmt.Fprintf(w, "%v and %v differ\n\n%v\n\n", nameRevA, nameRevB, getServerTemplateDiffLink(stA, stB))
+		fmt.Fprintf(w, output)
+		for _, o := range outputs {
+			fmt.Fprint(w, o)
+		}
+	}
+
+	return differ, nil
 }
 
 // getServerTemplateDiffLink returns the RightScale Dashboard URL for a diff between two ServerTemplate revisions
 func getServerTemplateDiffLink(stA, stB *cm15.ServerTemplate) string {
 	return fmt.Sprintf("https://%v/acct/%v/server_templates/diff?old_server_template_id=%v&new_server_template_id=%v", Config.Account.Host, Config.Account.Id, getServerTemplateId(stA), getServerTemplateId(stB))
+}
+
+// getServerTemplateFiles retreives the local path of a cached ServerTemplate and its directory
+func getServerTemplateFiles(st *cm15.ServerTemplate, cache Cache) (reader io.ReadCloser, mcis []*cm15.MultiCloudImage, scripts map[string][]*cm15.RightScript, dir string, err error) {
+	id := getServerTemplateId(st)
+	var yaml string
+	if st.Revision == 0 {
+		dir, err = ioutil.TempDir("", "right_st.cache.")
+		if err != nil {
+			return
+		}
+		yaml = filepath.Join(dir, "server_template.yaml")
+	} else {
+		var cst *CachedServerTemplate
+		cst, err = cache.GetServerTemplate(Config.Account.Id, id, st.Revision)
+		if err != nil {
+			return
+		}
+		if cst != nil {
+			yaml = cst.File
+			goto finish
+		}
+		yaml, err = cache.GetServerTemplateFile(Config.Account.Id, id, st.Revision)
+		if err != nil {
+			return
+		}
+	}
+
+	// TODO make stDownload optionally silent and return MCIs, RightScripts, and an error
+	stDownload(getServerTemplateHREF(st), yaml, false, false, "")
+
+	if st.Revision != 0 {
+		err = cache.PutServerTemplate(Config.Account.Id, id, st.Revision, st, mcis, scripts)
+		if err != nil {
+			return
+		}
+	}
+
+finish:
+	if dir == "" {
+		dir = filepath.Dir(yaml)
+	}
+	// TODO sort mcis
+	reader, err = os.Open(yaml)
+	return
 }
 
 // getServerTemplateRevision returns the ServerTemplate object for the given ServerTemplate HREF and revision;
@@ -694,9 +817,22 @@ func getServerTemplateRevision(href, revision string) (*cm15.ServerTemplate, err
 
 // getServerTemplateId returns the ID of the ServerTemplate object
 func getServerTemplateId(st *cm15.ServerTemplate) string {
-	client, _ := Config.Account.Client15()
-	parts := strings.Split(string(st.Locator(client).Href), "/")
+	parts := strings.Split(getServerTemplateHREF(st), "/")
 	return parts[len(parts)-1]
+}
+
+// getServerTemplateHREF returns the HREF of the RightScript object
+func getServerTemplateHREF(st *cm15.ServerTemplate) string {
+	client, _ := Config.Account.Client15()
+	return string(st.Locator(client).Href)
+}
+
+// getServerTemplateNameRev returns the name and revision of the ServerTemplate object
+func getServerTemplateNameRev(st *cm15.ServerTemplate) string {
+	if st.Revision == 0 {
+		return st.Name + " [HEAD]"
+	}
+	return fmt.Sprintf("%v [rev %v]", st.Name, st.Revision)
 }
 
 // TBD
@@ -788,12 +924,12 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 }
 
 func ParseServerTemplate(ymlData io.Reader) (*ServerTemplate, error) {
-	st := ServerTemplate{}
+	st := &ServerTemplate{}
 	bytes, err := ioutil.ReadAll(ymlData)
 	if err != nil {
 		return nil, err
 	}
-	err = yaml.UnmarshalStrict(bytes, &st)
+	err = yaml.UnmarshalStrict(bytes, st)
 	if err != nil {
 		return nil, err
 	}
@@ -803,7 +939,7 @@ func ParseServerTemplate(ymlData io.Reader) (*ServerTemplate, error) {
 			return nil, typeError
 		}
 	}
-	return &st, nil
+	return st, nil
 }
 
 func getServerTemplateByName(name string) (*cm15.ServerTemplate, error) {
@@ -828,7 +964,26 @@ func getServerTemplateByName(name string) (*cm15.ServerTemplate, error) {
 	return foundSt, nil
 }
 
-func stCommit(href, message string, commitHead, freezeRepos bool) {
+func stCommit(href, message string, force, commitHead, freezeRepos bool, cache Cache) bool {
+	if !force {
+		stLatest, err := getServerTemplateRevision(href, "latest")
+		if err != nil {
+			fatalError("Could not find latest: %v", err)
+		}
+		stHead, err := getServerTemplateRevision(href, "head")
+		if err != nil {
+			fatalError("Could not find head: %v", err)
+		}
+
+		differ, err := diffServerTemplate(ioutil.Discard, stLatest, stHead, true, cache)
+		if err != nil {
+			fatalError("Error performing diff: %v", err)
+		}
+		if !differ {
+			return false
+		}
+	}
+
 	client, _ := Config.Account.Client15()
 	stLocator := client.ServerTemplateLocator(href)
 
@@ -844,4 +999,6 @@ func stCommit(href, message string, commitHead, freezeRepos bool) {
 		fatalError("%v", err)
 	}
 	fmt.Printf("Revision: %v\nHREF: %v\n", st.Revision, commitLocator.Href)
+
+	return true
 }
