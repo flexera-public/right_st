@@ -6,7 +6,7 @@ matrix:
     - os: linux
       env: MAKE=make
     - os: osx
-      osx_image: xcode11.2
+      osx_image: xcode11.3
       env: MAKE=make
   fast_finish: true
 cache:
@@ -23,6 +23,7 @@ addons:
       # install modern bash and coreutils on macOS so that version.sh script works correctly
       - bash
       - coreutils
+    update: true
 install:
   - make depend
 script:
