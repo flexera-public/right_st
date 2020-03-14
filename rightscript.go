@@ -48,6 +48,7 @@ type RightScript struct {
 }
 
 var (
+	nullRightScript        = &cm15.RightScript{UpdatedAt: &cm15.RubyTime{}}
 	lineage                = regexp.MustCompile(`/api/acct/(\d+)/right_scripts/.+$`)
 	powershellAssignment   = regexp.MustCompile(`(?im)^\s*\$[a-z0-9_:]+\s*=`)
 	powershellWriteCmdlets = regexp.MustCompile(`(?im)^\s*Write-(?:Debug|Error|EventLog|Host|Information|Output|Progress|Verbose|Warning)`)
@@ -159,7 +160,7 @@ func GuessExtension(source string) string {
 	return ""
 }
 
-func rightScriptDownload(href, downloadTo string, scaffold bool, output io.Writer) (string, []string, error) {
+func rightScriptDownload(href, downloadTo string, scaffold bool, output io.Writer) (string, *cm15.RightScript, []string, error) {
 	client, _ := Config.Account.Client15()
 
 	attachmentsHref := fmt.Sprintf("%s/attachments", href)
@@ -168,11 +169,11 @@ func rightScriptDownload(href, downloadTo string, scaffold bool, output io.Write
 
 	rightscript, err := rightscriptLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
 	if err != nil {
-		return "", nil, fmt.Errorf("Could not find RightScript with href %v: %v", href, err)
+		return "", nil, nil, fmt.Errorf("Could not find RightScript with href %v: %v", href, err)
 	}
 	source, err := getSource(rightscriptLocator)
 	if err != nil {
-		return "", nil, fmt.Errorf("Could not get source for RightScript with href %v: %v", href, err)
+		return "", nil, nil, fmt.Errorf("Could not get source for RightScript with href %v: %v", href, err)
 	}
 	sourceMetadata, err := ParseRightScriptMetadata(bytes.NewReader(source))
 	if err != nil {
@@ -181,7 +182,7 @@ func rightScriptDownload(href, downloadTo string, scaffold bool, output io.Write
 
 	attachments, err := attachmentsLocator.Index(rsapi.APIParams{})
 	if err != nil {
-		return "", nil, fmt.Errorf("Could not get attachments for RightScript from href %v: %v", attachmentsHref, err)
+		return "", nil, nil, fmt.Errorf("Could not get attachments for RightScript from href %v: %v", attachmentsHref, err)
 	}
 
 	guessedExtension := GuessExtension(string(source))
@@ -225,7 +226,7 @@ func rightScriptDownload(href, downloadTo string, scaffold bool, output io.Write
 
 		downloadUrl, err := url.Parse(attachment.DownloadUrl)
 		if err != nil {
-			return "", nil, fmt.Errorf("Could not parse URL of attachment: %v", err)
+			return "", nil, nil, fmt.Errorf("Could not parse URL of attachment: %v", err)
 		}
 		downloadItem := downloadItem{
 			url:       *downloadUrl,
@@ -240,7 +241,7 @@ func rightScriptDownload(href, downloadTo string, scaffold bool, output io.Write
 		fmt.Fprintf(output, "Download %d attachments:\n", len(downloadItems))
 		err = downloadManager(downloadItems, output)
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed to download all attachments: %v", err)
+			return "", nil, nil, fmt.Errorf("Failed to download all attachments: %v", err)
 		}
 		for _, d := range downloadItems {
 			for i, attachment := range attachments {
@@ -285,10 +286,10 @@ func rightScriptDownload(href, downloadTo string, scaffold bool, output io.Write
 		err = ioutil.WriteFile(downloadTo, source, 0755)
 	}
 	if err != nil {
-		return "", nil, fmt.Errorf("Could not create file: %v", err)
+		return "", nil, nil, fmt.Errorf("Could not create file: %v", err)
 	}
 
-	return downloadTo, attachmentNames, nil
+	return downloadTo, rightscript, attachmentNames, nil
 }
 
 // Convert a JSON response to InputMetadata struct
@@ -504,7 +505,7 @@ func getRightScriptFiles(rs *cm15.RightScript, cache Cache) (reader io.ReadClose
 		}
 	}
 
-	_, attachments, err = rightScriptDownload(getRightScriptHREF(rs), script, false, ioutil.Discard)
+	_, _, attachments, err = rightScriptDownload(getRightScriptHREF(rs), script, false, ioutil.Discard)
 	if err != nil {
 		return
 	}
@@ -534,7 +535,7 @@ func getRightScriptRevision(href, revision string) (*cm15.RightScript, error) {
 	)
 	switch strings.ToLower(revision) {
 	case "null":
-		return &cm15.RightScript{UpdatedAt: &cm15.RubyTime{}}, nil
+		return nullRightScript, nil
 	case "head":
 		r = 0
 	case "latest":
@@ -1122,17 +1123,22 @@ func rightScriptCommit(href, message string, force bool, cache Cache) bool {
 func (rs RightScript) MarshalYAML() (interface{}, error) {
 	if rs.Type == LocalRightScript {
 		return rs.Path, nil
-	} else {
-		destMap := make(map[string]interface{})
-		destMap["Name"] = rs.Name
-		if rs.Revision == -1 {
-			destMap["Revision"] = "latest"
-		} else {
-			destMap["Revision"] = rs.Revision
-		}
-		destMap["Publisher"] = rs.Publisher
-		return destMap, nil
 	}
+
+	destMap := make(map[string]interface{})
+	destMap["Name"] = rs.Name
+	switch rs.Revision {
+	case -1:
+		destMap["Revision"] = "latest"
+	case 0:
+		destMap["Revision"] = "head"
+	default:
+		destMap["Revision"] = rs.Revision
+	}
+	if rs.Publisher != "" {
+		destMap["Publisher"] = rs.Publisher
+	}
+	return destMap, nil
 }
 
 func (rs *RightScript) UnmarshalYAML(unmarshal func(interface{}) error) error {

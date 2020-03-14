@@ -17,6 +17,7 @@ var _ = Describe("Cache", func() {
 	var (
 		tempPath string
 		cache    Cache
+		utc      *time.Location
 	)
 
 	BeforeEach(func() {
@@ -28,6 +29,15 @@ var _ = Describe("Cache", func() {
 		cache, err = NewCache(tempPath)
 		if err != nil {
 			panic(err)
+		}
+		t, err := time.Parse("2006/01/02 15:04:05 -0700", "2019/02/03 01:47:25 +0000")
+		if err != nil {
+			panic(err)
+		}
+		if t.Format("MST") == "UTC" {
+			utc = time.UTC
+		} else {
+			utc = time.FixedZone("", 0)
 		}
 	})
 
@@ -104,7 +114,7 @@ MultiCloudImages:
         "rel": "multi_cloud_images"
       },
       {
-        "href": "/api/multi_cloud_images/440639003",
+        "href": "/api/multi_cloud_images/2345678",
         "rel": "default_multi_cloud_image"
       },
       {
@@ -128,6 +138,72 @@ MultiCloudImages:
     "revision": 90
   },
   "md5": "c656cbfe58c22482a835f1d9ff5d7c47",
+  "multi_cloud_images": [
+    {
+      "actions": [
+        {
+          "rel": "clone"
+        }
+      ],
+      "description": "Ubuntu_18.04_x64",
+      "links": [
+        {
+          "href": "/api/multi_cloud_images/2345678",
+          "rel": "self"
+        },
+        {
+          "href": "/api/multi_cloud_images/2345678/settings",
+          "rel": "settings"
+        },
+        {
+          "href": "/api/multi_cloud_images/2345678/matchers",
+          "rel": "matchers"
+        }
+      ],
+      "name": "Ubuntu 18.04 x64 LTS Bionic Beaver",
+      "revision": 90
+	}
+  ],
+  "right_scripts": [
+    {
+      "created_at": "2019/02/03 01:47:25 +0000",
+      "description": "A really cool script",
+      "id": "4567890",
+      "lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
+      "links": [
+        {
+          "href": "/api/right_scripts/4567890",
+          "rel": "self"
+        },
+        {
+          "href": "/api/right_scripts/4567890/source",
+          "rel": "source"
+        }
+      ],
+      "name": "Really Cool Script",
+      "revision": 90,
+      "updated_at": "2019/02/03 01:47:25 +0000"
+    },
+    {
+      "created_at": "2019/02/03 01:47:25 +0000",
+      "description": "A really cool script with attachments",
+      "id": "4567890",
+      "lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
+      "links": [
+        {
+          "href": "/api/right_scripts/4567890",
+          "rel": "self"
+        },
+        {
+          "href": "/api/right_scripts/4567890/source",
+          "rel": "source"
+        }
+      ],
+      "name": "Really Cool Script with Attachments",
+      "revision": 90,
+      "updated_at": "2019/02/03 01:47:25 +0000"
+    }
+  ],
   "version": 1
 }
 `), 0600); err != nil {
@@ -150,40 +226,69 @@ MultiCloudImages:
 						Description: "A really cool ServerTemplate",
 						Lineage:     "https://us-3.rightscale.com/api/acct/1/ec2_server_templates/2345678",
 						Links: []map[string]string{
-							{
-								"href": "/api/server_templates/4567890",
-								"rel":  "self",
-							},
-							{
-								"href": "/api/server_templates/4567890/multi_cloud_images",
-								"rel":  "multi_cloud_images",
-							},
-							{
-								"href": "/api/multi_cloud_images/440639003",
-								"rel":  "default_multi_cloud_image",
-							},
-							{
-								"href": "/api/server_templates/4567890/inputs",
-								"rel":  "inputs",
-							},
-							{
-								"href": "/api/server_templates/4567890/alert_specs",
-								"rel":  "alert_specs",
-							},
-							{
-								"href": "/api/server_templates/4567890/runnable_bindings",
-								"rel":  "runnable_bindings",
-							},
-							{
-								"href": "/api/server_templates/4567890/cookbook_attachments",
-								"rel":  "cookbook_attachments",
-							},
+							{"href": "/api/server_templates/4567890", "rel": "self"},
+							{"href": "/api/server_templates/4567890/multi_cloud_images", "rel": "multi_cloud_images"},
+							{"href": "/api/multi_cloud_images/2345678", "rel": "default_multi_cloud_image"},
+							{"href": "/api/server_templates/4567890/inputs", "rel": "inputs"},
+							{"href": "/api/server_templates/4567890/alert_specs", "rel": "alert_specs"},
+							{"href": "/api/server_templates/4567890/runnable_bindings", "rel": "runnable_bindings"},
+							{"href": "/api/server_templates/4567890/cookbook_attachments", "rel": "cookbook_attachments"},
 						},
 						Name:     "Really Cool ServerTemplate",
 						Revision: 90,
 					},
-					File:    st,
-					MD5Sum:  "c656cbfe58c22482a835f1d9ff5d7c47",
+					File:   st,
+					MD5Sum: "c656cbfe58c22482a835f1d9ff5d7c47",
+					MultiCloudImages: []*cm15.MultiCloudImage{
+						{
+							Actions:     []map[string]string{{"rel": "clone"}},
+							Description: "Ubuntu_18.04_x64",
+							Links: []map[string]string{
+								{
+									"href": "/api/multi_cloud_images/2345678",
+									"rel":  "self",
+								},
+								{
+									"rel":  "settings",
+									"href": "/api/multi_cloud_images/2345678/settings",
+								},
+								{
+									"href": "/api/multi_cloud_images/2345678/matchers",
+									"rel":  "matchers",
+								},
+							},
+							Name:     "Ubuntu 18.04 x64 LTS Bionic Beaver",
+							Revision: 90,
+						},
+					},
+					RightScripts: []*cm15.RightScript{
+						{
+							CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+							Description: "A really cool script",
+							Id:          "4567890",
+							Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
+							Links: []map[string]string{
+								{"href": "/api/right_scripts/4567890", "rel": "self"},
+								{"href": "/api/right_scripts/4567890/source", "rel": "source"},
+							},
+							Name:      "Really Cool Script",
+							Revision:  90,
+							UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+						},
+						{
+							CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+							Description: "A really cool script with attachments",
+							Id:          "4567890",
+							Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
+							Links: []map[string]string{
+								{"href": "/api/right_scripts/4567890", "rel": "self"},
+								{"href": "/api/right_scripts/4567890/source", "rel": "source"},
+							},
+							Name:      "Really Cool Script with Attachments",
+							Revision:  90,
+							UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+						},
+					},
 					Version: CacheVersion,
 				})))
 			})
@@ -246,7 +351,7 @@ MultiCloudImages:
         "rel": "multi_cloud_images"
       },
       {
-        "href": "/api/multi_cloud_images/440639003",
+        "href": "/api/multi_cloud_images/2345678",
         "rel": "default_multi_cloud_image"
       },
       {
@@ -344,7 +449,7 @@ MultiCloudImages:
         "rel": "multi_cloud_images"
       },
       {
-        "href": "/api/multi_cloud_images/440639003",
+        "href": "/api/multi_cloud_images/2345678",
         "rel": "default_multi_cloud_image"
       },
       {
@@ -391,6 +496,46 @@ MultiCloudImages:
 	  ],
 	  "name": "Ubuntu 18.04 x64 LTS Bionic Beaver",
 	  "revision": 90
+    }
+  ],
+  "right_scripts": [
+    {
+      "created_at": "2019/02/03 01:47:25 +0000",
+      "description": "A really cool script",
+      "id": "4567890",
+      "lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
+      "links": [
+        {
+          "href": "/api/right_scripts/4567890",
+          "rel": "self"
+        },
+        {
+          "href": "/api/right_scripts/4567890/source",
+          "rel": "source"
+        }
+      ],
+      "name": "Really Cool Script",
+      "revision": 90,
+      "updated_at": "2019/02/03 01:47:25 +0000"
+    },
+    {
+      "created_at": "2019/02/03 01:47:25 +0000",
+      "description": "A really cool script with attachments",
+      "id": "4567890",
+      "lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
+      "links": [
+        {
+          "href": "/api/right_scripts/4567890",
+          "rel": "self"
+        },
+        {
+          "href": "/api/right_scripts/4567890/source",
+          "rel": "source"
+        }
+      ],
+      "name": "Really Cool Script with Attachments",
+      "revision": 90,
+      "updated_at": "2019/02/03 01:47:25 +0000"
     }
   ],
   "md5": "c656cbfe58c22482a835f1d9ff5d7c47"
@@ -484,7 +629,7 @@ MultiCloudImages:
 						"rel":  "multi_cloud_images",
 					},
 					{
-						"href": "/api/multi_cloud_images/440639003",
+						"href": "/api/multi_cloud_images/2345678",
 						"rel":  "default_multi_cloud_image",
 					},
 					{
@@ -512,65 +657,40 @@ MultiCloudImages:
 					Actions:     []map[string]string{{"rel": "clone"}},
 					Description: "Ubuntu_18.04_x64",
 					Links: []map[string]string{
-						{
-							"href": "/api/multi_cloud_images/2345678",
-							"rel":  "self",
-						},
-						{
-							"href": "/api/multi_cloud_images/2345678/settings",
-							"rel":  "settings",
-						},
-						{
-							"href": "/api/multi_cloud_images/2345678/matchers",
-							"rel":  "matchers",
-						},
+						{"href": "/api/multi_cloud_images/2345678", "rel": "self"},
+						{"href": "/api/multi_cloud_images/2345678/settings", "rel": "settings"},
+						{"href": "/api/multi_cloud_images/2345678/matchers", "rel": "matchers"},
 					},
 					Name:     "Ubuntu 18.04 x64 LTS Bionic Beaver",
 					Revision: 90,
 				},
 			}
-			scripts := map[string][]*cm15.RightScript{
-				"Boot": {
-					{
-						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
-						Description: "A really cool script",
-						Id:          "4567890",
-						Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
-						Links: []map[string]string{
-							{
-								"href": "/api/right_scripts/4567890",
-								"rel":  "self",
-							},
-							{
-								"href": "/api/right_scripts/4567890/source",
-								"rel":  "source",
-							},
-						},
-						Name:      "Really Cool Script",
-						Revision:  90,
-						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
+			scripts := []*cm15.RightScript{
+				{
+					CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+					Description: "A really cool script",
+					Id:          "4567890",
+					Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
+					Links: []map[string]string{
+						{"href": "/api/right_scripts/4567890", "rel": "self"},
+						{"href": "/api/right_scripts/4567890/source", "rel": "source"},
 					},
+					Name:      "Really Cool Script",
+					Revision:  90,
+					UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
 				},
-				"Operational": {
-					{
-						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
-						Description: "A really cool script with attachments",
-						Id:          "4567890",
-						Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
-						Links: []map[string]string{
-							{
-								"href": "/api/right_scripts/4567890",
-								"rel":  "self",
-							},
-							{
-								"href": "/api/right_scripts/4567890/source",
-								"rel":  "source",
-							},
-						},
-						Name:      "Really Cool Script with Attachments",
-						Revision:  90,
-						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
+				{
+					CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+					Description: "A really cool script with attachments",
+					Id:          "4567890",
+					Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
+					Links: []map[string]string{
+						{"href": "/api/right_scripts/4567890", "rel": "self"},
+						{"href": "/api/right_scripts/4567890/source", "rel": "source"},
 					},
+					Name:      "Really Cool Script with Attachments",
+					Revision:  90,
+					UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
 				},
 			}
 			err := cache.PutServerTemplate(1, "2345678", 90, &st, mcis, scripts)
@@ -609,7 +729,7 @@ MultiCloudImages:
         "rel": "multi_cloud_images"
       },
       {
-        "href": "/api/multi_cloud_images/440639003",
+        "href": "/api/multi_cloud_images/2345678",
         "rel": "default_multi_cloud_image"
       },
       {
@@ -659,50 +779,46 @@ MultiCloudImages:
       "revision": 90
 	}
   ],
-  "right_scripts": {
-	"Boot": [
-	  {
-		"created_at": "2019/02/03 01:47:25 +0000",
-		"description": "A really cool script",
-		"id": "4567890",
-		"lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
-		"links": [
-		  {
-			"href": "/api/right_scripts/4567890",
-			"rel": "self"
-		  },
-		  {
-			"href": "/api/right_scripts/4567890/source",
-			"rel": "source"
-		  }
-		],
-		"name": "Really Cool Script",
-		"revision": 90,
-		"updated_at": "2019/02/03 01:47:25 +0000"
-	  }
-	],
-	"Operational": [
-	  {
-		"created_at": "2019/02/03 01:47:25 +0000",
-		"description": "A really cool script with attachments",
-		"id": "4567890",
-		"lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
-		"links": [
-		  {
-			"href": "/api/right_scripts/4567890",
-			"rel": "self"
-		  },
-		  {
-			"href": "/api/right_scripts/4567890/source",
-			"rel": "source"
-		  }
-		],
-		"name": "Really Cool Script with Attachments",
-		"revision": 90,
-		"updated_at": "2019/02/03 01:47:25 +0000"
-	  }
-	]
-  },
+  "right_scripts": [
+    {
+      "created_at": "2019/02/03 01:47:25 +0000",
+      "description": "A really cool script",
+      "id": "4567890",
+      "lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
+      "links": [
+        {
+          "href": "/api/right_scripts/4567890",
+          "rel": "self"
+        },
+        {
+          "href": "/api/right_scripts/4567890/source",
+          "rel": "source"
+        }
+      ],
+      "name": "Really Cool Script",
+      "revision": 90,
+      "updated_at": "2019/02/03 01:47:25 +0000"
+    },
+    {
+      "created_at": "2019/02/03 01:47:25 +0000",
+      "description": "A really cool script with attachments",
+      "id": "4567890",
+      "lineage": "https://us-3.rightscale.com/api/acct/1/2345678",
+      "links": [
+        {
+          "href": "/api/right_scripts/4567890",
+          "rel": "self"
+        },
+        {
+          "href": "/api/right_scripts/4567890/source",
+          "rel": "source"
+        }
+      ],
+      "name": "Really Cool Script with Attachments",
+      "revision": 90,
+      "updated_at": "2019/02/03 01:47:25 +0000"
+    }
+  ],
   "version": 1
 }
 `))
@@ -773,7 +889,7 @@ echo 'Really cool script!'
 				Expect(crs).NotTo(BeNil())
 				Expect(crs).To(PointTo(Equal(CachedRightScript{
 					&cm15.RightScript{
-						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.CreatedAt.Location())},
+						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc).In(crs.RightScript.CreatedAt.Location())},
 						Description: "A really cool script",
 						Id:          "4567890",
 						Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
@@ -789,7 +905,7 @@ echo 'Really cool script!'
 						},
 						Name:      "Really Cool Script",
 						Revision:  90,
-						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.UpdatedAt.Location())},
+						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc).In(crs.RightScript.UpdatedAt.Location())},
 					},
 					rs, "130cd1afe75c80631f89c69bfb3052ab", nil, CacheVersion,
 				})))
@@ -867,7 +983,7 @@ cat "$RS_ATTACH_DIR"/*.txt
 				Expect(crs).NotTo(BeNil())
 				Expect(crs).To(PointTo(Equal(CachedRightScript{
 					&cm15.RightScript{
-						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.CreatedAt.Location())},
+						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc).In(crs.RightScript.CreatedAt.Location())},
 						Description: "A really cool script with attachments",
 						Id:          "4567890",
 						Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
@@ -883,7 +999,7 @@ cat "$RS_ATTACH_DIR"/*.txt
 						},
 						Name:      "Really Cool Script with Attachments",
 						Revision:  90,
-						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.UpdatedAt.Location())},
+						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc).In(crs.RightScript.UpdatedAt.Location())},
 					},
 					rs, "9dabfc14b729875fa9dd499bc9c79f95",
 					map[string]string{
@@ -1137,7 +1253,7 @@ echo 'Really cool script!'
 
 			It("writes an item JSON file", func() {
 				rs := cm15.RightScript{
-					CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
+					CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
 					Description: "A really cool script",
 					Id:          "4567890",
 					Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
@@ -1153,7 +1269,7 @@ echo 'Really cool script!'
 					},
 					Name:      "Really Cool Script",
 					Revision:  90,
-					UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
+					UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
 				}
 				err := cache.PutRightScript(1, "2345678", 90, &rs, nil)
 				Expect(err).NotTo(HaveOccurred())
@@ -1219,7 +1335,7 @@ cat "$RS_ATTACH_DIR"/*.txt
 
 			It("writes an item JSON file", func() {
 				rs := cm15.RightScript{
-					CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
+					CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
 					Description: "A really cool script with attachments",
 					Id:          "4567890",
 					Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
@@ -1235,7 +1351,7 @@ cat "$RS_ATTACH_DIR"/*.txt
 					},
 					Name:      "Really Cool Script with Attachments",
 					Revision:  90,
-					UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
+					UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
 				}
 				err := cache.PutRightScript(1, "2345678", 90, &rs, []string{"a.txt", "b.txt"})
 				Expect(err).NotTo(HaveOccurred())

@@ -117,10 +117,15 @@ right_st rightscript validate <path>...
   Validate RightScript YAML metadata comments in a file or files
 
 right_st rightscript commit --message=MESSAGE <name|href|id|path>...
-    Commit RightScript
+  Commit RightScript
+  Flags:
+    -m, --message=MESSAGE  RightScript commit message
+    -f, --force            Force commit even if there are no changes
 
 right_st rightscript diff [<flags>] <name|href|id|path> <revision-a> <revision-b>
   Show differences between revisions of a RightScript
+  Flags:
+    -l, --link-only        Just show a link to a RightScript comparison in the RightScale dashboard
 ```
 
 
@@ -276,27 +281,26 @@ right_st servertemplate delete <path>...
 right_st servertemplate download <name|href|id> [<path>]
   Download a ServerTemplate and all associated RightScripts/Attachments to disk
   Flags:
-    -p, --published: When downloading RightScripts, first check if it's published in
-                     the MultiCloud marketplace and insert a link to the published
-                     script if so.
-    -m, --mci-settings: When specifying MultiCloudImages, use Format 4. This fully specifies
-                        all cloud/image/instance type settings combinations to completely
-                        manage the MultiCloudImage in the YAML.
-    -s, --script-path <script-path>: Download RightScripts and their attachments
-                                     to a subdirectory relative to the download location.
+    -p, --published                Insert links to published RightScripts instead of downloading to disk
+    -m, --mci-settings             Download MCI settings data to recreate/manage an MCI
+    -s, --script-path=SCRIPT-PATH  Download RightScripts and their attachments to a subdirectory relative to the download location
+    -r, --script-references        Insert links to all RightScripts instead of downloading to disk
 
 right_st servertemplate validate <path>...
   Validate a ServerTemplate YAML document
 
 right_st servertemplate commit --message=MESSAGE <name|href|id|path>...
-    Commit ServerTemplate
-    Flags:
-    -n, --no-commit-head:  Do not commit HEAD revisions (if any) of the associated MultiCloud 
-                           Images, RightScripts and Chef repo sequences.
-    -f, --freeze-repos:  Freeze the repositories
+  Commit ServerTemplate
+  Flags:
+    -m, --message=MESSAGE  ServerTemplate commit message
+    -f, --force            Force commit even if there are no changes
+        --no-commit-head   Do not commit HEAD revisions (if any) of the associated MultiCloud Images or RightScripts
+        --freeze-repos     Freeze the repositories
 
 right_st servertemplate diff [<flags>] <name|href|id|path> <revision-a> <revision-b>
   Show differences between revisions of a ServerTemplate
+  Flags:
+    -l, --link-only        Just show a link to a ServerTemplate comparison in the RightScale dashboard
 ```
 
 ## Contributors

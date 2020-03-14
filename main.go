@@ -50,6 +50,7 @@ var (
 	stDownloadPublished   = stDownloadCmd.Flag("published", "Insert links to published RightScripts instead of downloading to disk").Short('p').Bool()
 	stDownloadMciSettings = stDownloadCmd.Flag("mci-settings", "Download MCI settings data to recreate/manage an MCI").Short('m').Bool()
 	stDownloadScriptPath  = stDownloadCmd.Flag("script-path", "Download RightScripts and their attachments to a subdirectory relative to the download location").Short('s').String()
+	stDownloadScriptRefs  = stDownloadCmd.Flag("script-references", "Insert links to all RightScripts instead of downloading to disk").Short('r').Bool()
 
 	stValidateCmd   = stCmd.Command("validate", "Validate a ServerTemplate YAML document")
 	stValidatePaths = stValidateCmd.Arg("path", "Path to script file(s)").Required().ExistingFiles()
@@ -195,7 +196,9 @@ func main() {
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
-		stDownload(href, *stDownloadTo, *stDownloadPublished, *stDownloadMciSettings, *stDownloadScriptPath)
+		if _, _, _, err := stDownload(href, *stDownloadTo, *stDownloadPublished, *stDownloadScriptRefs, *stDownloadMciSettings, *stDownloadScriptPath, os.Stdout); err != nil {
+			fatalError("%v", err)
+		}
 	case stValidateCmd.FullCommand():
 		files, err := walkPaths(*stValidatePaths)
 		if err != nil {
@@ -243,8 +246,7 @@ func main() {
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
-		_, _, err = rightScriptDownload(href, *rightScriptDownloadTo, true, os.Stdout)
-		if err != nil {
+		if _, _, _, err = rightScriptDownload(href, *rightScriptDownloadTo, true, os.Stdout); err != nil {
 			fatalError("%v", err)
 		}
 	case rightScriptScaffoldCmd.FullCommand():
