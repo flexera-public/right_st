@@ -1,6 +1,7 @@
 package main_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -34,11 +35,12 @@ var _ = Describe("Cache", func() {
 		if err != nil {
 			panic(err)
 		}
-		if t.Format("MST") == "UTC" {
+		fmt.Println(t, t.Format("MST"))
+		/*if t.Format("MST") == "UTC" {
 			utc = time.UTC
-		} else {
-			utc = time.FixedZone("", 0)
-		}
+		} else {*/
+		utc = time.FixedZone("", 0)
+		//}
 	})
 
 	AfterEach(func() {
