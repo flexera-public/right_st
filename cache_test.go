@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -34,7 +35,7 @@ var _ = Describe("Cache", func() {
 		if err != nil {
 			panic(err)
 		}
-		if t.Format("MST") == "UTC" {
+		if t.Format("MST") == "UTC" && runtime.GOOS == "linux" {
 			utc = time.Local
 		} else {
 			utc = time.FixedZone("", 0)
