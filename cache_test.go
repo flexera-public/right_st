@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -18,7 +17,6 @@ var _ = Describe("Cache", func() {
 	var (
 		tempPath string
 		cache    Cache
-		utc      *time.Location
 	)
 
 	BeforeEach(func() {
@@ -30,15 +28,6 @@ var _ = Describe("Cache", func() {
 		cache, err = NewCache(tempPath)
 		if err != nil {
 			panic(err)
-		}
-		t, err := time.Parse("2006/01/02 15:04:05 -0700", "2019/02/03 01:47:25 +0000")
-		if err != nil {
-			panic(err)
-		}
-		if t.Format("MST") == "UTC" && runtime.GOOS == "linux" {
-			utc = time.Local
-		} else {
-			utc = time.FixedZone("", 0)
 		}
 	})
 
@@ -264,7 +253,7 @@ MultiCloudImages:
 					},
 					RightScripts: []*cm15.RightScript{
 						{
-							CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+							CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
 							Description: "A really cool script",
 							Id:          "4567890",
 							Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
@@ -274,10 +263,10 @@ MultiCloudImages:
 							},
 							Name:      "Really Cool Script",
 							Revision:  90,
-							UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+							UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
 						},
 						{
-							CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+							CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
 							Description: "A really cool script with attachments",
 							Id:          "4567890",
 							Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
@@ -287,7 +276,7 @@ MultiCloudImages:
 							},
 							Name:      "Really Cool Script with Attachments",
 							Revision:  90,
-							UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+							UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
 						},
 					},
 					Version: CacheVersion,
@@ -668,7 +657,7 @@ MultiCloudImages:
 			}
 			scripts := []*cm15.RightScript{
 				{
-					CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+					CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
 					Description: "A really cool script",
 					Id:          "4567890",
 					Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
@@ -678,10 +667,10 @@ MultiCloudImages:
 					},
 					Name:      "Really Cool Script",
 					Revision:  90,
-					UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+					UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
 				},
 				{
-					CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+					CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
 					Description: "A really cool script with attachments",
 					Id:          "4567890",
 					Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
@@ -691,7 +680,7 @@ MultiCloudImages:
 					},
 					Name:      "Really Cool Script with Attachments",
 					Revision:  90,
-					UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+					UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
 				},
 			}
 			err := cache.PutServerTemplate(1, "2345678", 90, &st, mcis, scripts)
@@ -890,7 +879,7 @@ echo 'Really cool script!'
 				Expect(crs).NotTo(BeNil())
 				Expect(crs).To(PointTo(Equal(CachedRightScript{
 					&cm15.RightScript{
-						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc).In(crs.RightScript.CreatedAt.Location())},
+						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.CreatedAt.Location())},
 						Description: "A really cool script",
 						Id:          "4567890",
 						Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
@@ -906,7 +895,7 @@ echo 'Really cool script!'
 						},
 						Name:      "Really Cool Script",
 						Revision:  90,
-						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc).In(crs.RightScript.UpdatedAt.Location())},
+						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.UpdatedAt.Location())},
 					},
 					rs, "130cd1afe75c80631f89c69bfb3052ab", nil, CacheVersion,
 				})))
@@ -984,7 +973,7 @@ cat "$RS_ATTACH_DIR"/*.txt
 				Expect(crs).NotTo(BeNil())
 				Expect(crs).To(PointTo(Equal(CachedRightScript{
 					&cm15.RightScript{
-						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc).In(crs.RightScript.CreatedAt.Location())},
+						CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.CreatedAt.Location())},
 						Description: "A really cool script with attachments",
 						Id:          "4567890",
 						Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
@@ -1000,7 +989,7 @@ cat "$RS_ATTACH_DIR"/*.txt
 						},
 						Name:      "Really Cool Script with Attachments",
 						Revision:  90,
-						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc).In(crs.RightScript.UpdatedAt.Location())},
+						UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC).In(crs.RightScript.UpdatedAt.Location())},
 					},
 					rs, "9dabfc14b729875fa9dd499bc9c79f95",
 					map[string]string{
@@ -1254,7 +1243,7 @@ echo 'Really cool script!'
 
 			It("writes an item JSON file", func() {
 				rs := cm15.RightScript{
-					CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+					CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
 					Description: "A really cool script",
 					Id:          "4567890",
 					Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
@@ -1270,7 +1259,7 @@ echo 'Really cool script!'
 					},
 					Name:      "Really Cool Script",
 					Revision:  90,
-					UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+					UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
 				}
 				err := cache.PutRightScript(1, "2345678", 90, &rs, nil)
 				Expect(err).NotTo(HaveOccurred())
@@ -1336,7 +1325,7 @@ cat "$RS_ATTACH_DIR"/*.txt
 
 			It("writes an item JSON file", func() {
 				rs := cm15.RightScript{
-					CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+					CreatedAt:   &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
 					Description: "A really cool script with attachments",
 					Id:          "4567890",
 					Lineage:     "https://us-3.rightscale.com/api/acct/1/2345678",
@@ -1352,7 +1341,7 @@ cat "$RS_ATTACH_DIR"/*.txt
 					},
 					Name:      "Really Cool Script with Attachments",
 					Revision:  90,
-					UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, utc)},
+					UpdatedAt: &cm15.RubyTime{time.Date(2019, 2, 3, 1, 47, 25, 0, time.UTC)},
 				}
 				err := cache.PutRightScript(1, "2345678", 90, &rs, []string{"a.txt", "b.txt"})
 				Expect(err).NotTo(HaveOccurred())
