@@ -1,4 +1,6 @@
 language: go
+git:
+  autocrlf: false
 go:
   - 1.14.x
 matrix:
