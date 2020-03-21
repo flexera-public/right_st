@@ -143,14 +143,14 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 
 A MultiCloudImage definition allows you to specify an MCI in four different ways by supplying different hash keys. The first three combinations specified below allow you to use pre-existing MCIs. The fourth one allows you to fully manage an MCI in your local account:
 
-1. 'Name' and 'Revision' and 'Publisher': Name/Revision/Publisher of MCI available in the MultiCloud Marketplace. The MCI will be automatically imported into the account if it's not already there. Preferred. "latest" may be specified for the revision to get the latest revision.
-2. 'Name' and 'Revision'.: Name/Revision of MCI in your local account. It will not attempt to be autoimported from the MultiCloud Marketplace. "latest" or "head" may be specified to get the latest committed revision and "head" revision respectively.
-3. 'Href': Href of the MCI in the account being uploaded. This is a fallback in case 1 or 2 doesn't work.
+1. `Name`, `Revision`, and `Publisher`: Name/Revision/Publisher of MCI available in the MultiCloud Marketplace. The MCI will be automatically imported into the account if it's not already there. Preferred. `latest` may be specified for the revision to get the latest revision.
+2. `Name` and `Revision`: Name/Revision of MCI in your local account. It will not attempt to be auto-imported from the MultiCloud Marketplace. `latest` or `head` may be specified to get the latest committed revision and HEAD revision respectively.
+3. `Href`: Href of the MCI in the account being uploaded. This is a fallback in case 1 or 2 doesn't work.
 4. Fully specified. The following keys are supported:
-    * 'Name' - String - Name of the MCI
-    * 'Tags' - Array of Strings - Representing tags on the MCI. Typically 'rs_agent:type=right_link_lite' will be required.
-    * 'Description' - String - Optional description for the MCI
-    * 'Settings' - Array of Settings - A setting represents the following API resource: [MultiCloudImageSettings](http://reference.rightscale.com/api1.5/resources/ResourceMultiCloudImageSettings.html). The following keys are used:
+    * `Name` - String - Name of the MCI
+    * `Tags` - Array of Strings - Representing tags on the MCI. Typically `rs_agent:type=right_link_lite` will be required.
+    * `Description` - String - Optional description for the MCI
+    * `Settings` - Array of Settings - A setting represents the following API resource: [MultiCloudImageSettings](http://reference.rightscale.com/api1.5/resources/ResourceMultiCloudImageSettings.html). The following keys are used:
         * `Cloud` - String - Required - Name of cloud
         * `Image` - String - Required - resource_uid of image
         * `Instance Type` - String - Required - Name of instance type.

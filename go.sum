@@ -130,6 +130,8 @@ github.com/rightscale/go-jsonselect v0.0.0-20150427163236-d04eebe26072 h1:lxLx4P
 github.com/rightscale/go-jsonselect v0.0.0-20150427163236-d04eebe26072/go.mod h1:Vbtb1cyy5DescvAI8exiJ3TzxWRJMUwxAa5Pt7Lp5iA=
 github.com/rightscale/rsc v0.0.0-20200316014159-880790951476 h1:3FB62M58lE0PY3oJRqlN4ujiR/8LG8lQKDpJZhLzZAI=
 github.com/rightscale/rsc v0.0.0-20200316014159-880790951476/go.mod h1:oCd96Y+3gjQAwj+WsqMtJAY9So9oNPIZkBFYfZuz1Pg=
+github.com/rightscale/rsc v0.0.0-20200319234903-40ba47295043 h1:OfiO2bY8dnyOhwmsTGrCq3bpXwdQ+ShH1rdrqFUCn4M=
+github.com/rightscale/rsc v0.0.0-20200319234903-40ba47295043/go.mod h1:oCd96Y+3gjQAwj+WsqMtJAY9So9oNPIZkBFYfZuz1Pg=
 github.com/rlmcpherson/s3gof3r v0.5.0 h1:1izOJpTiohSibfOHuNyEA/yQnAirh05enzEdmhez43k=
 github.com/rlmcpherson/s3gof3r v0.5.0/go.mod h1:s7vv7SMDPInkitQMuZzH615G7yWHdrU2r/Go7Bo71Rs=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=

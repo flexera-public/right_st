@@ -26,15 +26,15 @@ type Setting struct {
 }
 
 type MultiCloudImage struct {
-	Href        string     `yaml:"Href,omitempty"`
-	Name        string     `yaml:"Name,omitempty"`
-	Description string     `yaml:"Description,omitempty"`
-	Revision    RsRevision `yaml:"Revision"`
-	Publisher   string     `yaml:"Publisher,omitempty"`
-	Tags        []string   `yaml:"Tags,omitempty"`
+	Href        string
+	Name        string
+	Description string
+	Revision    RsRevision
+	Publisher   string
+	Tags        []string
 	// Settings are like MultiCloudImageSettings, defining cloud/resource_uid sets
-	Settings []*Setting `yaml:"Settings,omitempty"`
-	File     string     `yaml:"-"`
+	Settings []*Setting
+	File     string
 }
 
 type RsRevision int
@@ -45,6 +45,34 @@ var (
 	cloudsLookup        []*cm15.Cloud
 	instanceTypesLookup map[string][]*cm15.InstanceType
 )
+
+func (mci *MultiCloudImage) MarshalYAML() (interface{}, error) {
+	if len(mci.Settings) > 0 {
+		return struct {
+			Name        string     `yaml:"Name"`
+			Description string     `yaml:"Description,omitempty"`
+			Tags        []string   `yaml:"Tags,omitempty"`
+			Settings    []*Setting `yaml:"Settings"`
+		}{
+			Name:        mci.Name,
+			Description: mci.Description,
+			Tags:        mci.Tags,
+			Settings:    mci.Settings,
+		}, nil
+	} else if mci.Href != "" {
+		return map[string]string{"Href": mci.Href}, nil
+	}
+
+	return struct {
+		Name      string     `yaml:"Name"`
+		Revision  RsRevision `yaml:"Revision"`
+		Publisher string     `yaml:"Publisher,omitempty"`
+	}{
+		Name:      mci.Name,
+		Revision:  mci.Revision,
+		Publisher: mci.Publisher,
+	}, nil
+}
 
 func (mci *MultiCloudImage) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	err := unmarshal(&mci.File)
