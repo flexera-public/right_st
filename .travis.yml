@@ -1,6 +1,8 @@
 language: go
+git:
+  autocrlf: false
 go:
-  - 1.13.x
+  - 1.14.x
 matrix:
   include:
     - os: linux
@@ -8,6 +10,8 @@ matrix:
     - os: osx
       osx_image: xcode11.3
       env: MAKE=make
+    - os: windows
+      env: MAKE=mingw32-make
   fast_finish: true
 cache:
   directories:
@@ -24,12 +28,15 @@ addons:
       - bash
       - coreutils
     update: true
+before_install:
+  # install mercurial on Windows as some Go dependencies need it
+  - if [[ $TRAVIS_OS_NAME == windows ]]; then choco install -y hg && export PATH="$PATH:/c/Program Files/Mercurial"; fi
 install:
-  - make depend
+  - $MAKE depend
 script:
-  - make test
-  - make build
+  - $MAKE test
+  - $MAKE build
   # Deploy build result to s3
   - export AWS_ACCESS_KEY_ID=AKIAIX3L4RHHIREAHABQ
   - export AWS_SECRET_ACCESS_KEY=${RSBIN_KEY}
-  - "[[ -z $AWS_SECRET_ACCESS_KEY ]] || make upload"
+  - $MAKE upload

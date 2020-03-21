@@ -3,7 +3,6 @@
 `right_st` is a tool for managing RightScale ServerTemplate and RightScripts. The tool is able to download, upload, and show ServerTemplate and RightScripts using RightScale's API. This tool can easily be hooked into Travis CI or other build systems to manage these design objects if stored in Github. See below for usage examples.
 
 [![Travis CI Build Status](https://travis-ci.org/rightscale/right_st.svg?branch=master)](https://travis-ci.org/rightscale/right_st?branch=master)
-[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/rightscale/right_st?branch=master&svg=true)](https://ci.appveyor.com/project/RightScale/right-st?branch=master)
 
 * [Installation](#installation)
   * [Configuration](#configuration)
@@ -89,7 +88,7 @@ The following RightScript related commands are supported:
 
 ```
 right_st rightscript show <name|href|id>
-  Show a single RightScript and its attachments. 
+  Show a single RightScript and its attachments.
 
 right_st rightscript upload [<flags>] <path>...
   Upload a RightScript
@@ -117,7 +116,15 @@ right_st rightscript validate <path>...
   Validate RightScript YAML metadata comments in a file or files
 
 right_st rightscript commit --message=MESSAGE <name|href|id|path>...
-    Commit RightScript
+  Commit RightScript
+  Flags:
+    -m, --message=MESSAGE  RightScript commit message
+    -f, --force            Force commit even if there are no changes
+
+right_st rightscript diff [<flags>] <name|href|id|path> <revision-a> <revision-b>
+  Show differences between revisions of a RightScript
+  Flags:
+    -l, --link-only        Just show a link to a RightScript comparison in the RightScale dashboard
 ```
 
 
@@ -136,20 +143,20 @@ ServerTemplates are defined by a YAML format representing the ServerTemplate. Th
 
 A MultiCloudImage definition allows you to specify an MCI in four different ways by supplying different hash keys. The first three combinations specified below allow you to use pre-existing MCIs. The fourth one allows you to fully manage an MCI in your local account:
 
-1. 'Name' and 'Revision' and 'Publisher': Name/Revision/Publisher of MCI available in the MultiCloud Marketplace. The MCI will be automatically imported into the account if it's not already there. Preferred. "latest" may be specified for the revision to get the latest revision.
-2. 'Name' and 'Revision'.: Name/Revision of MCI in your local account. It will not attempt to be autoimported from the MultiCloud Marketplace. "latest" or "head" may be specified to get the latest committed revision and "head" revision respectively.
-3. 'Href': Href of the MCI in the account being uploaded. This is a fallback in case 1 or 2 doesn't work.
+1. `Name`, `Revision`, and `Publisher`: Name/Revision/Publisher of MCI available in the MultiCloud Marketplace. The MCI will be automatically imported into the account if it's not already there. Preferred. `latest` may be specified for the revision to get the latest revision.
+2. `Name` and `Revision`: Name/Revision of MCI in your local account. It will not attempt to be auto-imported from the MultiCloud Marketplace. `latest` or `head` may be specified to get the latest committed revision and HEAD revision respectively.
+3. `Href`: Href of the MCI in the account being uploaded. This is a fallback in case 1 or 2 doesn't work.
 4. Fully specified. The following keys are supported:
-    * 'Name' - String - Name of the MCI
-    * 'Tags' - Array of Strings - Representing tags on the MCI. Typically 'rs_agent:type=right_link_lite' will be required.
-    * 'Description' - String - Optional description for the MCI
-    * 'Settings' - Array of Settings - A setting represents the following API resource: [MultiCloudImageSettings](http://reference.rightscale.com/api1.5/resources/ResourceMultiCloudImageSettings.html). The following keys are used:
+    * `Name` - String - Name of the MCI
+    * `Tags` - Array of Strings - Representing tags on the MCI. Typically `rs_agent:type=right_link_lite` will be required.
+    * `Description` - String - Optional description for the MCI
+    * `Settings` - Array of Settings - A setting represents the following API resource: [MultiCloudImageSettings](http://reference.rightscale.com/api1.5/resources/ResourceMultiCloudImageSettings.html). The following keys are used:
         * `Cloud` - String - Required - Name of cloud
         * `Image` - String - Required - resource_uid of image
         * `Instance Type` - String - Required - Name of instance type.
         * `User Data` - String - Optional - User Data template for this cloud/image combination.
 
-A MultiCloudImage YAML file is referenced as a normal string in the MultiCloudImages array which is the realtaive path to a YAML file containing an individual MultiCloudImage definition.
+A MultiCloudImage YAML file is referenced as a normal string in the MultiCloudImages array which is the relative path to a YAML file containing an individual MultiCloudImage definition.
 
 An Alert definition consists of three fields: a Name, Definition, and Clause (all strings). Clause is a text description of the Alert with this exact format: `If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Action> <ActionValue>`:
 
@@ -255,50 +262,54 @@ Alerts:
 The following ServerTemplate related commands are supported:
 
 ```
-right_st st show <name|href|id>
+right_st servertemplate show <name|href|id>
   Show a single ServerTemplate
 
-right_st st upload <path>...
+right_st servertemplate upload <path>...
   Upload a ServerTemplate specified by a YAML document
   Flags:
     -x, --prefix <prefix>:  Create dev/test version by adding prefix to name of all
                             RightScripts uploaded
 
-right_st st delete <path>...
+right_st servertemplate delete <path>...
   Delete dev/test ServerTemplates and RightScripts with a prefix
   Flags:
     -x, --prefix <prefix>:  Delete with this prefix. This commands acts as a cleanup
                             for ServerTepmlates uploaded with --prefix.
 
-right_st st download <name|href|id> [<path>]
+right_st servertemplate download <name|href|id> [<path>]
   Download a ServerTemplate and all associated RightScripts/Attachments to disk
   Flags:
-    -p, --published: When downloading RightScripts, first check if it's published in
-                     the MultiCloud marketplace and insert a link to the published
-                     script if so.
-    -m, --mci-settings: When specifying MultiCloudImages, use Format 4. This fully specifies
-                        all cloud/image/instance type settings combinations to completely
-                        manage the MultiCloudImage in the YAML.
-    -s, --script-path <script-path>: Download RightScripts and their attachments
-                                     to a subdirectory relative to the download location.
+    -p, --published                Insert links to published RightScripts instead of downloading to disk
+    -m, --mci-settings             Download MCI settings data to recreate/manage an MCI
+    -s, --script-path=SCRIPT-PATH  Download RightScripts and their attachments to a subdirectory relative to the download location
+    -r, --script-references        Insert links to all RightScripts instead of downloading to disk
 
-right_st st validate <path>...
+right_st servertemplate validate <path>...
   Validate a ServerTemplate YAML document
 
-right_st st commit --message=MESSAGE <name|href|id|path>...
-    Commit ServerTemplate
-    Flags:
-    -n, --no-commit-head:  Do not commit HEAD revisions (if any) of the associated MultiCloud 
-                           Images, RightScripts and Chef repo sequences.
-    -f, --freeze-repos:  Freeze the repositories
+right_st servertemplate commit --message=MESSAGE <name|href|id|path>...
+  Commit ServerTemplate
+  Flags:
+    -m, --message=MESSAGE  ServerTemplate commit message
+    -f, --force            Force commit even if there are no changes
+        --no-commit-head   Do not commit HEAD revisions (if any) of the associated MultiCloud Images or RightScripts
+        --freeze-repos     Freeze the repositories
+
+right_st servertemplate diff [<flags>] <name|href|id|path> <revision-a> <revision-b>
+  Show differences between revisions of a ServerTemplate
+  Flags:
+    -l, --link-only        Just show a link to a ServerTemplate comparison in the RightScale dashboard
 ```
 
 ## Contributors
 
 This tool is maintained by [Douglas Thrift (douglaswth)](https://github.com/douglaswth),
-[Peter Schroeter (psschroeter)](https://github.com/psschroeter), and [Lopaka Delp (lopaka)](https://github.com/lopaka).
+[Peter Schroeter (psschroeter)](https://github.com/psschroeter),
+and [Neenu Ann Varghese (NeenuAVarghese)](https://github.com/NeenuAVarghese).
+It also includes contributions from [Lopaka Delp (lopaka)](https://github.com/lopaka) and others.
 
 ## License
 
 The `right_st` source code is subject to the MIT license, see the
-[LICENSE](https://github.com/douglaswth/right_st/blob/master/LICENSE) file.
+[LICENSE](https://github.com/rightscale/right_st/blob/master/LICENSE) file.

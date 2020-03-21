@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
@@ -25,22 +26,53 @@ type Setting struct {
 }
 
 type MultiCloudImage struct {
-	Href        string     `yaml:"Href,omitempty"`
-	Name        string     `yaml:"Name,omitempty"`
-	Description string     `yaml:"Description,omitempty"`
-	Revision    RsRevision `yaml:"Revision,omitempty"`
-	Publisher   string     `yaml:"Publisher,omitempty"`
-	Tags        []string   `yaml:"Tags,omitempty"`
+	Href        string
+	Name        string
+	Description string
+	Revision    RsRevision
+	Publisher   string
+	Tags        []string
 	// Settings are like MultiCloudImageSettings, defining cloud/resource_uid sets
-	Settings []*Setting `yaml:"Settings,omitempty"`
-	File     string     `yaml:"-"`
+	Settings []*Setting
+	File     string
 }
 
 type RsRevision int
 
-// Cache lookups for below
-var cloudsLookup []*cm15.Cloud
-var instanceTypesLookup map[string][]*cm15.InstanceType
+var (
+	nullMCI = &cm15.MultiCloudImage{}
+	// Cache lookups for below
+	cloudsLookup        []*cm15.Cloud
+	instanceTypesLookup map[string][]*cm15.InstanceType
+)
+
+func (mci *MultiCloudImage) MarshalYAML() (interface{}, error) {
+	if len(mci.Settings) > 0 {
+		return struct {
+			Name        string     `yaml:"Name"`
+			Description string     `yaml:"Description,omitempty"`
+			Tags        []string   `yaml:"Tags,omitempty"`
+			Settings    []*Setting `yaml:"Settings"`
+		}{
+			Name:        mci.Name,
+			Description: mci.Description,
+			Tags:        mci.Tags,
+			Settings:    mci.Settings,
+		}, nil
+	} else if mci.Href != "" {
+		return map[string]string{"Href": mci.Href}, nil
+	}
+
+	return struct {
+		Name      string     `yaml:"Name"`
+		Revision  RsRevision `yaml:"Revision"`
+		Publisher string     `yaml:"Publisher,omitempty"`
+	}{
+		Name:      mci.Name,
+		Revision:  mci.Revision,
+		Publisher: mci.Publisher,
+	}, nil
+}
 
 func (mci *MultiCloudImage) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	err := unmarshal(&mci.File)
@@ -189,7 +221,7 @@ func validateMultiCloudImage(mciDef *MultiCloudImage) (errors []error) {
 	return
 }
 
-func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool) ([]*MultiCloudImage, error) {
+func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool, output io.Writer) ([]*MultiCloudImage, []*cm15.MultiCloudImage, error) {
 	client, _ := Config.Account.Client15()
 
 	defaultMciHref := getLink(st.Links, "default_multi_cloud_image")
@@ -198,46 +230,46 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool)
 
 	apiMcis, err := mciLocator.Index(rsapi.APIParams{})
 	if err != nil {
-		return nil, fmt.Errorf("Could not find MCIs with href %s: %s", mciLocator.Href, err.Error())
+		return nil, nil, fmt.Errorf("Could not find MCIs with href %v: %v", mciLocator.Href, err)
 	}
 	mciImages := make([]*MultiCloudImage, 0)
 	for _, mci := range apiMcis {
 		if downloadMciSettings {
 			tags, err := getTagsByHref(getLink(mci.Links, "self"))
 			if err != nil {
-				return nil, fmt.Errorf("Could not get tags for MultiCloudImage '%s': %s\n", getLink(mci.Links, "self"), err.Error())
+				return nil, nil, fmt.Errorf("Could not get tags for MultiCloudImage '%v': %v", getLink(mci.Links, "self"), err)
 			}
 
 			settingsLoc := client.MultiCloudImageSettingLocator(getLink(mci.Links, "settings"))
 			settings, err := settingsLoc.Index(rsapi.APIParams{})
 			if err != nil {
-				return nil, fmt.Errorf("Could not get MultiCloudImage settings %s: %s\n", getLink(mci.Links, "settings"), err.Error())
+				return nil, nil, fmt.Errorf("Could not get MultiCloudImage settings %v: %v", getLink(mci.Links, "settings"), err)
 			}
 			mciSettings := make([]*Setting, 0)
 			for _, s := range settings {
 				cloud, err := client.CloudLocator(getLink(s.Links, "cloud")).Show(rsapi.APIParams{})
 				if err != nil {
 					if strings.Contains(err.Error(), "ResourceNotFound") {
-						fmt.Printf("WARNING: For MCI '%s', skipping setting for cloud %s: cloud isn't registered in this account.\n",
+						fmt.Fprintf(output, "WARNING: For MCI '%s', skipping setting for cloud %s: cloud isn't registered in this account\n",
 							mci.Name, getLink(s.Links, "cloud"))
 						continue
 					} else {
-						return nil, fmt.Errorf("Could not complete API call for MCI '%s' cloud %s: %s\n",
-							mci.Name, getLink(s.Links, "cloud"), err.Error())
+						return nil, nil, fmt.Errorf("Could not complete API call for MCI '%v' cloud %v: %v",
+							mci.Name, getLink(s.Links, "cloud"), err)
 					}
 				}
 				if getLink(s.Links, "instance_type") == "" {
-					fmt.Printf("WARNING: For MCI '%s', skipping setting for cloud %s: fingerprinted MCIs not supported by this tool.\n",
+					fmt.Fprintf(output, "WARNING: For MCI '%s', skipping setting for cloud %s: fingerprinted MCIs not supported by this tool\n",
 						mci.Name, cloud.Name)
 					continue
 				}
 				instanceType, err := client.InstanceTypeLocator(getLink(s.Links, "instance_type")).Show(rsapi.APIParams{})
 				if err != nil {
-					return nil, fmt.Errorf("Could not complete API call for MCI '%s' cloud %s: %s\n", mci.Name, cloud.Name, err.Error())
+					return nil, nil, fmt.Errorf("Could not complete API call for MCI '%v' cloud %v: %v", mci.Name, cloud.Name, err)
 				}
 				image, err := client.ImageLocator(getLink(s.Links, "image")).Show(rsapi.APIParams{})
 				if err != nil {
-					fmt.Printf("WARNING: Could not complete API call for MCI '%s' cloud %s: %s\n", mci.Name, cloud.Name, err.Error())
+					fmt.Fprintf(output, "WARNING: Could not complete API call for MCI '%v' cloud %v: %v\n", mci.Name, cloud.Name, err)
 					continue
 				}
 
@@ -258,7 +290,7 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool)
 					mciImages = append(mciImages, &mciImage)
 				}
 			} else {
-				fmt.Printf("WARNING: skipping MCI '%s', contains no usable settings\n", mci.Name)
+				fmt.Fprintf(output, "WARNING: skipping MCI '%v', contains no usable settings\n", mci.Name)
 			}
 		} else {
 			// We repull the MCI here to get the description field, which we need to break ties between
@@ -266,11 +298,11 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool)
 			mciLoc := client.MultiCloudImageLocator(getLink(mci.Links, "self"))
 			mci, err := mciLoc.Show()
 			if err != nil {
-				return nil, fmt.Errorf("Could not get MultiCloudImage %s: %s\n", getLink(mci.Links, "self"), err.Error())
+				return nil, nil, fmt.Errorf("Could not get MultiCloudImage %v: %v", getLink(mci.Links, "self"), err)
 			}
 			pub, err := findPublication("MultiCloudImage", mci.Name, mci.Revision, map[string]string{`Description`: mci.Description})
 			if err != nil {
-				return nil, fmt.Errorf("Error finding publication: %s\n", err.Error())
+				return nil, nil, fmt.Errorf("Error finding publication: %v", err)
 			}
 			mciImage := MultiCloudImage{Name: mci.Name, Revision: RsRevision(mci.Revision)}
 			if pub != nil {
@@ -283,10 +315,9 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool)
 				mciImages = append(mciImages, &mciImage)
 			}
 		}
-
 	}
 
-	return mciImages, nil
+	return mciImages, apiMcis, nil
 }
 
 func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
@@ -337,25 +368,18 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 			if mciDef.Href == "" {
 				loc := pub.Locator(client)
 
-				err = loc.Import()
-
+				impLoc, err := loc.Import()
 				if err != nil {
 					return fmt.Errorf("Failed to import publication %s for MultiCloudImage '%s' Revision %s Publisher %s\n",
 						getLink(pub.Links, "self"), mciDef.Name, formatRev(int(mciDef.Revision)), mciDef.Publisher)
 				}
 
-				mciUnfiltered, err := mciLocator.Index(rsapi.APIParams{"filter": filters})
+				mciLocator := client.MultiCloudImageLocator(string(impLoc.Href))
+				mci, err := mciLocator.Show()
 				if err != nil {
 					return fmt.Errorf("Error looking up MCI: %s", err.Error())
 				}
-				for _, mci := range mciUnfiltered {
-					if mci.Name == mciDef.Name && mci.Revision == pub.Revision && mci.Description == pub.Description {
-						mciDef.Href = getLink(mci.Links, "self")
-					}
-				}
-				if mciDef.Href == "" {
-					return fmt.Errorf("Could not refind MultiCloudImage '%s' Revision %s after import!", mciDef.Name, formatRev(pub.Revision))
-				}
+				mciDef.Href = getLink(mci.Links, "self")
 			}
 		}
 	}

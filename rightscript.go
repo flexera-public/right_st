@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -46,6 +48,7 @@ type RightScript struct {
 }
 
 var (
+	nullRightScript        = &cm15.RightScript{UpdatedAt: &cm15.RubyTime{}}
 	lineage                = regexp.MustCompile(`/api/acct/(\d+)/right_scripts/.+$`)
 	powershellAssignment   = regexp.MustCompile(`(?im)^\s*\$[a-z0-9_:]+\s*=`)
 	powershellWriteCmdlets = regexp.MustCompile(`(?im)^\s*Write-(?:Debug|Error|EventLog|Host|Information|Output|Progress|Verbose|Warning)`)
@@ -157,7 +160,7 @@ func GuessExtension(source string) string {
 	return ""
 }
 
-func rightScriptDownload(href, downloadTo string) string {
+func rightScriptDownload(href, downloadTo string, scaffold bool, output io.Writer) (string, *cm15.RightScript, []string, error) {
 	client, _ := Config.Account.Client15()
 
 	attachmentsHref := fmt.Sprintf("%s/attachments", href)
@@ -166,20 +169,20 @@ func rightScriptDownload(href, downloadTo string) string {
 
 	rightscript, err := rightscriptLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
 	if err != nil {
-		fatalError("Could not find RightScript with href %s: %s", href, err.Error())
+		return "", nil, nil, fmt.Errorf("Could not find RightScript with href %v: %v", href, err)
 	}
 	source, err := getSource(rightscriptLocator)
 	if err != nil {
-		fatalError("Could get source for RightScript with href %s: %s", href, err.Error())
+		return "", nil, nil, fmt.Errorf("Could not get source for RightScript with href %v: %v", href, err)
 	}
 	sourceMetadata, err := ParseRightScriptMetadata(bytes.NewReader(source))
 	if err != nil {
-		fmt.Printf("WARNING: Metadata in %s is malformed: %s\n", rightscript.Name, err.Error())
+		fmt.Fprintf(output, "WARNING: Metadata in %v is malformed: %v\n", rightscript.Name, err)
 	}
 
 	attachments, err := attachmentsLocator.Index(rsapi.APIParams{})
 	if err != nil {
-		fatalError("Could get attachments for RightScript from href %s: %s", attachmentsHref, err.Error())
+		return "", nil, nil, fmt.Errorf("Could not get attachments for RightScript from href %v: %v", attachmentsHref, err)
 	}
 
 	guessedExtension := GuessExtension(string(source))
@@ -189,7 +192,7 @@ func rightScriptDownload(href, downloadTo string) string {
 	} else if isDirectory(downloadTo) {
 		downloadTo = filepath.Join(downloadTo, cleanFileName(rightscript.Name)+guessedExtension)
 	}
-	fmt.Printf("Downloading '%s' to '%s'\n", rightscript.Name, downloadTo)
+	fmt.Fprintf(output, "Downloading '%v' to '%v'\n", rightscript.Name, downloadTo)
 
 	for i, attachment := range attachments {
 		// API attachments are always just plain names without path information.
@@ -223,7 +226,7 @@ func rightScriptDownload(href, downloadTo string) string {
 
 		downloadUrl, err := url.Parse(attachment.DownloadUrl)
 		if err != nil {
-			fatalError("Could not parse URL of attachment: %s", err.Error())
+			return "", nil, nil, fmt.Errorf("Could not parse URL of attachment: %v", err)
 		}
 		downloadItem := downloadItem{
 			url:       *downloadUrl,
@@ -233,12 +236,12 @@ func rightScriptDownload(href, downloadTo string) string {
 		downloadItems = append(downloadItems, &downloadItem)
 	}
 	if len(downloadItems) == 0 {
-		fmt.Println("No attachments to download")
+		fmt.Fprintln(output, "No attachments to download")
 	} else {
-		fmt.Printf("Download %d attachments:\n", len(downloadItems))
-		err = downloadManager(downloadItems)
+		fmt.Fprintf(output, "Download %d attachments:\n", len(downloadItems))
+		err = downloadManager(downloadItems, output)
 		if err != nil {
-			fatalError("Failed to download all attachments: %s", err.Error())
+			return "", nil, nil, fmt.Errorf("Failed to download all attachments: %v", err)
 		}
 		for _, d := range downloadItems {
 			for i, attachment := range attachments {
@@ -265,24 +268,28 @@ func rightScriptDownload(href, downloadTo string) string {
 		Attachments: attachmentNames,
 	}
 
-	// Re-running it through scaffoldBuffer has the benefit of cleaning up any errors in how
-	// the inputs are described. Also any attachments added or removed manually will be
-	// handled in that the builtin metadata will reflect whats on disk
-	scaffoldedSourceBytes, err := scaffoldBuffer(source, apiMetadata, "", false)
-	if err == nil {
-		if bytes.Compare(scaffoldedSourceBytes, source) != 0 {
-			fmt.Println("Automatically inserted RightScript metadata.")
+	if scaffold {
+		// Re-running it through scaffoldBuffer has the benefit of cleaning up any errors in how
+		// the inputs are described. Also any attachments added or removed manually will be
+		// handled in that the builtin metadata will reflect whats on disk
+		scaffoldedSourceBytes, err := scaffoldBuffer(source, apiMetadata, "", false)
+		if err == nil {
+			if bytes.Compare(scaffoldedSourceBytes, source) != 0 {
+				fmt.Fprintln(output, "Automatically inserted RightScript metadata.")
+			}
+			err = ioutil.WriteFile(downloadTo, scaffoldedSourceBytes, 0755)
+		} else {
+			fmt.Fprintf(output, "Downloaded script as is. An error occurred generating metadata to insert into the RightScript: %v", err)
+			err = ioutil.WriteFile(downloadTo, source, 0755)
 		}
-		err = ioutil.WriteFile(downloadTo, scaffoldedSourceBytes, 0755)
 	} else {
-		fmt.Printf("Downloaded script as is. An error occurred generating metadata to insert into the RightScript: %s", err.Error())
 		err = ioutil.WriteFile(downloadTo, source, 0755)
 	}
 	if err != nil {
-		fatalError("Could not create file: %s", err.Error())
+		return "", nil, nil, fmt.Errorf("Could not create file: %v", err)
 	}
 
-	return downloadTo
+	return downloadTo, rightscript, attachmentNames, nil
 }
 
 // Convert a JSON response to InputMetadata struct
@@ -346,6 +353,246 @@ func rightScriptValidate(files []string) {
 	if err_encountered {
 		os.Exit(1)
 	}
+}
+
+func rightScriptDiff(href, revisionA, revisionB string, linkOnly bool, cache Cache) {
+	rsA, err := getRightScriptRevision(href, revisionA)
+	if err != nil {
+		fatalError("Could not find revision-a: %v", err)
+	}
+	rsB, err := getRightScriptRevision(href, revisionB)
+	if err != nil {
+		fatalError("Could not find revision-b: %v", err)
+	}
+
+	if linkOnly {
+		fmt.Println(getRightScriptDiffLink(rsA, rsB))
+	} else {
+		differ, err := diffRightScript(os.Stdout, rsA, rsB, cache)
+		if err != nil {
+			fatalError("Error performing diff: %v", err)
+		}
+		if differ {
+			os.Exit(1)
+		}
+	}
+}
+
+// diffRightScript returns whether two RightScript revisions differ and writes the differences to w
+func diffRightScript(w io.Writer, rsA, rsB *cm15.RightScript, cache Cache) (bool, error) {
+	scriptA, attachmentsA, dirA, err := getRightScriptFiles(rsA, cache)
+	if err != nil {
+		return false, err
+	}
+	defer scriptA.Close()
+	if rsA.Id != "" && rsA.Revision == 0 {
+		defer os.RemoveAll(dirA)
+	}
+	scriptB, attachmentsB, dirB, err := getRightScriptFiles(rsB, cache)
+	if err != nil {
+		return false, err
+	}
+	defer scriptB.Close()
+	if rsB.Id != "" && rsB.Revision == 0 {
+		defer os.RemoveAll(dirB)
+	}
+
+	nameRevA := getRightScriptNameRev(rsA)
+	nameRevB := getRightScriptNameRev(rsB)
+	differ, output, err := Diff(nameRevA, nameRevB, rsA.UpdatedAt.Time, rsB.UpdatedAt.Time, scriptA, scriptB)
+	if err != nil {
+		return false, err
+	}
+
+	// line up the attachments lists by inserting /dev/null entries for missing attachments
+	for i := 0; i < len(attachmentsA) || i < len(attachmentsB); i++ {
+		switch {
+		case i >= len(attachmentsA):
+			attachmentsA = append(attachmentsA, os.DevNull)
+		case i >= len(attachmentsB):
+			attachmentsB = append(attachmentsB, os.DevNull)
+		case attachmentsA[i] < attachmentsB[i]:
+			attachmentsB = append(attachmentsB[:i], append([]string{os.DevNull}, attachmentsB[i:]...)...)
+		case attachmentsA[i] > attachmentsB[i]:
+			attachmentsA = append(attachmentsA[:i], append([]string{os.DevNull}, attachmentsA[i:]...)...)
+		}
+	}
+
+	outputs := make([]string, 0, len(attachmentsA))
+	for i := 0; i < len(attachmentsA); i++ {
+		attachmentA := attachmentsA[i]
+		if attachmentA != os.DevNull {
+			attachmentA = filepath.Join(dirA, "attachments", attachmentA)
+		}
+		readerA, err := os.Open(attachmentA)
+		if err != nil {
+			return false, err
+		}
+		defer readerA.Close()
+		attachmentB := attachmentsB[i]
+		if attachmentB != os.DevNull {
+			attachmentB = filepath.Join(dirB, "attachments", attachmentB)
+		}
+		readerB, err := os.Open(attachmentB)
+		if err != nil {
+			return false, err
+		}
+
+		d, o, err := Diff(attachmentsA[i], attachmentsB[i], rsA.UpdatedAt.Time, rsB.UpdatedAt.Time, readerA, readerB)
+		if err != nil {
+			return false, err
+		}
+		if d {
+			outputs = append(outputs, o)
+			if !differ {
+				differ = true
+			}
+		}
+	}
+
+	if differ {
+		fmt.Fprintf(w, "%v and %v differ\n\n%v\n\n", nameRevA, nameRevB, getRightScriptDiffLink(rsA, rsB))
+		fmt.Fprint(w, output)
+		for _, o := range outputs {
+			fmt.Fprint(w, o)
+		}
+	}
+
+	return differ, nil
+}
+
+// getRightScriptDiffLink returns the RightScale Dashboard URL for a diff between two RightScript revisions
+func getRightScriptDiffLink(rsA, rsB *cm15.RightScript) string {
+	if rsA.Id == "" {
+		return fmt.Sprintf("https://%v/acct/%v/right_scripts/%v", Config.Account.Host, Config.Account.Id, rsB.Id)
+	}
+	if rsB.Id == "" {
+		return fmt.Sprintf("https://%v/acct/%v/right_scripts/%v", Config.Account.Host, Config.Account.Id, rsA.Id)
+	}
+	return fmt.Sprintf("https://%v/acct/%v/right_scripts/diff?old_script_id=%v&new_script_id=%v", Config.Account.Host, Config.Account.Id, rsA.Id, rsB.Id)
+}
+
+// getRightScriptFiles retreives the local paths of a cached RightScript, its attachments, and its directory
+func getRightScriptFiles(rs *cm15.RightScript, cache Cache) (reader io.ReadCloser, attachments []string, dir string, err error) {
+	if rs.Id == "" {
+		reader = ioutil.NopCloser(&bytes.Reader{})
+		return
+	}
+	var script string
+	if rs.Revision == 0 {
+		dir, err = ioutil.TempDir("", "right_st.cache.")
+		if err != nil {
+			return
+		}
+		script = filepath.Join(dir, "right_script")
+	} else {
+		var crs *CachedRightScript
+		crs, err = cache.GetRightScript(Config.Account.Id, rs.Id, rs.Revision)
+		if err != nil {
+			return
+		}
+		if crs != nil {
+			script = crs.File
+			attachments = make([]string, 0, len(crs.Attachments))
+			for attachment := range crs.Attachments {
+				attachments = append(attachments, attachment)
+			}
+			goto finish
+		}
+		script, err = cache.GetRightScriptFile(Config.Account.Id, rs.Id, rs.Revision)
+		if err != nil {
+			return
+		}
+	}
+
+	_, _, attachments, err = rightScriptDownload(getRightScriptHREF(rs), script, false, ioutil.Discard)
+	if err != nil {
+		return
+	}
+
+	if rs.Revision != 0 {
+		err = cache.PutRightScript(Config.Account.Id, rs.Id, rs.Revision, rs, attachments)
+		if err != nil {
+			return
+		}
+	}
+
+finish:
+	if dir == "" {
+		dir = filepath.Dir(script)
+	}
+	sort.Strings(attachments)
+	reader, err = os.Open(script)
+	return
+}
+
+// getRightScriptRevision returns the RightScript object for the given RightScript HREF and revision;
+// the revision may be "null", "head", "latest", or a number
+func getRightScriptRevision(href, revision string) (*cm15.RightScript, error) {
+	var (
+		r   int
+		err error
+	)
+	switch strings.ToLower(revision) {
+	case "null":
+		return nullRightScript, nil
+	case "head":
+		r = 0
+	case "latest":
+		r = -1
+	default:
+		r, err = strconv.Atoi(revision)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	client, _ := Config.Account.Client15()
+	locator := client.RightScriptLocator(href)
+
+	// show the RightScript to find its lineage
+	rs, err := locator.Show(rsapi.APIParams{})
+	if err != nil {
+		return nil, err
+	}
+
+	params := rsapi.APIParams{"filter": []string{"lineage==" + rs.Lineage}}
+	if r < 0 {
+		params["latest_only"] = "true"
+	}
+
+	// get all of the RightScripts in the lineage or just the latest if looking for "latest"
+	rsRevisions, err := locator.Index(params)
+	if err != nil {
+		return nil, err
+	}
+
+	// find the RightScript in the lineage with the matching revision
+	// or the only RightScript if looking for "latest"
+	for _, rsRevision := range rsRevisions {
+		if r < 0 || rsRevision.Revision == r {
+			return rsRevision, nil
+		}
+	}
+
+	return nil, fmt.Errorf("no RightScript found for %v with revision %v", href, revision)
+}
+
+// getRightScriptHREF returns the HREF of the RightScript object
+func getRightScriptHREF(rs *cm15.RightScript) string {
+	client, _ := Config.Account.Client15()
+	return string(rs.Locator(client).Href)
+}
+
+// getRightScriptNameRev returns the name and revison of the RightScript object
+func getRightScriptNameRev(rs *cm15.RightScript) string {
+	if rs.Id == "" {
+		return os.DevNull
+	}
+	if rs.Revision == 0 {
+		return rs.Name + " [HEAD]"
+	}
+	return fmt.Sprintf("%v [rev %v]", rs.Name, rs.Revision)
 }
 
 func rightScriptDelete(files []string, prefix string) {
@@ -621,17 +868,17 @@ func (r *RightScript) PushRemote() error {
 			return fmt.Errorf("Could not find RightScript '%s' Revision %s in local account. Add a 'Publisher' to also search the MultiCloud Marketplace", r.Name, formatRev(r.Revision))
 		} else {
 			loc := pub.Locator(client)
-			err = loc.Import()
+			impLoc, err := loc.Import()
 			if err != nil {
 				return fmt.Errorf("Failed to import publication %s for RightScript '%s' Revision %s Publisher %s\n",
 					getLink(pub.Links, "self"), r.Name, formatRev(rev), r.Publisher)
 			}
-			script, err = findRightScript(r.Name, rev, pubMatcher)
-			if script == nil {
-				return fmt.Errorf("Could not refind RightScript '%s' Revision %s after import!", r.Name, formatRev(rev))
-			} else {
-				r.Href = getLink(script.Links, "self")
+			scriptLocator := client.RightScriptLocator(string(impLoc.Href))
+			script, err = scriptLocator.Show(rsapi.APIParams{})
+			if err != nil {
+				return fmt.Errorf("Error looking up RightScript: %v", err)
 			}
+			r.Href = getLink(script.Links, "self")
 		}
 	} else {
 		r.Href = getLink(script.Links, "self")
@@ -835,36 +1082,63 @@ func validateRightScript(file string, ignoreMissingMetadata bool) (*RightScript,
 	return &rightScript, nil
 }
 
-func rightScriptCommit(href, message string) {
+func rightScriptCommit(href, message string, force bool, cache Cache) bool {
+	if !force {
+		rsLatest, err := getRightScriptRevision(href, "latest")
+		if err != nil {
+			fatalError("Could not find latest: %v", err)
+		}
+		rsHead, err := getRightScriptRevision(href, "head")
+		if err != nil {
+			fatalError("Could not find head: %v", err)
+		}
+
+		differ, err := diffRightScript(ioutil.Discard, rsLatest, rsHead, cache)
+		if err != nil {
+			fatalError("Error performing diff: %v", err)
+		}
+		if !differ {
+			return false
+		}
+	}
+
 	client, _ := Config.Account.Client15()
-	rightscriptLocator := client.RightScriptLocator(href)
+	scriptLocator := client.RightScriptLocator(href)
 
 	fmt.Printf("Committing RightScript %s\n", href)
 
-	err := rightscriptLocator.Commit(
-		&cm15.RightScriptParam{
-			CommitMessage: message,
-		})
+	commitLocator, err := scriptLocator.Commit(&cm15.RightScriptParam{CommitMessage: message})
 	if err != nil {
-		fatalError("%s", err.Error())
+		fatalError("%v", err)
 	}
-	return
+	script, err := commitLocator.Show(rsapi.APIParams{})
+	if err != nil {
+		fatalError("%v", err)
+	}
+	fmt.Printf("Revision: %v\nHREF: %v\n", script.Revision, commitLocator.Href)
+
+	return true
 }
 
 func (rs RightScript) MarshalYAML() (interface{}, error) {
 	if rs.Type == LocalRightScript {
 		return rs.Path, nil
-	} else {
-		destMap := make(map[string]interface{})
-		destMap["Name"] = rs.Name
-		if rs.Revision == -1 {
-			destMap["Revision"] = "latest"
-		} else {
-			destMap["Revision"] = rs.Revision
-		}
-		destMap["Publisher"] = rs.Publisher
-		return destMap, nil
 	}
+
+	destMap := make(map[string]interface{})
+	destMap["Name"] = rs.Name
+	switch rs.Revision {
+	case -1:
+		destMap["Revision"] = "latest"
+	case 0:
+		destMap["Revision"] = "head"
+	default:
+		destMap["Revision"] = rs.Revision
+	}
+	if rs.Publisher != "" {
+		destMap["Publisher"] = rs.Publisher
+	}
+	return destMap, nil
 }
 
 func (rs *RightScript) UnmarshalYAML(unmarshal func(interface{}) error) error {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/rightscale/rsc/cm15"
 	"github.com/rightscale/rsc/rsapi"
@@ -25,7 +27,10 @@ type ServerTemplate struct {
 	Alerts           []*Alert                  `yaml:"Alerts"`
 }
 
-var sequenceTypes []string = []string{"Boot", "Operational", "Decommission"}
+var (
+	nullServerTemplate          = &cm15.ServerTemplate{}
+	sequenceTypes      []string = []string{"Boot", "Operational", "Decommission"}
+)
 
 func stUpload(files []string, prefix string) {
 
@@ -415,14 +420,14 @@ func stShow(href string) {
 	}
 }
 
-func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings bool, scriptPath string) {
+func stDownload(href, downloadTo string, usePublished, useReferences, downloadMciSettings bool, scriptPath string, output io.Writer) (string, []*cm15.MultiCloudImage, []*cm15.RightScript, error) {
 	client, _ := Config.Account.Client15()
 
 	stLocator := client.ServerTemplateLocator(href)
 	st, err := stLocator.Show(rsapi.APIParams{"view": "inputs_2_0"})
 
 	if err != nil {
-		fatalError("Could not find ServerTemplate with href %s: %s", href, err.Error())
+		return "", nil, nil, fmt.Errorf("Could not find ServerTemplate with href %v: %v", href, err)
 	}
 
 	if downloadTo == "" {
@@ -430,14 +435,14 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 	} else if isDirectory(downloadTo) {
 		downloadTo = filepath.Join(downloadTo, cleanFileName(st.Name)+".yml")
 	}
-	fmt.Printf("Downloading '%s' to '%s'\n", st.Name, downloadTo)
+	fmt.Fprintf(output, "Downloading '%s' to '%s'\n", st.Name, downloadTo)
 
 	//-------------------------------------
 	// MultiCloudImages
 	//-------------------------------------
-	mcis, err := downloadMultiCloudImages(st, downloadMciSettings)
+	mcis, apiMcis, err := downloadMultiCloudImages(st, downloadMciSettings, output)
 	if err != nil {
-		fatalError("Could not get MCIs from API: %s", err.Error())
+		return "", nil, nil, fmt.Errorf("Could not get MCIs from API: %v", err)
 	}
 
 	//-------------------------------------
@@ -446,7 +451,7 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 	rbLocator := client.RunnableBindingLocator(getLink(st.Links, "runnable_bindings"))
 	rbs, err := rbLocator.Index(rsapi.APIParams{})
 	if err != nil {
-		fatalError("Could not find attached RightScripts with href %s: %s", rbLocator.Href, err.Error())
+		return "", nil, nil, fmt.Errorf("Could not find attached RightScripts with href %v: %v", rbLocator.Href, err)
 	}
 	// sort runnable bindings by position
 	sort.SliceStable(rbs, func(i, j int) bool { return rbs[i].Position < rbs[j].Position })
@@ -461,17 +466,18 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 		}
 		// map the RightScript's position number to the index in the corresponding rightScripts sequence slice
 		positionBySequence[sequence][rb.Position] = countBySequence[sequence]
-		countBySequence[sequence] += 1
+		countBySequence[sequence]++
 		seenRightscript[getLink(rb.Links, "right_script")] = nil
 	}
 	for sequenceType, count := range countBySequence {
 		rightScripts[sequenceType] = make([]*RightScript, count)
 	}
-	fmt.Printf("Downloading %d attached RightScripts:\n", len(seenRightscript))
+	apiRightScripts := make([]*cm15.RightScript, 0, len(seenRightscript))
+	fmt.Fprintf(output, "Downloading %d attached RightScripts:\n", len(seenRightscript))
 	for _, rb := range rbs {
 		rsHref := getLink(rb.Links, "right_script")
 		if rsHref == "" {
-			fatalError("Could not download ServerTemplate, it has attached cookbook recipes, which are not supported by this tool.\n")
+			return "", nil, nil, fmt.Errorf("Could not download ServerTemplate, it has attached cookbook recipes, which are not supported by this tool")
 		}
 
 		sequence := strings.Title(rb.Sequence)
@@ -485,20 +491,35 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 			Type: LocalRightScript,
 			Path: cleanFileName(rb.RightScript.Name),
 		}
-		if usePublished {
+		var apiScript *cm15.RightScript
+		if usePublished || useReferences {
 			// We repull the rightscript here to get the description field, which we need to break ties between
 			// similarly named publications!
 			rsLoc := client.RightScriptLocator(rsHref)
 			rs, err := rsLoc.Show(rsapi.APIParams{})
 			if err != nil {
-				fatalError("Could not get RightScript %s: %s\n", rsHref, err.Error())
+				return "", nil, nil, fmt.Errorf("Could not get RightScript %v: %v", rsHref, err)
 			}
 			pub, err := findPublication("RightScript", rs.Name, rs.Revision, map[string]string{`Description`: rs.Description})
 			if err != nil {
-				fatalError("Error finding publication: %s\n", err.Error())
+				return "", nil, nil, fmt.Errorf("Error finding publication: %v", err)
+			}
+			// when using references but not published, do not include publication info for RightScripts in the same account
+			if pub != nil && !usePublished {
+				submatches := lineage.FindStringSubmatch(rs.Lineage)
+				if submatches == nil {
+					panic(fmt.Errorf("Unexpected RightScript lineage format: %s", rs.Lineage))
+				}
+				accountID, err := strconv.Atoi(submatches[1])
+				if err != nil {
+					panic(err)
+				}
+				if accountID == Config.Account.Id {
+					pub = nil
+				}
 			}
 			if pub != nil {
-				fmt.Printf("Not downloading '%s' to disk, using Revision %s, Publisher '%s' from the MultiCloud Marketplace\n",
+				fmt.Fprintf(output, "Not downloading '%v' to disk, using Revision %v, Publisher '%v' from the MultiCloud Marketplace\n",
 					rs.Name, formatRev(rs.Revision), pub.Publisher)
 				newScript = RightScript{
 					Type:      PublishedRightScript,
@@ -506,26 +527,43 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 					Revision:  pub.Revision,
 					Publisher: pub.Publisher,
 				}
+			} else if useReferences {
+				fmt.Fprintf(output, "Not downloading '%v' to disk, using Revision %v\n", rs.Name, formatRev(rs.Revision))
+				newScript = RightScript{
+					Type:     PublishedRightScript,
+					Name:     rs.Name,
+					Revision: rs.Revision,
+				}
 			}
+			apiScript = rs
 		}
 
 		rightScripts[sequence][positionBySequence[sequence][rb.Position]] = &newScript
 
 		if newScript.Type == LocalRightScript {
 			if scriptPath == "" {
-				downloadedTo := rightScriptDownload(rsHref, filepath.Dir(downloadTo))
+				downloadedTo, rs, _, err := rightScriptDownload(rsHref, filepath.Dir(downloadTo), true, output)
+				if err != nil {
+					return "", nil, nil, err
+				}
 				newScript.Path = strings.TrimPrefix(downloadedTo, filepath.Dir(downloadTo)+string(filepath.Separator))
+				apiScript = rs
 			} else {
 				// Create scripts directory
 				err := os.MkdirAll(filepath.Join(filepath.Dir(downloadTo), scriptPath), 0755)
 				if err != nil {
-					fatalError("Error creating directory: %s", err.Error())
+					return "", nil, nil, fmt.Errorf("Error creating directory: %v", err)
 				}
-				downloadedTo := rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo), scriptPath))
+				downloadedTo, rs, _, err := rightScriptDownload(rsHref, filepath.Join(filepath.Dir(downloadTo), scriptPath), true, output)
+				if err != nil {
+					return "", nil, nil, err
+				}
 				newScript.Path = strings.TrimPrefix(downloadedTo, filepath.Dir(downloadTo)+string(filepath.Separator))
+				apiScript = rs
 			}
 		}
 		seenRightscript[rsHref] = &newScript
+		apiRightScripts = append(apiRightScripts, apiScript)
 	}
 
 	//-------------------------------------
@@ -533,7 +571,7 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 	//-------------------------------------
 	alerts, err := downloadAlerts(st)
 	if err != nil {
-		fatalError("Could not get Alerts from API: %s", err.Error())
+		return "", nil, nil, fmt.Errorf("Could not get Alerts from API: %v", err)
 	}
 
 	//-------------------------------------
@@ -542,9 +580,8 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 	stInputs := make(map[string]*InputValue)
 	for _, inputHash := range st.Inputs {
 		iv, err := parseInputValue(inputHash["value"])
-
 		if err != nil {
-			fatalError("Error parsing input value from API:", err.Error())
+			return "", nil, nil, fmt.Errorf("Error parsing input value from API: %v", err)
 		}
 		// The API returns "inherit" values as "blank" values. Blank really means an
 		// empty text string, which is usually not what was meant -- usually people
@@ -573,14 +610,15 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 	}
 	bytes, err := yaml.Marshal(&stDef)
 	if err != nil {
-		fatalError("Creating yaml failed: %s", err.Error())
+		return "", nil, nil, fmt.Errorf("Creating yaml failed: %v", err)
 	}
 	err = ioutil.WriteFile(downloadTo, bytes, 0644)
 	if err != nil {
-		fatalError("Could not create file: %s", err.Error())
+		return "", nil, nil, fmt.Errorf("Could not create file: %v", err)
 	}
-	fmt.Printf("Finished downloading '%s' to '%s'\n", st.Name, downloadTo)
+	fmt.Fprintf(output, "Finished downloading '%s' to '%s'\n", st.Name, downloadTo)
 
+	return downloadTo, apiMcis, apiRightScripts, nil
 }
 
 func stValidate(files []string) {
@@ -600,6 +638,313 @@ func stValidate(files []string) {
 	if err_encountered {
 		os.Exit(1)
 	}
+}
+
+func stDiff(href, revisionA, revisionB string, linkOnly bool, cache Cache) {
+	stA, err := getServerTemplateRevision(href, revisionA)
+	if err != nil {
+		fatalError("Could not find revision-a: %v", err)
+	}
+	stB, err := getServerTemplateRevision(href, revisionB)
+	if err != nil {
+		fatalError("Could not find revision-b: %v", err)
+	}
+
+	if linkOnly {
+		fmt.Println(getServerTemplateDiffLink(stA, stB))
+	} else {
+		differ, err := diffServerTemplate(os.Stdout, stA, stB, false, cache)
+		if err != nil {
+			fatalError("Error performing diff: %v", err)
+		}
+		if differ {
+			os.Exit(1)
+		}
+	}
+}
+
+// diffServerTemplate returns whether two ServerTemplate revisions differ and writes the differences to w
+func diffServerTemplate(w io.Writer, stA, stB *cm15.ServerTemplate, ignoreHeads bool, cache Cache) (bool, error) {
+	yamlA, mcisA, scriptsA, dirA, err := getServerTemplateFiles(stA, cache)
+	if err != nil {
+		return false, err
+	}
+	defer yamlA.Close()
+	if stA.Revision == 0 {
+		defer os.RemoveAll(dirA)
+	}
+	yamlB, mcisB, scriptsB, dirB, err := getServerTemplateFiles(stB, cache)
+	if err != nil {
+		return false, err
+	}
+	defer yamlB.Close()
+	if stB.Revision == 0 {
+		defer os.RemoveAll(dirB)
+	}
+
+	if ignoreHeads {
+		b, err := ioutil.ReadAll(yamlA)
+		if err != nil {
+			return false, err
+		}
+		yamlA.Close()
+
+		st := &ServerTemplate{}
+		if err := yaml.Unmarshal(b, st); err != nil {
+			return false, err
+		}
+
+		for _, mci := range mcisB {
+			if mci.Revision == 0 {
+				for i, stMCI := range st.MultiCloudImages {
+					if stMCI.Name == mci.Name {
+						st.MultiCloudImages[i].Revision = 0
+					}
+				}
+			}
+		}
+
+		for _, script := range scriptsB {
+			if script.Revision == 0 {
+				for sequence, stScripts := range st.RightScripts {
+					for i, stScript := range stScripts {
+						if stScript.Name == script.Name {
+							st.RightScripts[sequence][i].Revision = 0
+						}
+					}
+				}
+			}
+		}
+
+		b, err = yaml.Marshal(st)
+		if err != nil {
+			return false, err
+		}
+		yamlA = ioutil.NopCloser(bytes.NewReader(b))
+	}
+
+	nameRevA := getServerTemplateNameRev(stA)
+	nameRevB := getServerTemplateNameRev(stB)
+	differ, output, err := Diff(nameRevA, nameRevB, time.Time{}, time.Time{}, yamlA, yamlB)
+	if err != nil {
+		return false, err
+	}
+
+	// line up the MCI lists by inserting null MCI entries for missing attachments
+	for i := 0; i < len(mcisA) || i < len(mcisB); i++ {
+		switch {
+		case i >= len(mcisA):
+			mcisA = append(mcisA, nil)
+		case i >= len(mcisB):
+			mcisB = append(mcisB, nil)
+		case mcisA[i].Name < mcisB[i].Name:
+			mcisB = append(mcisB[:i], append([]*cm15.MultiCloudImage{nullMCI}, mcisB[i:]...)...)
+		case mcisA[i].Name > mcisB[i].Name:
+			mcisA = append(mcisA[:i], append([]*cm15.MultiCloudImage{nullMCI}, mcisA[i:]...)...)
+		}
+	}
+
+	// line up the RightScript lists by inserting null RightScript entries for missing attachments
+	for i := 0; i < len(scriptsA) || i < len(scriptsB); i++ {
+		switch {
+		case i >= len(scriptsA):
+			scriptsA = append(scriptsA, nullRightScript)
+		case i >= len(scriptsB):
+			scriptsB = append(scriptsB, nullRightScript)
+		case scriptsA[i].Name < scriptsB[i].Name:
+			scriptsB = append(scriptsB[:i], append([]*cm15.RightScript{nullRightScript}, scriptsB[i:]...)...)
+		case scriptsA[i].Name > scriptsB[i].Name:
+			scriptsA = append(scriptsA[:i], append([]*cm15.RightScript{nullRightScript}, scriptsA[i:]...)...)
+		}
+	}
+
+	outputs := make([]string, 0, len(scriptsA)+len(mcisA))
+	for i := 0; i < len(mcisA); i++ {
+		// TODO diff MCIs
+	}
+	for i := 0; i < len(scriptsA); i++ {
+		o := &strings.Builder{}
+		d, err := diffRightScript(o, scriptsA[i], scriptsB[i], cache)
+		if err != nil {
+			return false, err
+		}
+		if d {
+			outputs = append(outputs, o.String())
+			if !differ {
+				differ = true
+			}
+		}
+	}
+
+	if differ {
+		fmt.Fprintf(w, "%v and %v differ\n\n%v\n\n", nameRevA, nameRevB, getServerTemplateDiffLink(stA, stB))
+		fmt.Fprint(w, output)
+		for _, o := range outputs {
+			fmt.Fprint(w, o)
+		}
+	}
+
+	return differ, nil
+}
+
+// getServerTemplateDiffLink returns the RightScale Dashboard URL for a diff between two ServerTemplate revisions
+func getServerTemplateDiffLink(stA, stB *cm15.ServerTemplate) string {
+	if getServerTemplateId(stA) == "" {
+		return fmt.Sprintf("https://%v/acct/%v/server_templates/%v", Config.Account.Host, Config.Account.Id, getServerTemplateId(stB))
+	}
+	if getServerTemplateId(stB) == "" {
+		return fmt.Sprintf("https://%v/acct/%v/server_templates/%v", Config.Account.Host, Config.Account.Id, getServerTemplateId(stA))
+	}
+	return fmt.Sprintf("https://%v/acct/%v/server_templates/diff?old_server_template_id=%v&new_server_template_id=%v", Config.Account.Host, Config.Account.Id, getServerTemplateId(stA), getServerTemplateId(stB))
+}
+
+// getServerTemplateFiles retreives the local path of a cached ServerTemplate and its directory
+func getServerTemplateFiles(st *cm15.ServerTemplate, cache Cache) (reader io.ReadCloser, mcis []*cm15.MultiCloudImage, scripts []*cm15.RightScript, dir string, err error) {
+	id := getServerTemplateId(st)
+	if id == "" {
+		reader = ioutil.NopCloser(&bytes.Reader{})
+		return
+	}
+	var yaml string
+	if st.Revision == 0 {
+		dir, err = ioutil.TempDir("", "right_st.cache.")
+		if err != nil {
+			return
+		}
+		yaml = filepath.Join(dir, "server_template.yaml")
+	} else {
+		var cst *CachedServerTemplate
+		cst, err = cache.GetServerTemplate(Config.Account.Id, id, st.Revision)
+		if err != nil {
+			return
+		}
+		if cst != nil {
+			yaml = cst.File
+			mcis, scripts = make([]*cm15.MultiCloudImage, len(cst.MultiCloudImages)), make([]*cm15.RightScript, len(cst.RightScripts))
+			copy(mcis, cst.MultiCloudImages)
+			copy(scripts, cst.RightScripts)
+			goto finish
+		}
+		yaml, err = cache.GetServerTemplateFile(Config.Account.Id, id, st.Revision)
+		if err != nil {
+			return
+		}
+	}
+
+	_, mcis, scripts, err = stDownload(getServerTemplateHREF(st), yaml, false, true, false, "", ioutil.Discard)
+	if err != nil {
+		return
+	}
+
+	if st.Revision != 0 {
+		err = cache.PutServerTemplate(Config.Account.Id, id, st.Revision, st, mcis, scripts)
+		if err != nil {
+			return
+		}
+	}
+
+finish:
+	if dir == "" {
+		dir = filepath.Dir(yaml)
+	}
+	sort.Slice(mcis, func(i, j int) bool {
+		if mcis[i].Name == mcis[j].Name {
+			return mcis[i].Revision < mcis[j].Revision
+		}
+		return mcis[i].Name < mcis[j].Name
+	})
+	sort.Slice(scripts, func(i, j int) bool {
+		if scripts[i].Name == scripts[j].Name {
+			return scripts[i].Revision < scripts[j].Revision
+		}
+		return scripts[i].Name < scripts[j].Name
+	})
+	reader, err = os.Open(yaml)
+	return
+}
+
+// getServerTemplateRevision returns the ServerTemplate object for the given ServerTemplate HREF and revision;
+// the revision may be "null", "head", "latest", or a number
+func getServerTemplateRevision(href, revision string) (*cm15.ServerTemplate, error) {
+	var (
+		r   int
+		err error
+	)
+	switch strings.ToLower(revision) {
+	case "null":
+		return nullServerTemplate, nil
+	case "head":
+		r = 0
+	case "latest":
+		r = -1
+	default:
+		r, err = strconv.Atoi(revision)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	client, _ := Config.Account.Client15()
+	locator := client.ServerTemplateLocator(href)
+
+	// show the ServerTemplate to find its lineage
+	st, err := locator.Show(rsapi.APIParams{})
+	if err != nil {
+		return nil, err
+	}
+
+	// get all of the ServerTemplates in the lineage
+	stRevisions, err := locator.Index(rsapi.APIParams{"filter": []string{"lineage==" + st.Lineage}})
+	if err != nil {
+		return nil, err
+	}
+
+	// find the ServerTemplate in the lineage with the matching revision
+	// or find the index of the ServerTemplate with the maximum revision if looking for "latest"
+	maxI := -1
+	for i, stRevision := range stRevisions {
+		if r < 0 {
+			if maxI < 0 || stRevision.Revision > stRevisions[maxI].Revision {
+				maxI = i
+			}
+		} else if stRevision.Revision == r {
+			return stRevision, nil
+		}
+	}
+
+	// the maximum index will only be greater than -1 if looking for "latest"
+	if maxI >= 0 {
+		return stRevisions[maxI], nil
+	}
+
+	return nil, fmt.Errorf("no ServerTemplate found for %v with revision %v", href, revision)
+}
+
+// getServerTemplateId returns the ID of the ServerTemplate object
+func getServerTemplateId(st *cm15.ServerTemplate) string {
+	parts := strings.Split(getServerTemplateHREF(st), "/")
+	return parts[len(parts)-1]
+}
+
+// getServerTemplateHREF returns the HREF of the RightScript object
+func getServerTemplateHREF(st *cm15.ServerTemplate) string {
+	client, _ := Config.Account.Client15()
+	locator := st.Locator(client)
+	if locator != nil {
+		return string(locator.Href)
+	}
+	return ""
+}
+
+// getServerTemplateNameRev returns the name and revision of the ServerTemplate object
+func getServerTemplateNameRev(st *cm15.ServerTemplate) string {
+	if getServerTemplateId(st) == "" {
+		return os.DevNull
+	}
+	if st.Revision == 0 {
+		return st.Name + " [HEAD]"
+	}
+	return fmt.Sprintf("%v [rev %v]", st.Name, st.Revision)
 }
 
 // TBD
@@ -691,12 +1036,12 @@ func validateServerTemplate(file string) (*ServerTemplate, []error) {
 }
 
 func ParseServerTemplate(ymlData io.Reader) (*ServerTemplate, error) {
-	st := ServerTemplate{}
+	st := &ServerTemplate{}
 	bytes, err := ioutil.ReadAll(ymlData)
 	if err != nil {
 		return nil, err
 	}
-	err = yaml.UnmarshalStrict(bytes, &st)
+	err = yaml.UnmarshalStrict(bytes, st)
 	if err != nil {
 		return nil, err
 	}
@@ -706,7 +1051,7 @@ func ParseServerTemplate(ymlData io.Reader) (*ServerTemplate, error) {
 			return nil, typeError
 		}
 	}
-	return &st, nil
+	return st, nil
 }
 
 func getServerTemplateByName(name string) (*cm15.ServerTemplate, error) {
@@ -731,16 +1076,43 @@ func getServerTemplateByName(name string) (*cm15.ServerTemplate, error) {
 	return foundSt, nil
 }
 
-func stCommit(href, message string, commitHead, freezeRepos bool) {
+func stCommit(href, message string, force, commitHead, freezeRepos bool, cache Cache) bool {
+	if !force {
+		stLatest, err := getServerTemplateRevision(href, "latest")
+		if err != nil {
+			fatalError("Could not find latest: %v", err)
+		}
+		stHead, err := getServerTemplateRevision(href, "head")
+		if err != nil {
+			fatalError("Could not find head: %v", err)
+		}
+
+		if stLatest.Revision != 0 {
+			differ, err := diffServerTemplate( /*ioutil.Discard*/ os.Stdout, stLatest, stHead, true, cache)
+			if err != nil {
+				fatalError("Error performing diff: %v", err)
+			}
+			if !differ {
+				return false
+			}
+		}
+	}
+
 	client, _ := Config.Account.Client15()
 	stLocator := client.ServerTemplateLocator(href)
 
 	fmt.Printf("Committing Server Template %s\n", href)
 
 	// https://reference.rightscale.com/api1.5/resources/ResourceServerTemplates.html#commit
-	err := stLocator.Commit(strconv.FormatBool(commitHead), message, strconv.FormatBool(freezeRepos))
+	commitLocator, err := stLocator.Commit(strconv.FormatBool(commitHead), message, strconv.FormatBool(freezeRepos))
 	if err != nil {
-		fatalError("%s", err.Error())
+		fatalError("%v", err)
 	}
-	return
+	st, err := commitLocator.Show(rsapi.APIParams{})
+	if err != nil {
+		fatalError("%v", err)
+	}
+	fmt.Printf("Revision: %v\nHREF: %v\n", st.Revision, commitLocator.Href)
+
+	return true
 }

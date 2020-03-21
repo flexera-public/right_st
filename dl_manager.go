@@ -38,7 +38,7 @@ func init() {
 }
 
 // downloadManager download a bunch of "items", typically attachments or cookbooks
-func downloadManager(items []*downloadItem) error {
+func downloadManager(items []*downloadItem, output io.Writer) error {
 	var err error
 	var size int64
 	var lock sync.Mutex // for both size and err
@@ -79,13 +79,13 @@ func downloadManager(items []*downloadItem) error {
 					return
 				}
 				var retry bool
-				retry, e = downloadOneItem(i)
+				retry, e = downloadOneItem(i, output)
 				if e == nil {
 					sumSize(i.size)
 					return
 				}
-				// fmt.Printf("        Error downloading %s:", filepath.Base(i.filename))
-				// fmt.Printf("          %s", e.Error())
+				// fmt.Fprintf(output, "        Error downloading %v:", filepath.Base(i.filename))
+				// fmt.Fprintf(output, "          %v", e)
 				if !retry {
 					setError(e)
 					return
@@ -97,7 +97,7 @@ func downloadManager(items []*downloadItem) error {
 	}
 	wg.Wait()
 	dt := time.Since(t)
-	fmt.Printf("    Done with %d attachments: %dKB in %.1fs -> %.3fMB/s\n", len(items),
+	fmt.Fprintf(output, "    Done with %d attachments: %dKB in %.1fs -> %.3fMB/s\n", len(items),
 		size/1024, float32(dt)/float32(time.Second),
 		float32(size)/1024/1024/(float32(dt)/float32(time.Second)))
 	return err
@@ -105,14 +105,14 @@ func downloadManager(items []*downloadItem) error {
 
 // downloadItem downloads an individual item to disk. It returns a boolean that
 // is true if an error occurred that is retryable
-func downloadOneItem(item *downloadItem) (bool, error) {
+func downloadOneItem(item *downloadItem, output io.Writer) (bool, error) {
 	effectiveName := ""
 	for _, filename := range item.locations {
 		md5sum, err := fmd5sum(filename)
 		if err == nil {
 			// File already exists. If the md5sum matches, we're golden. else do nothing and try the next location
 			if item.md5 == md5sum {
-				fmt.Printf("    Skipping attachment '%s', already downloaded\n", filepath.Base(filename))
+				fmt.Fprintf(output, "    Skipping attachment '%v', already downloaded\n", filepath.Base(filename))
 				item.downloadedTo = filename
 				return false, nil
 			}
@@ -143,7 +143,7 @@ func downloadOneItem(item *downloadItem) (bool, error) {
 
 	// Do the download
 	startAt := time.Now()
-	fmt.Printf("    Downloading attachment '%s' to '%s'\n", filepath.Base(effectiveName), effectiveName)
+	fmt.Fprintf(output, "    Downloading attachment '%v' to '%v'\n", filepath.Base(effectiveName), effectiveName)
 	resp, err := http.Get(item.url.String())
 	if err != nil {
 		f.Close() // on Windows you cannot remove a file that has an open file handle
@@ -168,7 +168,7 @@ func downloadOneItem(item *downloadItem) (bool, error) {
 		return true, fmt.Errorf("%s -- Reading %s", err.Error(), filepath.Base(effectiveName))
 	}
 	if *debug {
-		fmt.Printf("    %.1fKB in %.1fs for %s", float32(size)/1024,
+		fmt.Fprintf(output, "    %.1fKB in %.1fs for %v", float32(size)/1024,
 			time.Since(startAt).Seconds(), filepath.Base(effectiveName))
 	}
 	item.size = size

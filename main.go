@@ -26,14 +26,15 @@ import (
 var (
 	app        = kingpin.New("right_st", "A command-line application for managing RightScripts")
 	debug      = app.Flag("debug", "Debug mode").Short('d').Bool()
-	configFile = app.Flag("config", "Set the config file path.").Short('c').Default(DefaultConfigFile()).String()
+	configFile = app.Flag("config", "Set the config file path").Short('c').Default(DefaultConfigFile()).String()
+	cachePath  = app.Flag("cache", "Set the cache directory path").Short('C').Default(DefaultCachePath()).String()
 	account    = app.Flag("account", "RightScale account name to use").Short('a').String()
 
 	// ----- ServerTemplates -----
-	stCmd = app.Command("st", "ServerTemplate")
+	stCmd = app.Command("servertemplate", "ServerTemplate").Alias("st")
 
 	stShowCmd        = stCmd.Command("show", "Show a single ServerTemplate")
-	stShowNameOrHref = stShowCmd.Arg("name|href|id", "ServerTemplate Name or HREF or Id").Required().String()
+	stShowNameOrHref = stShowCmd.Arg("name|href|id|path", "ServerTemplate name, HREF, ID, or YAML file path").Required().String()
 
 	stUploadCmd    = stCmd.Command("upload", "Upload a ServerTemplate specified by a YAML document")
 	stUploadPaths  = stUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
@@ -44,23 +45,31 @@ var (
 	stDeletePrefix = stDeleteCmd.Flag("prefix", "Prefix to delete").Short('x').String()
 
 	stDownloadCmd         = stCmd.Command("download", "Download a ServerTemplate and all associated RightScripts/Attachments to disk")
-	stDownloadNameOrHref  = stDownloadCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
+	stDownloadNameOrHref  = stDownloadCmd.Arg("name|href|id", "ServerTemplate name, HREF, or ID").Required().String()
 	stDownloadTo          = stDownloadCmd.Arg("path", "Download location").String()
-	stDownloadPublished   = stDownloadCmd.Flag("published", "Insert links to published RightScripts instead of downloading to disk.").Short('p').Bool()
-	stDownloadMciSettings = stDownloadCmd.Flag("mci-settings", "Download MCI settings data to recreate/manage an MCI.").Short('m').Bool()
-	stDownloadScriptPath  = stDownloadCmd.Flag("script-path", "Download RightScripts and their attachments to a subdirectory relative to the download location.").Short('s').String()
+	stDownloadPublished   = stDownloadCmd.Flag("published", "Insert links to published RightScripts instead of downloading to disk").Short('p').Bool()
+	stDownloadMciSettings = stDownloadCmd.Flag("mci-settings", "Download MCI settings data to recreate/manage an MCI").Short('m').Bool()
+	stDownloadScriptPath  = stDownloadCmd.Flag("script-path", "Download RightScripts and their attachments to a subdirectory relative to the download location").Short('s').String()
+	stDownloadScriptRefs  = stDownloadCmd.Flag("script-references", "Insert links to all RightScripts instead of downloading to disk").Short('r').Bool()
 
 	stValidateCmd   = stCmd.Command("validate", "Validate a ServerTemplate YAML document")
 	stValidatePaths = stValidateCmd.Arg("path", "Path to script file(s)").Required().ExistingFiles()
 
-	stCommitCmd                = stCmd.Command("commit", "Commit ServerTemplate")
-	stCommitNameOrHrefOrPath   = stCommitCmd.Arg("name|href|id|path", "ServerTemplate name, HREF, ID or file path").Required().Strings()
-	stCommitMessage            = stCommitCmd.Flag("message", "ServerTemplate commit message").Short('m').Required().String()
-	stNoCommitHeadDependencies = stCommitCmd.Flag("no-commit-head", "Do not commit HEAD revisions (if any) of the associated MultiCloud Images, RightScripts and Chef repo sequences.").Short('n').Bool()
-	stFreezeRepositories       = stCommitCmd.Flag("freeze-repos", "Freeze the repositories").Short('f').Bool()
+	stCommitCmd                      = stCmd.Command("commit", "Commit ServerTemplate")
+	stCommitNameOrHrefOrPath         = stCommitCmd.Arg("name|href|id|path", "ServerTemplate name, HREF, ID or file path").Required().Strings()
+	stCommitMessage                  = stCommitCmd.Flag("message", "ServerTemplate commit message").Short('m').Required().String()
+	stCommitForce                    = stCommitCmd.Flag("force", "Force commit even if there are no changes").Short('f').Bool()
+	stCommitNoCommitHeadDependencies = stCommitCmd.Flag("no-commit-head", "Do not commit HEAD revisions (if any) of the associated MultiCloud Images or RightScripts").Bool()
+	stCommitFreezeRepositories       = stCommitCmd.Flag("freeze-repos", "Freeze the repositories").Bool()
+
+	stDiffCmd        = stCmd.Command("diff", "Show differences between revisions of a ServerTemplate")
+	stDiffNameOrHref = stDiffCmd.Arg("name|href|id|path", "ServerTemplate name, HREF, ID, or YAML file path").Required().String()
+	stDiffRevisionA  = stDiffCmd.Arg("revision-a", "The former revision of the ServerTemplate (may be a number, 'latest', or 'head')").Required().String()
+	stDiffRevisionB  = stDiffCmd.Arg("revision-b", "The latter revision of the ServerTemplate (may be a number, 'latest', or 'head')").Required().String()
+	stDiffLinkOnly   = stDiffCmd.Flag("link-only", "Just show a link to a ServerTemplate comparison in the RightScale dashboard").Short('l').Bool()
 
 	// ----- RightScripts -----
-	rightScriptCmd = app.Command("rightscript", "RightScript")
+	rightScriptCmd = app.Command("rightscript", "RightScript").Alias("rs")
 
 	rightScriptShowCmd        = rightScriptCmd.Command("show", "Show a single RightScript and its attachments")
 	rightScriptShowNameOrHref = rightScriptShowCmd.Arg("name|href|id", "Script Name or HREF or Id").Required().String()
@@ -70,7 +79,7 @@ var (
 	rightScriptUploadPrefix = rightScriptUploadCmd.Flag("prefix", "Create dev/test version by adding prefix to name of all RightScripts uploaded").Short('x').String()
 	rightScriptUploadForce  = rightScriptUploadCmd.Flag("force", "Force upload of file if metadata is not present").Short('f').Bool()
 
-	rightScriptDeleteCmd    = rightScriptCmd.Command("delete", "Delete dev/test RightScripts with a prefix.")
+	rightScriptDeleteCmd    = rightScriptCmd.Command("delete", "Delete dev/test RightScripts with a prefix")
 	rightScriptDeletePaths  = rightScriptDeleteCmd.Arg("path", "File or directory containing script files").Required().ExistingFilesOrDirs()
 	rightScriptDeletePrefix = rightScriptDeleteCmd.Flag("prefix", "Prefix to delete").Short('x').String()
 
@@ -89,6 +98,13 @@ var (
 	rightScriptCommitCmd              = rightScriptCmd.Command("commit", "Commit RightScript")
 	rightScriptCommitNameOrHrefOrPath = rightScriptCommitCmd.Arg("name|href|id|path", "RightScript name, HREF, ID or file path").Required().Strings()
 	rightScriptCommitMessage          = rightScriptCommitCmd.Flag("message", "RightScript commit message").Short('m').Required().String()
+	rightScriptCommitForce            = rightScriptCommitCmd.Flag("force", "Force commit even if there are no changes").Short('f').Bool()
+
+	rightScriptDiffCmd        = rightScriptCmd.Command("diff", "Show differences between revisions of a RightScript")
+	rightScriptDiffNameOrHref = rightScriptDiffCmd.Arg("name|href|id|path", "RightScript name, HREF, ID, or file path").Required().String()
+	rightScriptDiffRevisionA  = rightScriptDiffCmd.Arg("revision-a", "The former revision of the RightScript (may be a number, 'latest', or 'head')").Required().String()
+	rightScriptDiffRevisionB  = rightScriptDiffCmd.Arg("revision-b", "The latter revision of the RightScript (may be a number, 'latest', or 'head')").Required().String()
+	rightScriptDiffLinkOnly   = rightScriptDiffCmd.Flag("link-only", "Just show a link to a RightScript comparison in the RightScale dashboard").Short('l').Bool()
 
 	// ----- Configuration -----
 	configCmd = app.Command("config", "Manage Configuration")
@@ -117,17 +133,24 @@ func main() {
 	command := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	err := ReadConfig(*configFile, *account)
+	var cache Cache
 	if !strings.HasPrefix(command, "config") && !strings.HasPrefix(command, "update") {
 		// Makes sure the config file structure is valid
 		if err != nil {
-			fatalError("%s: Error reading config file: %s\n", filepath.Base(os.Args[0]), err.Error())
+			fatalError("%s: Error reading config file: %v\n", filepath.Base(os.Args[0]), err)
 		}
 
 		// Make sure the config file auth token is valid. Check now so we don't have to
 		// keep rechecking in code.
 		_, err := Config.Account.Client15()
 		if err != nil {
-			fatalError("Authentication error: %s", err.Error())
+			fatalError("Authentication error: %v", err)
+		}
+
+		// Make sure the top level cache directories exist.
+		cache, err = NewCache(*cachePath)
+		if err != nil {
+			fatalError("Error creating cache: %v", err)
 		}
 	}
 
@@ -173,7 +196,9 @@ func main() {
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
-		stDownload(href, *stDownloadTo, *stDownloadPublished, *stDownloadMciSettings, *stDownloadScriptPath)
+		if _, _, _, err := stDownload(href, *stDownloadTo, *stDownloadPublished, *stDownloadScriptRefs, *stDownloadMciSettings, *stDownloadScriptPath, os.Stdout); err != nil {
+			fatalError("%v", err)
+		}
 	case stValidateCmd.FullCommand():
 		files, err := walkPaths(*stValidatePaths)
 		if err != nil {
@@ -186,8 +211,18 @@ func main() {
 			if err != nil {
 				fatalError("%s", err.Error())
 			}
-			stCommit(href, *stCommitMessage, !*stNoCommitHeadDependencies, *stFreezeRepositories)
+			committed := stCommit(href, *stCommitMessage, *stCommitForce, !*stCommitNoCommitHeadDependencies, *stCommitFreezeRepositories, cache)
+			if !committed {
+				fmt.Println("No changes to commit")
+				os.Exit(1)
+			}
 		}
+	case stDiffCmd.FullCommand():
+		href, err := paramToHref("server_templates", *stDiffNameOrHref, 0, true)
+		if err != nil {
+			fatalError("%v", err)
+		}
+		stDiff(href, *stDiffRevisionA, *stDiffRevisionB, *stDiffLinkOnly, cache)
 	case rightScriptShowCmd.FullCommand():
 		href, err := paramToHref("right_scripts", *rightScriptShowNameOrHref, 0, true)
 		if err != nil {
@@ -211,7 +246,9 @@ func main() {
 		if err != nil {
 			fatalError("%s", err.Error())
 		}
-		rightScriptDownload(href, *rightScriptDownloadTo)
+		if _, _, _, err = rightScriptDownload(href, *rightScriptDownloadTo, true, os.Stdout); err != nil {
+			fatalError("%v", err)
+		}
 	case rightScriptScaffoldCmd.FullCommand():
 		files, err := walkPaths(*rightScriptScaffoldPaths)
 		if err != nil {
@@ -230,8 +267,18 @@ func main() {
 			if err != nil {
 				fatalError("%s", err.Error())
 			}
-			rightScriptCommit(href, *rightScriptCommitMessage)
+			committed := rightScriptCommit(href, *rightScriptCommitMessage, *rightScriptCommitForce, cache)
+			if !committed {
+				fmt.Println("No changes to commit")
+				os.Exit(1)
+			}
 		}
+	case rightScriptDiffCmd.FullCommand():
+		href, err := paramToHref("right_scripts", *rightScriptDiffNameOrHref, 0, true)
+		if err != nil {
+			fatalError("%v", err)
+		}
+		rightScriptDiff(href, *rightScriptDiffRevisionA, *rightScriptDiffRevisionB, *rightScriptDiffLinkOnly, cache)
 	case configAccountCmd.FullCommand():
 		err := Config.SetAccount(*configAccountName, *configAccountDefault, *configAccountPassword, os.Stdin, os.Stdout)
 		if err != nil {
@@ -411,7 +458,7 @@ func fatalError(format string, v ...interface{}) {
 	msg := fmt.Sprintf("ERROR: "+format, v...)
 	fmt.Fprintf(os.Stderr, "%s\n", msg)
 
-	os.Exit(1)
+	os.Exit(2)
 }
 
 func fmd5sum(path string) (string, error) {
