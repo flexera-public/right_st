@@ -36,7 +36,7 @@ func stUpload(files []string, prefix string, validate bool) {
 		}
 		defer f.Close()
 		st, perr := ParseServerTemplate(f)
-		if perr != nil{
+		if perr != nil {
 			fmt.Println("Encountered Errors Parsing Template")
 			os.Exit(1)
 		}
