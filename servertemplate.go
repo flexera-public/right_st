@@ -27,23 +27,35 @@ type ServerTemplate struct {
 
 var sequenceTypes []string = []string{"Boot", "Operational", "Decommission"}
 
-func stUpload(files []string, prefix string) {
+func stUpload(files []string, prefix string, validate bool) {
 
 	for _, file := range files {
-		fmt.Printf("Validating %s\n", file)
-		st, errors := validateServerTemplate(file)
-		if len(errors) != 0 {
-			fmt.Println("Encountered the following errors with the ServerTemplate:")
-			for _, err := range errors {
-				fmt.Println(err)
-			}
+		f, ferr := os.Open(file)
+		if ferr != nil {
 			os.Exit(1)
 		}
-		stName := st.Name
-		if prefix != "" {
-			stName = fmt.Sprintf("%s_%s", prefix, stName)
+		defer f.Close()
+		st, perr := ParseServerTemplate(f)
+		if perr != nil{
+			fmt.Println("Encountered Errors Parsing Template")
+			os.Exit(1)
 		}
-		fmt.Printf("Validation successful, uploading as '%s'\n", stName)
+		if validate {
+			fmt.Printf("Validating %s\n", file)
+			st, errors := validateServerTemplate(file)
+			if len(errors) != 0 {
+				fmt.Println("Encountered the following errors with the ServerTemplate:")
+				for _, err := range errors {
+					fmt.Println(err)
+				}
+				os.Exit(1)
+			}
+			stName := st.Name
+			if prefix != "" {
+				stName = fmt.Sprintf("%s_%s", prefix, stName)
+			}
+			fmt.Printf("Validation successful, uploading as '%s'\n", stName)
+		}
 
 		if *debug {
 			fmt.Printf("ST: %#v\n", *st)

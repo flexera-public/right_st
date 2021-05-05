@@ -35,9 +35,10 @@ var (
 	stShowCmd        = stCmd.Command("show", "Show a single ServerTemplate")
 	stShowNameOrHref = stShowCmd.Arg("name|href|id", "ServerTemplate Name or HREF or Id").Required().String()
 
-	stUploadCmd    = stCmd.Command("upload", "Upload a ServerTemplate specified by a YAML document")
-	stUploadPaths  = stUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
-	stUploadPrefix = stUploadCmd.Flag("prefix", "Create dev/test version by adding prefix to name of all ServerTemplate and RightScripts uploaded").Short('x').String()
+	stUploadCmd      = stCmd.Command("upload", "Upload a ServerTemplate specified by a YAML document")
+	stUploadPaths    = stUploadCmd.Arg("path", "File or directory containing script files to upload").Required().ExistingFilesOrDirs()
+	stUploadPrefix   = stUploadCmd.Flag("prefix", "Create dev/test version by adding prefix to name of all ServerTemplate and RightScripts uploaded").Short('x').String()
+	stUploadValidate = stUploadCmd.Flag("validate", "Whether or not to validate the template").Default("true").Bool()
 
 	stDeleteCmd    = stCmd.Command("delete", "Delete dev/test ServerTemplates and RightScripts with a prefix")
 	stDeletePaths  = stDeleteCmd.Arg("path", "File or directory containing script files").Required().ExistingFilesOrDirs()
@@ -161,7 +162,7 @@ func main() {
 		if err != nil {
 			fatalError("%s\n", err.Error())
 		}
-		stUpload(files, *stUploadPrefix)
+		stUpload(files, *stUploadPrefix, *stUploadValidate)
 	case stDeleteCmd.FullCommand():
 		files, err := walkPaths(*stDeletePaths)
 		if err != nil {
