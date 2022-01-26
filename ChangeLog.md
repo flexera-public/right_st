@@ -1,5 +1,16 @@
+ChangeLog
+=========
+
+v1.10.0 / 2022-01-25
+--------------------
+
+* Build for macOS ARM64.
+* Fix Go linting warnings and typos.
+* Build with latest Go and dependencies.
+
 v1.9.4 / 2019-11-08
 -------------------
+
 * Username and password from the environment were not being considered
   when the `~/.right_st.yml` file did not exist. They are now.
 * Use go 1.13.x in Travis CI.
@@ -9,11 +20,13 @@ v1.9.4 / 2019-11-08
 
 v1.9.3 / 2019-07-17
 -------------------
+
 * Fix an issue where trying to set the default MCI on a ServerTemplate would error with:
   "ActionNotAllowed: This ServerTemplateMultiCloudImage is already default."
 
 v1.9.2 / 2019-06-20
 -------------------
+
 * Fix [#68] where a new ServerTemplate upload in a new account would fail with a duplicate MCI attachment by changing
   to not using the dummy MCI if there are no existing MCIs on a ServerTemplate during upload and also creating a
   temporary dummy MCI rather than picking one that exists already in the account which is error prone in new or small
@@ -23,24 +36,29 @@ v1.9.2 / 2019-06-20
 
 v1.9.1 / 2019-06-17
 -------------------
+
 * Fix updating ServerTemplate alerts that have changed case or have different leading and/or trailing whitespace.
 
 v1.9.0 / 2019-05-29
 -------------------
+
 * Add username/password support based on `rsc`
 
 v1.8.2 / 2019-04-18
 -------------------
+
 * Do not add trailing spaces on empty comment lines of RightScript Metadata when scaffolding
 * Ignore `BASH_REMATCH` when detecting inputs while scaffolding
 * Use Go 1.12.x on Travis CI
 
 v1.8.1 / 2019-03-05
 -------------------
+
 * Add optional flags to ServerTemplate commits
 
 v1.8.0 / 2019-02-02
 -------------------
+
 * Use Go 1.11.x modules instead of dep.
 * Fix [#57] by correcting line number offset calculation.
 * Add commit for RightScripts and ServerTemplates
@@ -49,6 +67,7 @@ v1.8.0 / 2019-02-02
 
 v1.7.3 / 2018-06-19
 -------------------
+
 * Improve error messages when reading separate YAML files for Alerts and
   MultiCloudImages.
 * Use dep instead of glide.
@@ -56,16 +75,19 @@ v1.7.3 / 2018-06-19
 
 v1.7.2 / 2018-03-06
 -------------------
+
 * Adding support for alert metrics that have multiple periods in the alert\_spec
- (i.e. GenericJMX-logs-METRICSAPPENDER.error/gauge-OneMinuteRate.value)
+  (i.e. GenericJMX-logs-METRICSAPPENDER.error/gauge-OneMinuteRate.value)
 * Use Go 1.10.x and a newer version of Glide to build.
 
 v1.7.1 / 2017-12-13
 -------------------
+
 * Make prefix an optional parameter for deleting ServerTemplates/RightScripts.
 
 v1.7.0 / 2017-10-23
 -------------------
+
 * Add support for specifying MultiCloudImages in separate YAML files.
 * Add support for specifying common Alerts for ServerTemplates in separate YAML
   files.
@@ -74,12 +96,14 @@ v1.7.0 / 2017-10-23
 
 v1.6.3 / 2017-08-03
 -------------------
+
 * Work around a bug with account selection due to [viper]'s case-insensitivity.
 
 [viper]: https://github.com/spf13/viper
 
 v1.6.2 / 2017-07-27
 -------------------
+
 * Add missing -m and -p short options to the `right_st st download` subcommand,
   they were documented in `README.md`, but apparently missing from recent
   versions.
@@ -87,12 +111,14 @@ v1.6.2 / 2017-07-27
 
 v1.6.1 / 2017-03-09
 -------------------
+
 * Fix bug where the RightScale API returns runnable binding sequence positions
   with missing numbers in between.
 * Move to Go 1.8.X.
 
 v1.6.0 / 2016-11-11
 -------------------
+
 * Fix bug where it would not always import the latest version of a publication
   for RightScripts
 * Remove --delete/-D flag from 'st upload' and 'rightscript upload' in favor
@@ -100,6 +126,7 @@ v1.6.0 / 2016-11-11
 
 v1.5.0 / 2016-10-25
 -------------------
+
 * Add attachment detection to RightScript scaffold command
 * Check for updates with an OS and architecture specific YAML file so that MacOS
   builds taking longer do not result in update errors
@@ -109,6 +136,7 @@ v1.5.0 / 2016-10-25
 
 v1.4.5 / 2016-10-18
 -------------------
+
 * Fix bug when changing revision of imported RightScript
 * Allow ServerTemplate YAML to reference fixed revisions of RightScripts not
   imported from the MultiCloudMarketplace.
@@ -118,6 +146,7 @@ v1.4.5 / 2016-10-18
 
 v1.4.4 / 2016-08-11
 -------------------
+
 * Fix bug, introduced in v1.4.0, where attachment names were getting mangled
 * Correctly set default MCI for ServerTemplates on download
 * Improve formatting of description fields when downloading ServerTemplates
@@ -126,20 +155,24 @@ v1.4.4 / 2016-08-11
 
 v1.4.3 / 2016-08-11
 -------------------
+
 * Fix panic when using --mci-settings introduced in v1.4.2
 
 v1.4.2 / 2016-08-11
 -------------------
+
 * Improve error messages, get rid of Description field showing up downloaded
   ServerTemplate yaml files for fixed revisions
 
 v1.4.1 / 2016-08-08
 -------------------
+
 * Allow the update commands to work without a config file; this is useful if you
   need to use sudo to update since root probably does not have a config file.
 
 v1.4.0 / 2016-08-08
 -------------------
+
 * Add `--script-path` argument to specify where to download RightScripts relative
   to the ServerTemplate download location ([#28])
 * Fix a panic in ServerTemplate validate when the RightScript name is not known
@@ -152,6 +185,7 @@ v1.4.0 / 2016-08-08
 
 v1.3.0 / 2016-07-15
 -------------------
+
 * Support for "published" or "external" MCIs. right_st will attempt to check for
   and use MultiCloudImages from the MultiCloud Marketplace if they exist ([#10])
 * Support for full definition of MCIs in the ServerTemplate YAML file, including
@@ -163,6 +197,7 @@ v1.3.0 / 2016-07-15
 
 v1.2.0 / 2016-06-05
 -------------------
+
 * Add ability to use "published" aka "external" RightScripts. These are
   RightScripts published in the MultiCloud Marketplace. These are linked to
   instead of downloaded to disk ([#16])
@@ -171,9 +206,10 @@ v1.2.0 / 2016-06-05
 
 v1.1.0 / 2016-04-15
 -------------------
+
 * Various fixes: Can specify a directory to download to. Better error messages.
 * Now display script body in RightScript show command.
-* Added --force option to scaffold to rescaffold an existing script [#5]
+* Added --force option to scaffold to re-scaffold an existing script [#5]
 * Will clean up RightScript metadata on download if it is incorrect
 * Attachments with the same name but belonging to different Rightscript will
   throw an error ([#9])
@@ -190,6 +226,7 @@ v1.1.0 / 2016-04-15
 
 v1.0.2 / 2016-04-07
 -------------------
+
 * Build with Go 1.6 on Travis CI.
 * Fix [#14] by only doing an Inputs MultiUpdate when there are actually inputs
   to update.
@@ -200,10 +237,12 @@ v1.0.2 / 2016-04-07
 
 v1.0.1 / 2016-03-09
 -------------------
+
 * Fix a cosmetic bug where attachment downloads on Windows would display as
   `Downloading attachment into attachments/attachments\filename.txt` instead of
   `Downloading attachment into attachments/filename.txt`
 
 v1.0.0 / 2016-03-03
 -------------------
+
 * Initial release

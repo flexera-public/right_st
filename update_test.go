@@ -54,13 +54,16 @@ var _ = Describe("Update", func() {
 			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch {
 				case r.URL.Path == "/version-"+runtime.GOOS+"-"+runtime.GOARCH+".yml":
-					w.Write([]byte(`# Latest right_st versions by major version (this file is used by right_st's update check mechanism)
+					_, err := w.Write([]byte(`# Latest right_st versions by major version (this file is used by right_st's update check mechanism)
 ---
 versions:
   1: v1.2.3
   2: v2.3.4
   3: v3.4.5
 `))
+					if err != nil {
+						panic(err)
+					}
 				case tgzPath.MatchString(r.URL.Path):
 					gzipWriter := gzip.NewWriter(w)
 					tarWriter := tar.NewWriter(gzipWriter)
@@ -108,9 +111,9 @@ versions:
 				Expect(err).NotTo(HaveOccurred())
 				Expect(latest).To(Equal(&LatestVersions{
 					Versions: map[int]*Version{
-						1: &Version{1, 2, 3},
-						2: &Version{2, 3, 4},
-						3: &Version{3, 4, 5},
+						1: {1, 2, 3},
+						2: {2, 3, 4},
+						3: {3, 4, 5},
 					},
 				}))
 			})
@@ -170,7 +173,7 @@ https://github.com/rightscale/right_st/releases for more information.
 `))
 			})
 
-			It("Outptus that there is a new version and new major version", func() {
+			It("Outputs that there is a new version and new major version", func() {
 				UpdateCheck("right_st v2.0.0 - JUNK JUNK JUNK", buffer)
 				Expect(buffer.Contents()).To(BeEquivalentTo(`There is a new v2 version of right_st (v2.3.4), to upgrade run:
     right_st update apply

@@ -48,7 +48,7 @@ func (mci *MultiCloudImage) UnmarshalYAML(unmarshal func(interface{}) error) err
 		return nil
 	}
 
-	// make a dummy struct that will parse the same as MultiCloudImage so we can unmarshall it without having UnmarshalYAML infinitely recursing
+	// make a dummy struct that will parse the same as MultiCloudImage so we can unmarshal it without having UnmarshalYAML infinitely recursing
 	var mapMCI struct {
 		Href        string     `yaml:"Href,omitempty"`
 		Name        string     `yaml:"Name,omitempty"`
@@ -261,7 +261,7 @@ func downloadMultiCloudImages(st *cm15.ServerTemplate, downloadMciSettings bool)
 				fmt.Printf("WARNING: skipping MCI '%s', contains no usable settings\n", mci.Name)
 			}
 		} else {
-			// We repull the MCI here to get the description field, which we need to break ties between
+			// We re-pull the MCI here to get the description field, which we need to break ties between
 			// similarly named publications!
 			mciLoc := client.MultiCloudImageLocator(getLink(mci.Links, "self"))
 			mci, err := mciLoc.Show()
@@ -337,7 +337,7 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 			if mciDef.Href == "" {
 				loc := pub.Locator(client)
 
-				err = loc.Import()
+				_, err = loc.Import()
 
 				if err != nil {
 					return fmt.Errorf("Failed to import publication %s for MultiCloudImage '%s' Revision %s Publisher %s\n",
@@ -502,8 +502,8 @@ func uploadMultiCloudImages(stDef *ServerTemplate, prefix string) error {
 		}
 		firstValidMci = loc
 		defer func() {
-			loc.Destroy()
-			dummyMci.Destroy()
+			_ = loc.Destroy()
+			_ = dummyMci.Destroy()
 		}()
 	}
 	for _, mci := range existingMcis {

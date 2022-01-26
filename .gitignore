@@ -13,6 +13,7 @@ right_st
 # Folders
 _obj
 _test
+.vscode/
 
 # Architecture specific extensions/prefixes
 *.[568vq]

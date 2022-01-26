@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -57,7 +56,9 @@ type InputValue struct {
 }
 
 func ParseRightScriptMetadata(script io.ReadSeeker) (*RightScriptMetadata, error) {
-	defer script.Seek(0, os.SEEK_SET)
+	defer func() {
+		_, _ = script.Seek(0, io.SeekStart)
+	}()
 
 	scanner := bufio.NewScanner(script)
 	var buffer bytes.Buffer
@@ -134,6 +135,9 @@ func (metadata *RightScriptMetadata) WriteTo(script io.Writer) (n int64, err err
 	}
 
 	yml, err := yaml.Marshal(metadata)
+	if err != nil {
+		return
+	}
 	scanner := bufio.NewScanner(bytes.NewBuffer(yml))
 
 	for scanner.Scan() {
@@ -236,7 +240,7 @@ func (i *InputValue) UnmarshalYAML(unmarshal func(interface{}) error) error {
 // publicly facing Input Definition. Hash/maps in golang however aren't ordered. Luckily yaml.v2 for golang has an
 // ordered Hash called MapSlice, which is an array of MapItems which have a Key and Value field. So we turn our internal
 // array into this MapSlice when Marshalling to get something that looks like a hash but is ordered. When Unmarshalling,
-// we unmarshall to BOTH a MapSlice and a Hash of InputDefinitions. The MapSlice is simply mined to get the order.
+// we unmarshal to BOTH a MapSlice and a Hash of InputDefinitions. The MapSlice is simply mined to get the order.
 // The hash of InputDefinitions is so we can make sure we unmarshal into a well ordered struct instead of the untyped
 // interface{} pile that is MapSlice. Magic!
 func (im InputMap) MarshalYAML() (interface{}, error) {

@@ -1,3 +1,4 @@
+//go:build !right_st_make
 // +build !right_st_make
 
 package main

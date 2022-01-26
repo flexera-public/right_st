@@ -74,7 +74,7 @@ ifeq ($(GOOS),linux)
 UPLOADS:=build/$(NAME)-linux-amd64.tgz build/$(NAME)-windows-amd64.zip
 else
   ifeq ($(GOOS),darwin)
-UPLOADS:=build/$(NAME)-darwin-amd64.tgz
+UPLOADS:=build/$(NAME)-darwin-amd64.tgz build/$(NAME)-darwin-amd64.zip
   else
     ifeq ($(GOOS),windows)
 UPLOADS:=build/$(NAME)-windows-amd64.zip
@@ -141,7 +141,7 @@ upload:
 # produce a version string that is embedded into the binary that captures the branch, the date
 # and the commit we're building
 version:
-	@echo -e "// +build right_st_make\n\npackage main\n\nconst VV = \"$(NAME) $(TRAVIS_BRANCH) - $(DATE) - $(TRAVIS_COMMIT)\"" \
+	@echo -e "//go:build right_st_make\n// +build right_st_make\n\npackage main\n\nconst VV = \"$(NAME) $(TRAVIS_BRANCH) - $(DATE) - $(TRAVIS_COMMIT)\"" \
 	  >version.go
 	@echo "version.go: `tail -1 version.go`"
 

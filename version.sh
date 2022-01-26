@@ -3,7 +3,7 @@
 set -e
 
 # use GNU coreutils sort because it supports version sort
-case `uname` in
+case $(uname) in
 (Darwin)
   sort='gsort'
   ;;
@@ -14,7 +14,7 @@ esac
 
 # collect all the latest versions tagged in Git for each major version
 declare -A versions
-while read version; do
+while read -r version; do
   if [[ $version =~ ^v([0-9]+)\.[0-9]+\.[0-9]+$ ]]; then
     versions[${BASH_REMATCH[1]}]=$version
   fi
@@ -27,7 +27,7 @@ cat <<EOF
 ---
 versions:
 EOF
-for major in ${!versions[@]}; do
+for major in "${!versions[@]}"; do
   # only output versions 1 and above
   if [[ $major -ge 1 ]]; then
     echo "  $major: ${versions[$major]}"

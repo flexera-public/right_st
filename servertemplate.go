@@ -486,7 +486,7 @@ func stDownload(href, downloadTo string, usePublished bool, downloadMciSettings 
 			Path: cleanFileName(rb.RightScript.Name),
 		}
 		if usePublished {
-			// We repull the rightscript here to get the description field, which we need to break ties between
+			// We re-pull the rightscript here to get the description field, which we need to break ties between
 			// similarly named publications!
 			rsLoc := client.RightScriptLocator(rsHref)
 			rs, err := rsLoc.Show(rsapi.APIParams{})
@@ -700,7 +700,7 @@ func ParseServerTemplate(ymlData io.Reader) (*ServerTemplate, error) {
 	if err != nil {
 		return nil, err
 	}
-	for sequence, _ := range st.RightScripts {
+	for sequence := range st.RightScripts {
 		if sequence != "Boot" && sequence != "Operational" && sequence != "Decommission" {
 			typeError := fmt.Errorf("%s is not a valid sequence name for RightScripts.  Must be Boot, Operational, or Decommission:", sequence)
 			return nil, typeError
@@ -738,9 +738,8 @@ func stCommit(href, message string, commitHead, freezeRepos bool) {
 	fmt.Printf("Committing Server Template %s\n", href)
 
 	// https://reference.rightscale.com/api1.5/resources/ResourceServerTemplates.html#commit
-	err := stLocator.Commit(strconv.FormatBool(commitHead), message, strconv.FormatBool(freezeRepos))
+	_, err := stLocator.Commit(strconv.FormatBool(commitHead), message, strconv.FormatBool(freezeRepos))
 	if err != nil {
 		fatalError("%s", err.Error())
 	}
-	return
 }

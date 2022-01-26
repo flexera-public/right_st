@@ -19,7 +19,8 @@
 Since `right_st` is written in Go it is compiled to a single static binary. Extract and run the executable below:
 
 * Linux: [v1/right_st-linux-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v1/right_st-linux-amd64.tgz)
-* macOS: [v1/right_st-darwin-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v1/right_st-darwin-amd64.tgz)
+* macOS Intel: [v1/right_st-darwin-amd64.tgz](https://binaries.rightscale.com/rsbin/right_st/v1/right_st-darwin-amd64.tgz)
+* macOS ARM64: [v1/right_st-darwin-arm64.tgz](https://binaries.rightscale.com/rsbin/right_st/v1/right_st-darwin-arm64.tgz)
 * Windows: [v1/right_st-windows-amd64.zip](https://binaries.rightscale.com/rsbin/right_st/v1/right_st-windows-amd64.zip)
 
 ### Configuration
@@ -34,27 +35,26 @@ Right ST interfaces with the [RightScale API](http://reference.rightscale.com/ap
 
 ## Managing RightScripts
 
-RightScripts consist of a script body, attachments, and metadata. Metadata is embedded in the script as a comment between the hashbang and script body in the [RightScript Metadata Comments](http://docs.rightscale.com/cm/dashboard/design/rightscripts/rightscripts_metadata_comments.html) format. This allows a single script file to be a fully self-contained respresentation of a RightScript. Metadata comment format is as follows:
+RightScripts consist of a script body, attachments, and metadata. Metadata is embedded in the script as a comment between the shebang and script body in the [RightScript Metadata Comments](http://docs.rightscale.com/cm/dashboard/design/rightscripts/rightscripts_metadata_comments.html) format. This allows a single script file to be a fully self-contained representation of a RightScript. Metadata comment format is as follows:
 
-| Field | Format | Description |
-| ----- | ------ | ----------- |
-| RightScript Name | String | Name of RightScript. Name must be unique for your account. |
-| Description | String | Description field for the RightScript. Free form text which can be Markdown |
-| Inputs | Hash of String -> Input | The hash key is the input name. The hash value is an Input definition (defined below) |
-| Attachments | Array of Strings | Each string is a filename of an attachment file. Relative or absolute paths supported. Relative paths will be placed in an "attachments/" subdirectory. For example "1/foo" will expect a file foo at "attachments/1/foo"|
+| Field            | Format                  | Description                                                                                                                                                                                                               |
+| ---------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RightScript Name | String                  | Name of RightScript. Name must be unique for your account.                                                                                                                                                                |
+| Description      | String                  | Description field for the RightScript. Free form text which can be Markdown                                                                                                                                               |
+| Inputs           | Hash of String -> Input | The hash key is the input name. The hash value is an Input definition (defined below)                                                                                                                                     |
+| Attachments      | Array of Strings        | Each string is a filename of an attachment file. Relative or absolute paths supported. Relative paths will be placed in an "attachments/" subdirectory. For example "1/foo" will expect a file foo at "attachments/1/foo" |
 
 Input definition format is as follows:
 
-| Field | Format | Description |
-| ----- | ------ | ----------- |
-| Category | String | Category to group Input under |
-| Description | String | Description field for the Input |
-| Input Type | String | `single` or `array` |
-| Default | String | Default value. Value must be in [Inputs 2.0 format](http://reference.rightscale.com/api1.5/resources/ResourceInputs.html) from RightScale API which consists of a type followed by a colon then the value. I.e. "text:Foo", "ignore", "env:ENV_VAR" |
-| Required | Boolean | `true` or `false`. Whether or not the Input is required |
-| Advanced | Boolean | `true` or `false`. Whether or not the Input is advanced (hidden by default) |
-| Possible Values | Array of Strings | If supplied, a drop down list of values will be supplied in the UI for this input. Each string must be a text type in [Inputs 2.0 format](http://reference.rightscale.com/api1.5/resources/ResourceInputs.html). |
-
+| Field           | Format           | Description                                                                                                                                                                                                                                         |
+| --------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Category        | String           | Category to group Input under                                                                                                                                                                                                                       |
+| Description     | String           | Description field for the Input                                                                                                                                                                                                                     |
+| Input Type      | String           | `single` or `array`                                                                                                                                                                                                                                 |
+| Default         | String           | Default value. Value must be in [Inputs 2.0 format](http://reference.rightscale.com/api1.5/resources/ResourceInputs.html) from RightScale API which consists of a type followed by a colon then the value. I.e. "text:Foo", "ignore", "env:ENV_VAR" |
+| Required        | Boolean          | `true` or `false`. Whether or not the Input is required                                                                                                                                                                                             |
+| Advanced        | Boolean          | `true` or `false`. Whether or not the Input is advanced (hidden by default)                                                                                                                                                                         |
+| Possible Values | Array of Strings | If supplied, a drop down list of values will be supplied in the UI for this input. Each string must be a text type in [Inputs 2.0 format](http://reference.rightscale.com/api1.5/resources/ResourceInputs.html).                                    |
 
 Example RightScript is as follows. This RightScript has one attachment, which must be located at "attachments/foo" relative
 to the script.
@@ -85,9 +85,10 @@ foo $FOO_PARAM
 ```
 
 ### RightScript Usage
+
 The following RightScript related commands are supported:
 
-```
+```text
 right_st rightscript show <name|href|id>
   Show a single RightScript and its attachments. 
 
@@ -120,24 +121,23 @@ right_st rightscript commit --message=MESSAGE <name|href|id|path>...
     Commit RightScript
 ```
 
-
 ## Managing ServerTemplates
 
 ServerTemplates are defined by a YAML format representing the ServerTemplate. The following keys are supported:
 
-| Field | Format | Description |
-| ----- | ------ | ----------- |
-| Name | String | Name of the ServerTemplate. Name must be unique for your account. |
-| Description | String | Description field for the ServerTemplate. |
-| RightScripts | Hash of String -> Array of RightScripts| The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of RightScripts. Each RightScript can be specified in one of three ways, as a 1. "local" managed 2. "published", or 3. "external" RightScript. A locally managed RightScript is specified as a pathname to a file on disk and the file contents are synchonized to the HEAD revision of a RightScript in your local account. Published RightScripts are links to pre-existing RightScripts shared in the MultiCloud marketplace and consist of a hash specifying a Name/Revision/Publisher to look up. External RightScripts are pre-existing RightScripts consisting of a Name/Revision pair and will not search the MultiCloud marketplace. |
-| Inputs | Hash of String -> String | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overridden in a ServerTemplate. |
-| MultiCloudImages | Array of MultiCloudImages | An array of MultiCloudImage definitions and/or MultiCloudImage YAML file references. A MultiCloudImage definition is a hash of fields taking a few different formats. See section below for further details. |
-| Alerts | Array of Alerts | An array of Alert definitions and/or Alert YAML file references, defined below. |
+| Field            | Format                                  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Name             | String                                  | Name of the ServerTemplate. Name must be unique for your account.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Description      | String                                  | Description field for the ServerTemplate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| RightScripts     | Hash of String -> Array of RightScripts | The hash key is the sequence type, one of "Boot", "Operational", or "Decommission". The hash value is a array of RightScripts. Each RightScript can be specified in one of three ways, as a 1. "local" managed 2. "published", or 3. "external" RightScript. A locally managed RightScript is specified as a pathname to a file on disk and the file contents are synchronized to the HEAD revision of a RightScript in your local account. Published RightScripts are links to pre-existing RightScripts shared in the MultiCloud marketplace and consist of a hash specifying a Name/Revision/Publisher to look up. External RightScripts are pre-existing RightScripts consisting of a Name/Revision pair and will not search the MultiCloud marketplace. |
+| Inputs           | Hash of String -> String                | The hash key is the input name. The hash value is the default value. Note this inputs array is much simpler than the Input definition in RightScripts - only default values can be overridden in a ServerTemplate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| MultiCloudImages | Array of MultiCloudImages               | An array of MultiCloudImage definitions and/or MultiCloudImage YAML file references. A MultiCloudImage definition is a hash of fields taking a few different formats. See section below for further details.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Alerts           | Array of Alerts                         | An array of Alert definitions and/or Alert YAML file references, defined below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 A MultiCloudImage definition allows you to specify an MCI in four different ways by supplying different hash keys. The first three combinations specified below allow you to use pre-existing MCIs. The fourth one allows you to fully manage an MCI in your local account:
 
 1. 'Name' and 'Revision' and 'Publisher': Name/Revision/Publisher of MCI available in the MultiCloud Marketplace. The MCI will be automatically imported into the account if it's not already there. Preferred. "latest" may be specified for the revision to get the latest revision.
-2. 'Name' and 'Revision'.: Name/Revision of MCI in your local account. It will not attempt to be autoimported from the MultiCloud Marketplace. "latest" or "head" may be specified to get the latest committed revision and "head" revision respectively.
+2. 'Name' and 'Revision'.: Name/Revision of MCI in your local account. It will not attempt to be auto-imported from the MultiCloud Marketplace. "latest" or "head" may be specified to get the latest committed revision and "head" revision respectively.
 3. 'Href': Href of the MCI in the account being uploaded. This is a fallback in case 1 or 2 doesn't work.
 4. Fully specified. The following keys are supported:
     * 'Name' - String - Name of the MCI
@@ -149,14 +149,14 @@ A MultiCloudImage definition allows you to specify an MCI in four different ways
         * `Instance Type` - String - Required - Name of instance type.
         * `User Data` - String - Optional - User Data template for this cloud/image combination.
 
-A MultiCloudImage YAML file is referenced as a normal string in the MultiCloudImages array which is the realtaive path to a YAML file containing an individual MultiCloudImage definition.
+A MultiCloudImage YAML file is referenced as a normal string in the MultiCloudImages array which is the relative path to a YAML file containing an individual MultiCloudImage definition.
 
 An Alert definition consists of three fields: a Name, Definition, and Clause (all strings). Clause is a text description of the Alert with this exact format: `If <Metric>.<ValueType> <ComparisonOperator> <Threshold> for <Duration> minutes Then <Action> <ActionValue>`:
 
 * Metric is a collectd metric name such as `cpu-0/cpu-idle`.
 * ValueType is the metric type (`value`, `count`, etc - allowable values differ for each metric so look in the dashboard!).
 * ComparisonOperator is `>`, `>=`, `<`, `<=`, `==`, or `!=`
-* Threshold is a numeric value such as `100` or `0.5` or `NaN` for all Metrics except for the RS/* ones. For the RS/* ones its a one of the following server states: `pending`, `booting`, `operational`, `decommission`, `shutting-down`, `terminated`
+* Threshold is a numeric value such as `100` or `0.5` or `NaN` for all Metrics except for the `RS/*` ones. For the `RS/*` ones its a one of the following server states: `pending`, `booting`, `operational`, `decommission`, `shutting-down`, `terminated`
 * Duration is minutes and must be an integer greater than 0.
 * Action is either "escalate" in which case the ActionValue is the name of the escalation. Or Action is "grow" or "shrink" in which case ActionValue is the custom tag value to use as the voting tag.
 
@@ -254,7 +254,7 @@ Alerts:
 
 The following ServerTemplate related commands are supported:
 
-```
+```text
 right_st st show <name|href|id>
   Show a single ServerTemplate
 
@@ -268,7 +268,7 @@ right_st st delete <path>...
   Delete dev/test ServerTemplates and RightScripts with a prefix
   Flags:
     -x, --prefix <prefix>:  Delete with this prefix. This commands acts as a cleanup
-                            for ServerTepmlates uploaded with --prefix.
+                            for ServerTemplates uploaded with --prefix.
 
 right_st st download <name|href|id> [<path>]
   Download a ServerTemplate and all associated RightScripts/Attachments to disk
