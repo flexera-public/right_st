@@ -159,7 +159,7 @@ func UpdateList(vv string, output io.Writer) error {
 
 	// sort the major versions so we can iterate through them in order
 	majors := make([]int, 0, len(latest.Versions))
-	for major, _ := range latest.Versions {
+	for major := range latest.Versions {
 		majors = append(majors, int(major))
 	}
 	sort.Ints(majors)
@@ -335,7 +335,7 @@ func UpdateApply(vv string, output io.Writer, majorVersion int, targetPath strin
 }
 
 // NewVersion creates a version struct from a version string of the form vX.Y.Z where X, Y, Z are the major, minor, and
-// patch version numbers respectively. It returns a pointer to a version struct if sucessful or an error if there is a
+// patch version numbers respectively. It returns a pointer to a version struct if successful or an error if there is a
 // failure.
 func NewVersion(version string) (*Version, error) {
 	submatches := versionString.FindStringSubmatch(version)
@@ -416,7 +416,7 @@ func (v *Version) UnmarshalYAML(unmarshal func(interface{}) error) error {
 // MajorVersion gets the latest major version from a latest versions struct.
 func (l *LatestVersions) MajorVersion() int {
 	if l.majorVersion == 0 {
-		for major, _ := range l.Versions {
+		for major := range l.Versions {
 			if major > l.majorVersion {
 				l.majorVersion = major
 			}

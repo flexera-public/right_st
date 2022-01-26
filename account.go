@@ -74,7 +74,7 @@ func (account *Account) Client16() (*cm16.API, error) {
 
 func (account *Account) Auth() (rsapi.Authenticator, error) {
 	if account.RefreshToken != "" {
-		return rsapi.NewOAuthAuthenticator(account.RefreshToken, account.Id), nil
+		return rsapi.NewOAuthAuthenticator(account.RefreshToken, account.Id, false), nil
 	} else {
 		password, err := account.DecryptPassword()
 		if err != nil {

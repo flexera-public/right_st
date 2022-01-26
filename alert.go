@@ -29,7 +29,7 @@ func (alert *Alert) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return nil
 	}
 
-	// make a dummy struct that will parse the same as Alert so we can unmarshall it without having UnmarshalYAML infinitely recursing
+	// make a dummy struct that will parse the same as Alert so we can unmarshal it without having UnmarshalYAML infinitely recursing
 	var mapAlert struct {
 		Name        string `yaml:"Name"`
 		Description string `yaml:"Description,omitempty"`

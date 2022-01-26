@@ -1,7 +1,6 @@
 package main_test
 
 import (
-	"io"
 	"strings"
 
 	. "github.com/rightscale/right_st"
@@ -16,8 +15,7 @@ import (
 var _ = Describe("RightScript Metadata", func() {
 	Describe("Parse RightScript metadata", func() {
 		Context("With valid script metadata", func() {
-			var validScript io.ReadSeeker
-			validScript = strings.NewReader(`#!/bin/bash
+			validScript := strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -60,7 +58,7 @@ var _ = Describe("RightScript Metadata", func() {
 						Required:       true,
 						Advanced:       false,
 						Default:        &InputValue{"text", "foobar"},
-						PossibleValues: []*InputValue{&InputValue{"text", "foobar"}, &InputValue{"text", "barfoo"}},
+						PossibleValues: []*InputValue{{"text", "foobar"}, {"text", "barfoo"}},
 					},
 					InputMetadata{
 						Name:        "SUPPORTED_VERSIONS",
@@ -80,8 +78,7 @@ var _ = Describe("RightScript Metadata", func() {
 		})
 
 		Context("With no script metadata", func() {
-			var noMetadataScript io.ReadSeeker
-			noMetadataScript = strings.NewReader(`#!/bin/bash
+			noMetadataScript := strings.NewReader(`#!/bin/bash
 # There is no metadata comment here
 `)
 
@@ -93,8 +90,7 @@ var _ = Describe("RightScript Metadata", func() {
 		})
 
 		Context("With missing end delimiter in script metadata", func() {
-			var missingEndDelimiterScript io.ReadSeeker
-			missingEndDelimiterScript = strings.NewReader(`#!/bin/bash
+			missingEndDelimiterScript := strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -121,8 +117,7 @@ var _ = Describe("RightScript Metadata", func() {
 		})
 
 		Context("With invalid YAML syntax in script metadata", func() {
-			var invalidYamlSyntaxScript io.ReadSeeker
-			invalidYamlSyntaxScript = strings.NewReader(`#!/bin/bash
+			invalidYamlSyntaxScript := strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -146,8 +141,7 @@ var _ = Describe("RightScript Metadata", func() {
 		})
 
 		Context("With invalid structure in script metadata", func() {
-			var invalidMetadataStructureScript io.ReadSeeker
-			invalidMetadataStructureScript = strings.NewReader(`#!/bin/bash
+			invalidMetadataStructureScript := strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -169,8 +163,7 @@ var _ = Describe("RightScript Metadata", func() {
 		})
 
 		Context("With incorrect input type syntax in script metadata", func() {
-			var incorrectInputTypeSyntaxScript io.ReadSeeker
-			incorrectInputTypeSyntaxScript = strings.NewReader(`#!/bin/bash
+			incorrectInputTypeSyntaxScript := strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -193,8 +186,7 @@ var _ = Describe("RightScript Metadata", func() {
 		})
 
 		Context("With incorrect input value syntax in script metadata", func() {
-			var incorrectInputValueSyntaxScript io.ReadSeeker
-			incorrectInputValueSyntaxScript = strings.NewReader(`#!/bin/bash
+			incorrectInputValueSyntaxScript := strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -218,8 +210,7 @@ var _ = Describe("RightScript Metadata", func() {
 		})
 
 		Context("With a blank text input value in script metadata", func() {
-			var emptyTextValueScript io.ReadSeeker
-			emptyTextValueScript = strings.NewReader(`#!/bin/bash
+			emptyTextValueScript := strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -243,8 +234,7 @@ var _ = Describe("RightScript Metadata", func() {
 		})
 
 		Context("With an unknown field in script metadata", func() {
-			var unknownFieldScript io.ReadSeeker
-			unknownFieldScript = strings.NewReader(`#!/bin/bash
+			unknownFieldScript := strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -264,8 +254,7 @@ var _ = Describe("RightScript Metadata", func() {
 		})
 
 		Context("With a duplicate input in script metadata", func() {
-			var duplicateInputScript io.ReadSeeker
-			duplicateInputScript = strings.NewReader(`#!/bin/bash
+			duplicateInputScript := strings.NewReader(`#!/bin/bash
 # ---
 # RightScript Name: Some RightScript Name
 # Description: Some description of stuff
@@ -342,7 +331,7 @@ var _ = Describe("RightScript Metadata", func() {
 						Required:       true,
 						Advanced:       false,
 						Default:        &InputValue{"text", "foobar"},
-						PossibleValues: []*InputValue{&InputValue{"text", "foobar"}, &InputValue{"text", "barfoo"}},
+						PossibleValues: []*InputValue{{"text", "foobar"}, {"text", "barfoo"}},
 					},
 					InputMetadata{
 						Name:        "SUPPORTED_VERSIONS",

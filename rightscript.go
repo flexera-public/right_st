@@ -270,7 +270,7 @@ func rightScriptDownload(href, downloadTo string) string {
 	// handled in that the builtin metadata will reflect whats on disk
 	scaffoldedSourceBytes, err := scaffoldBuffer(source, apiMetadata, "", false)
 	if err == nil {
-		if bytes.Compare(scaffoldedSourceBytes, source) != 0 {
+		if !bytes.Equal(scaffoldedSourceBytes, source) {
 			fmt.Println("Automatically inserted RightScript metadata.")
 		}
 		err = ioutil.WriteFile(downloadTo, scaffoldedSourceBytes, 0755)
@@ -373,7 +373,7 @@ func deleteRightScript(file string, prefix string) error {
 
 	var scriptName string
 	if metadata == nil {
-		scriptName := path.Base(file)
+		scriptName = path.Base(file)
 		scriptExt := path.Ext(scriptName)
 		scriptName = strings.TrimRight(scriptName, scriptExt)
 	} else {
@@ -522,12 +522,12 @@ func findRightScript(name string, revision int, matchers map[string]string) (*cm
 	}
 	// Publisher handled a bit specially. Unfortunately, there is no Publisher field for a RightScript. We have a lineage
 	// field has account ids in it. We have limited ability to match account ids to lineages unfortunately :(
-	publisher, _ := matchers[`Publisher`]
+	publisher := matchers[`Publisher`]
 	publishers := map[string]string{
 		"RightScale":      "/2901/",
 		"RightLink Agent": "/67972/",
 	}
-	publisher, _ = publishers[publisher]
+	publisher = publishers[publisher]
 
 	maxRevision := -1
 	var scripts []*cm15.RightScript
@@ -616,17 +616,23 @@ func (r *RightScript) PushRemote() error {
 		rev = pub.Revision
 	}
 	script, err := findRightScript(r.Name, rev, pubMatcher)
+	if err != nil {
+		return err
+	}
 	if script == nil {
 		if pub == nil {
 			return fmt.Errorf("Could not find RightScript '%s' Revision %s in local account. Add a 'Publisher' to also search the MultiCloud Marketplace", r.Name, formatRev(r.Revision))
 		} else {
 			loc := pub.Locator(client)
-			err = loc.Import()
+			_, err = loc.Import()
 			if err != nil {
 				return fmt.Errorf("Failed to import publication %s for RightScript '%s' Revision %s Publisher %s\n",
 					getLink(pub.Links, "self"), r.Name, formatRev(rev), r.Publisher)
 			}
 			script, err = findRightScript(r.Name, rev, pubMatcher)
+			if err != nil {
+				return err
+			}
 			if script == nil {
 				return fmt.Errorf("Could not refind RightScript '%s' Revision %s after import!", r.Name, formatRev(rev))
 			} else {
@@ -702,7 +708,7 @@ func (r *RightScript) PushLocal(prefix string) error {
 	}
 
 	toUpload := make(map[string]string)                           // scripts we want to upload
-	onRightscript := make(map[string]*cm15.RightScriptAttachment) // scripts attached to the rightsript
+	onRightscript := make(map[string]*cm15.RightScriptAttachment) // scripts attached to the rightscript
 	for _, a := range r.Metadata.Attachments {
 		fullPath := filepath.Join(filepath.Dir(r.Path), "attachments", a)
 		md5, err := fmd5sum(fullPath)
@@ -710,7 +716,7 @@ func (r *RightScript) PushLocal(prefix string) error {
 			return err
 		}
 		// We use a compound key with the name+md5 here to work around a couple corner cases
-		//   - if the file is renamed, it'll be deleted and reuploaded
+		//   - if the file is renamed, it'll be deleted and re-uploaded
 		//   - if two files have the same md5 for whatever reason they won't clash
 		toUpload[path.Base(a)+"_"+md5] = a
 	}
@@ -720,7 +726,7 @@ func (r *RightScript) PushLocal(prefix string) error {
 
 	// Two passes. First pass we delete RightScripts. This comes up when a file was
 	// removed from the RightScript, or when the contents of a file on disk changed.
-	// In the second case, the second pass will reupload the correct attachment.
+	// In the second case, the second pass will re-upload the correct attachment.
 	for digestKey, a := range onRightscript {
 		if _, ok := toUpload[digestKey]; !ok {
 			loc := a.Locator(client)
@@ -841,14 +847,13 @@ func rightScriptCommit(href, message string) {
 
 	fmt.Printf("Committing RightScript %s\n", href)
 
-	err := rightscriptLocator.Commit(
+	_, err := rightscriptLocator.Commit(
 		&cm15.RightScriptParam{
 			CommitMessage: message,
 		})
 	if err != nil {
 		fatalError("%s", err.Error())
 	}
-	return
 }
 
 func (rs RightScript) MarshalYAML() (interface{}, error) {

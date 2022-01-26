@@ -64,22 +64,22 @@ MultiCloudImages:
 				Expect(st.Name).To(Equal("Test ST"))
 				Expect(st.Description).To(Equal("Test ST Description"))
 				Expect(st.Alerts).To(Equal([]*Alert{
-					&Alert{Name: "CPU Scale Down",
+					{Name: "CPU Scale Down",
 						Description: "Votes to shrink ServerArray",
 						Clause:      "If cpu-0/cpu-idle.value > '50' for 3 minutes Then shrink my_app_name"},
-					&Alert{Name: "Low memory warning",
+					{Name: "Low memory warning",
 						Clause: "If memory/memory-free.value < 100000000 for 5 minutes Then escalate warning"},
 				}))
-				Expect(st.Inputs).To(Equal(map[string]*InputValue{"SERVER_HOSTNAME": &InputValue{Type: "text", Value: "test.local"}}))
+				Expect(st.Inputs).To(Equal(map[string]*InputValue{"SERVER_HOSTNAME": {Type: "text", Value: "test.local"}}))
 				Expect(st.RightScripts["Boot"]).To(Equal(dummy1List))
 				Expect(st.RightScripts["Operational"]).To(Equal(dummy2List))
 				Expect(st.RightScripts["Decommission"]).To(Equal(dummy3List))
 				Expect(st.MultiCloudImages).To(Equal([]*MultiCloudImage{
-					&MultiCloudImage{Href: "/api/multi_cloud_images/403042003"},
-					&MultiCloudImage{Name: "FooImage", Revision: 100},
-					&MultiCloudImage{Name: "FooCorpImage", Revision: 100, Publisher: "FooCorp"},
-					&MultiCloudImage{Name: "ImageBasedMci", Settings: []*Setting{
-						&Setting{Cloud: "AWS US-West", InstanceType: "t1.micro", Image: "ami-e305efa7", UserData: "Foo"},
+					{Href: "/api/multi_cloud_images/403042003"},
+					{Name: "FooImage", Revision: 100},
+					{Name: "FooCorpImage", Revision: 100, Publisher: "FooCorp"},
+					{Name: "ImageBasedMci", Settings: []*Setting{
+						{Cloud: "AWS US-West", InstanceType: "t1.micro", Image: "ami-e305efa7", UserData: "Foo"},
 					}},
 				}))
 			})

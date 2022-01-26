@@ -48,7 +48,7 @@ func ScaffoldRightScript(path string, backup bool, stdout io.Writer, force bool)
 	}
 	if metadata != nil {
 		if !force {
-			fmt.Fprintf(stdout, "%s: Script unchanged, already contains metadata. Use --force to force redetection.\n", path)
+			fmt.Fprintf(stdout, "%s: Script unchanged, already contains metadata. Use --force to force re-detection.\n", path)
 			return nil
 		}
 	} else {
@@ -88,7 +88,7 @@ func ScaffoldRightScript(path string, backup bool, stdout io.Writer, force bool)
 //   err error - error value
 func scaffoldBuffer(source []byte, defaults RightScriptMetadata, filename string, detectInputs bool) ([]byte, error) {
 	// We simply start with the defaults passed in as our base set of metadata.
-	// Merging of defaults with exisiting metadata items happens before this function as strategies will be different
+	// Merging of defaults with existing metadata items happens before this function as strategies will be different
 	// based on the source.
 	metadata := &defaults
 
@@ -156,7 +156,7 @@ func scaffoldBuffer(source []byte, defaults RightScriptMetadata, filename string
 			}
 		}
 
-		// We don't want to redetect for RightScripts -- users may have left out inputs on purpose to ignore them.
+		// We don't want to re-detect for RightScripts -- users may have left out inputs on purpose to ignore them.
 		if !detectInputs {
 			continue
 		}
@@ -238,7 +238,7 @@ func scaffoldBuffer(source []byte, defaults RightScriptMetadata, filename string
 	}
 
 	if err := scanner.Err(); err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	// Pass 3: Create a new buffer with the metadata inserted at the right point.
@@ -247,12 +247,18 @@ func scaffoldBuffer(source []byte, defaults RightScriptMetadata, filename string
 	for lineCount := 0; scanner.Scan(); lineCount += 1 {
 		line := scanner.Text()
 		if lineCount == metadataStartLine {
-			metadata.WriteTo(&script)
+			_, err := metadata.WriteTo(&script)
+			if err != nil {
+				return nil, err
+			}
 		}
 		script.WriteString(line + "\n")
 	}
 	if len(script.Bytes()) == 0 {
-		metadata.WriteTo(&script)
+		_, err := metadata.WriteTo(&script)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return script.Bytes(), nil

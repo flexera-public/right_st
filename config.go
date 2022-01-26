@@ -291,7 +291,10 @@ func (config *ConfigViper) ShowConfiguration(output io.Writer) error {
 	if err != nil {
 		return err
 	}
-	output.Write(yml)
+	_, err = output.Write(yml)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
